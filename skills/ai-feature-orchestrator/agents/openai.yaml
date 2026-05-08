@@ -1,0 +1,6 @@
+interface:
+  display_name: "AI Feature Orchestrator"
+  short_description: "Route a feature through the AI workflow"
+  default_prompt: "Use $ai-feature-orchestrator to run this feature through the evidence-first AI workflow."
+policy:
+  allow_implicit_invocation: true

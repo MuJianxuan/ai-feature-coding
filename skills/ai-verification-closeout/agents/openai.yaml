@@ -1,0 +1,6 @@
+interface:
+  display_name: "AI Verification Closeout"
+  short_description: "Map acceptance criteria to verification evidence"
+  default_prompt: "Use $ai-verification-closeout to verify the feature and complete closeout docs."
+policy:
+  allow_implicit_invocation: true
