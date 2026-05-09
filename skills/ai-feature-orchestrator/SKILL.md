@@ -1,6 +1,6 @@
 ---
 name: ai-feature-orchestrator
-description: "AI Feature Workflow 总调度技能。Activation restricted: use only when the user explicitly names `ai-feature-orchestrator`, explicitly asks to use/start this AI Feature Workflow or 技能工作流, or another legally activated skill explicitly routes here. Do not auto-trigger for ordinary feature requests, repo audits, coding, debugging, design, planning, or closeout."
+description: "AI Feature Workflow 总调度技能。Activation restricted: use only when the user explicitly names `ai-feature-orchestrator`, explicitly asks to use/start this AI Feature Workflow or 技能工作流. Do not auto-trigger for ordinary feature requests, repo audits, coding, debugging, design, planning, or closeout."
 ---
 
 # AI Feature Orchestrator
@@ -13,10 +13,11 @@ description: "AI Feature Workflow 总调度技能。Activation restricted: use o
 
 ## Activation policy
 
-本 skill 是 explicit opt-in，不参与普通 Codex 工作流的自动触发。只有满足以下任一条件，才允许进入本 skill：
+本 skill 是 explicit opt-in，不参与普通 Codex 工作流的自动触发。只有满足以下条件，才允许进入本 skill：
 
-1. 用户在当前请求中明确写出 `ai-feature-orchestrator`，或明确要求“使用/启动这套 AI Feature Workflow / 技能工作流”。
-2. 另一个已经合法触发的 skill 在当前上下文中显式路由到本 skill。
+- 用户在当前请求中明确写出 `ai-feature-orchestrator`，或明确要求“使用/启动这套 AI Feature Workflow / 技能工作流”。
+
+本 skill 自身不接受其他 skill 的被动路由；需要调度时必须由用户显式启动本 skill。
 
 不满足以上条件时：
 
@@ -143,7 +144,7 @@ SKILL_ROOT/
 8. `design.md` 的 `stage_status` 为 `blocked`，或标记 `DESIGN_BLOCKED`：停止并报告设计阻塞证据，不进入任务拆解。
 9. `design.md` 的 `stage_status` 为 `draft`，或没有影响范围、目标链路、风险回滚、验证策略：路由到 `ai-technical-design`。
 10. `design.md` 的 `stage_status` 为 `ready`，但 `approval_status` 不是 `approved`，且当前用户请求没有明确批准设计或要求进入任务拆解：停止并提示等待设计审批。
-11. 当前用户请求明确批准设计或要求进入任务拆解时，先在 `design.md` 记录 `approval_status: approved`、`approved_by`、`approved_at`、`approval_evidence`，再继续判断。
+11. 当前用户请求明确批准设计或要求进入任务拆解时，先在 `design.md` 记录 `approval_status: approved`、`approved_by`、`approved_at`、`approval_evidence`，同步更新 `updated_at` 并保持 `evidence_complete: true`，再继续判断。
 12. `tasks.md` 缺失：路由到 `ai-task-planning`。
 13. `tasks.md` 的 `stage_status` 为 `blocked`：停止并报告任务规划阻塞证据。
 14. `tasks.md` 的 `stage_status` 为 `draft`，或任务没有输入、输出、完成判定、关联模块/文件：路由到 `ai-task-planning`。

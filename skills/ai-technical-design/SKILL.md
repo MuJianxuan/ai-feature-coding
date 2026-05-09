@@ -1,6 +1,6 @@
 ---
 name: ai-technical-design
-description: "AI 技术设计技能。Activation restricted: use only when the user explicitly names `ai-technical-design`, or a legally activated AI Feature Workflow or orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary architecture, design, planning, or proposal work."
+description: "AI 技术设计技能。Activation restricted: use only when the user explicitly names `ai-technical-design`, or `ai-feature-orchestrator` explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary architecture, design, planning, or proposal work."
 ---
 
 # AI Technical Design
@@ -18,7 +18,7 @@ description: "AI 技术设计技能。Activation restricted: use only when the u
 本 skill 只能在以下情况下使用：
 
 1. 用户在当前请求中明确写出 `ai-technical-design`，或明确要求使用 AI Feature Workflow 的技术设计阶段。
-2. `ai-feature-orchestrator` 或另一个已经合法触发的 skill 显式路由到本 skill，并传入 `feature_dir`。
+2. `ai-feature-orchestrator` 显式路由到本 skill，并传入 `feature_dir`。
 
 不满足时：
 
@@ -29,7 +29,7 @@ description: "AI 技术设计技能。Activation restricted: use only when the u
 ## 启动模式与 route contract
 
 - `direct_explicit`：用户在当前请求中明确写出 `ai-technical-design`。这种模式也必须提供已有 `feature_dir`；如果缺少，立即停止并提示用户改用 `ai-feature-orchestrator` 新建或选择 feature 目录。
-- `routed_invocation`：不是用户直接点名本 skill，而是被工作流路由。此时必须同时收到：
+- `routed_invocation`：不是用户直接点名本 skill，而是被 `ai-feature-orchestrator` 路由。此时必须同时收到：
   - `activation_source: ai-feature-orchestrator`
   - `feature_dir: <相对或绝对路径>`
   - `stage_evidence: <为什么进入技术设计阶段的证据>`
@@ -85,4 +85,4 @@ description: "AI 技术设计技能。Activation restricted: use only when the u
 
 ## 输出
 
-更新 `design.md`。如果方案仍依赖未确认业务决策，在文档顶部标记 `DESIGN_BLOCKED`，并将 frontmatter `stage_status` 标记为 `blocked`、`approval_status` 标记为 `blocked`；如果设计可直接拆任务，将 `stage_status` 标记为 `ready`，但保持 `approval_status: pending`，等待用户明确批准后才能进入 `ai-task-planning`。输出下一步建议后停止。
+更新 `design.md`。如果方案仍依赖未确认业务决策，在文档顶部标记 `DESIGN_BLOCKED`，并将 frontmatter `stage_status` 标记为 `blocked`、`evidence_complete: false`、`approval_status` 标记为 `blocked`；如果设计可直接拆任务，将 `stage_status` 标记为 `ready`、`evidence_complete: true`，但保持 `approval_status: pending`，等待用户明确批准后才能进入 `ai-task-planning`。每次写入 `design.md` 都必须同步更新 `updated_at`。输出下一步建议后停止。

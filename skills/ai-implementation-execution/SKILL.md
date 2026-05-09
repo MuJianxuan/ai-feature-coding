@@ -1,6 +1,6 @@
 ---
 name: ai-implementation-execution
-description: "AI 编码执行技能。Activation restricted: use only when the user explicitly names `ai-implementation-execution`, or a legally activated AI Feature Workflow or orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary coding, bug fixing, config edits, or implementation requests."
+description: "AI 编码执行技能。Activation restricted: use only when the user explicitly names `ai-implementation-execution`, or `ai-feature-orchestrator` explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary coding, bug fixing, config edits, or implementation requests."
 ---
 
 # AI Implementation Execution
@@ -18,7 +18,7 @@ description: "AI 编码执行技能。Activation restricted: use only when the u
 本 skill 只能在以下情况下使用：
 
 1. 用户在当前请求中明确写出 `ai-implementation-execution`，或明确要求使用 AI Feature Workflow 的编码执行阶段。
-2. `ai-feature-orchestrator` 或另一个已经合法触发的 skill 显式路由到本 skill，并传入 `feature_dir`。
+2. `ai-feature-orchestrator` 显式路由到本 skill，并传入 `feature_dir`。
 
 不满足时：
 
@@ -29,7 +29,7 @@ description: "AI 编码执行技能。Activation restricted: use only when the u
 ## 启动模式与 route contract
 
 - `direct_explicit`：用户在当前请求中明确写出 `ai-implementation-execution`。这种模式也必须提供已有 `feature_dir`；如果缺少，立即停止并提示用户改用 `ai-feature-orchestrator` 新建或选择 feature 目录。
-- `routed_invocation`：不是用户直接点名本 skill，而是被工作流路由。此时必须同时收到：
+- `routed_invocation`：不是用户直接点名本 skill，而是被 `ai-feature-orchestrator` 路由。此时必须同时收到：
   - `activation_source: ai-feature-orchestrator`
   - `feature_dir: <相对或绝对路径>`
   - `stage_evidence: <为什么进入编码执行阶段的证据>`
@@ -57,7 +57,7 @@ description: "AI 编码执行技能。Activation restricted: use only when the u
 ## 开始前
 
 1. 读取 `requirements.md`、`investigation.md`、`design.md`、`tasks.md`、`verification.md`。
-2. 选择第一个 `TODO` 任务，或用户明确指定的任务。
+2. 如果存在真实 `DOING` 任务，优先恢复该任务；否则选择用户明确指定的任务，或第一个真实 `TODO` 任务。
 3. 将任务状态改为 `DOING`，记录开始时间和执行者为 AI。
 4. 检查工作区状态。不要覆盖用户已有改动；遇到冲突先读懂再处理。
 
@@ -75,7 +75,9 @@ description: "AI 编码执行技能。Activation restricted: use only when the u
 1. 执行任务的完成判定。
 2. 通过则把状态改为 `DONE`，写交付记录：改动文件、验证命令、结果、残余风险。
 3. 未通过但可继续排查时继续；确实缺少外部条件时改为 `BLOCKED` 并写明证据。
-4. 更新 `verification.md` 中对应检查项。
+4. 每次修改 `tasks.md` 的任务状态、交付记录或风险时，都必须同步更新 `tasks.md updated_at`，并保持 `task_count` 等于真实任务数量。
+5. 除非经过 scope change 回流并重新规划任务，否则不要在编码执行阶段改变 `tasks.md stage_status` 或随意调整 `task_count`。
+6. 更新 `verification.md` 中对应检查项；每次写入 `verification.md` 都必须同步更新 `updated_at`。如果检查项仍未满足，保持 `verification.md evidence_complete: false`，不要提前标记完成。
 
 ## Resume protocol
 

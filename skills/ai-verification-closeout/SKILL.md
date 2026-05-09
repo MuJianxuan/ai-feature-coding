@@ -1,6 +1,6 @@
 ---
 name: ai-verification-closeout
-description: "AI 验证收口技能。Activation restricted: use only when the user explicitly names `ai-verification-closeout`, or a legally activated AI Feature Workflow or orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary testing, verification, QA, release notes, or handoff requests."
+description: "AI 验证收口技能。Activation restricted: use only when the user explicitly names `ai-verification-closeout`, or `ai-feature-orchestrator` explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary testing, verification, QA, release notes, or handoff requests."
 ---
 
 # AI Verification Closeout
@@ -18,7 +18,7 @@ description: "AI 验证收口技能。Activation restricted: use only when the u
 本 skill 只能在以下情况下使用：
 
 1. 用户在当前请求中明确写出 `ai-verification-closeout`，或明确要求使用 AI Feature Workflow 的验证收口阶段。
-2. `ai-feature-orchestrator` 或另一个已经合法触发的 skill 显式路由到本 skill，并传入 `feature_dir`。
+2. `ai-feature-orchestrator` 显式路由到本 skill，并传入 `feature_dir`。
 
 不满足时：
 
@@ -29,7 +29,7 @@ description: "AI 验证收口技能。Activation restricted: use only when the u
 ## 启动模式与 route contract
 
 - `direct_explicit`：用户在当前请求中明确写出 `ai-verification-closeout`。这种模式也必须提供已有 `feature_dir`；如果缺少，立即停止并提示用户改用 `ai-feature-orchestrator` 新建或选择 feature 目录。
-- `routed_invocation`：不是用户直接点名本 skill，而是被工作流路由。此时必须同时收到：
+- `routed_invocation`：不是用户直接点名本 skill，而是被 `ai-feature-orchestrator` 路由。此时必须同时收到：
   - `activation_source: ai-feature-orchestrator`
   - `feature_dir: <相对或绝对路径>`
   - `stage_evidence: <为什么进入验证收口阶段的证据>`
@@ -41,7 +41,7 @@ description: "AI 验证收口技能。Activation restricted: use only when the u
 
 - 已收到明确的 `feature_dir`。
 - `feature_dir` 目录存在。
-- `requirements.md`、`design.md` 和 `tasks.md` 已存在。
+- `requirements.md`、`investigation.md`、`design.md` 和 `tasks.md` 已存在。
 - `verification.md` 和 `handoff.md` 已由 orchestrator/template 准备好。
 
 如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
@@ -58,11 +58,12 @@ description: "AI 验证收口技能。Activation restricted: use only when the u
 ## 验证顺序
 
 1. 读取 `requirements.md` 的 acceptance criteria。
-2. 读取 `tasks.md`，确认所有 in-scope 任务为 `DONE` 或有明确 `BLOCKED` 说明。
-3. 按 `design.md` 的验证策略执行 targeted checks。
-4. 对每条验收标准记录证据：命令、日志、截图路径、接口响应摘要、数据查询或手工步骤。
-5. 检查相关同类路径是否需要回归。
-6. 汇总无法验证的项目和原因。
+2. 读取 `investigation.md` 的真实调用链、数据来源、相似实现、风险与未知，确认验证覆盖 source of truth 而不是只验证派生表现。
+3. 读取 `tasks.md`，确认所有 in-scope 任务为 `DONE` 或有明确 `BLOCKED` 说明。
+4. 按 `design.md` 的验证策略，并结合 `investigation.md` 的真实链路和数据来源，执行 targeted checks。
+5. 对每条验收标准记录证据：命令、日志、截图路径、接口响应摘要、数据查询或手工步骤。
+6. 检查相关同类路径是否需要回归。
+7. 汇总无法验证的项目和原因。
 
 ## 文档更新
 
@@ -90,4 +91,4 @@ description: "AI 验证收口技能。Activation restricted: use only when the u
 
 ## 输出
 
-更新 `verification.md` 和 `handoff.md`。验收映射完成时，将 `verification.md` frontmatter `stage_status` 标记为 `complete`；交付摘要、复核入口和残余风险齐备时，将 `handoff.md` frontmatter `stage_status` 标记为 `complete`。输出交付状态后停止。
+更新 `verification.md` 和 `handoff.md`，每次写入都必须同步更新对应 frontmatter 的 `updated_at`。验收映射完成且失败 / 未覆盖项已明确记录时，将 `verification.md` frontmatter `stage_status` 标记为 `complete`、`evidence_complete: true`；如果仍有无法解释的验证缺口或外部阻塞，保持或更新为 `stage_status: draft/blocked`、`evidence_complete: false`。交付摘要、复核入口和残余风险齐备时，将 `handoff.md` frontmatter `stage_status` 标记为 `complete`、`evidence_complete: true`；否则保持 `evidence_complete: false`。输出交付状态后停止。

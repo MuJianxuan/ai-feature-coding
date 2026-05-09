@@ -20,6 +20,20 @@ CHILD_SKILLS = [
     "ai-verification-closeout",
 ]
 ROUTE_FIELDS = ["activation_source", "feature_dir", "stage_evidence"]
+FORBIDDEN_ROUTE_SOURCE_PATTERNS = [
+    "another legally activated",
+    "legally activated AI Feature Workflow or orchestrator",
+    "另一个已经合法触发",
+    "被工作流路由",
+]
+CHILD_OUTPUT_REQUIREMENTS = {
+    "ai-requirement-intake": ["updated_at", "evidence_complete"],
+    "ai-repo-investigation": ["updated_at", "evidence_complete"],
+    "ai-technical-design": ["updated_at", "evidence_complete"],
+    "ai-task-planning": ["updated_at", "evidence_complete", "task_count", "真实任务数量"],
+    "ai-implementation-execution": ["updated_at", "evidence_complete", "task_count"],
+    "ai-verification-closeout": ["updated_at", "evidence_complete"],
+}
 STAGE_TEMPLATE_FILES = {
     "requirements.md": "requirements",
     "investigation.md": "investigation",
@@ -77,7 +91,19 @@ def assert_order(text: str, first: str, second: str, errors: list[str], label: s
         fail(errors, f"missing order marker {second!r} for {label}")
         return
     if first_index > second_index:
-        fail(errors, f"{label}: blocked check must appear before draft/content check")
+        fail(errors, f"{label}: {first!r} must appear before {second!r}")
+
+
+def assert_contains_all(text: str, required_values: list[str], errors: list[str], label: str) -> None:
+    for required in required_values:
+        if required not in text:
+            fail(errors, f"{label}: missing {required!r}")
+
+
+def assert_not_contains_any(text: str, forbidden_values: list[str], errors: list[str], label: str) -> None:
+    for forbidden in forbidden_values:
+        if forbidden in text:
+            fail(errors, f"{label}: contains forbidden route-source wording {forbidden!r}")
 
 
 def main() -> int:
@@ -98,6 +124,11 @@ def main() -> int:
     for field in ROUTE_FIELDS:
         if field not in orch_text:
             fail(errors, f"{orchestrator_skill}: missing route field {field}")
+    assert_not_contains_any(orch_text, FORBIDDEN_ROUTE_SOURCE_PATTERNS, errors, str(orchestrator_skill))
+    if "本 skill 自身不接受其他 skill 的被动路由" not in orch_text:
+        fail(errors, f"{orchestrator_skill}: orchestrator must reject passive routing from other skills")
+    if "`updated_at` 并保持 `evidence_complete: true`" not in orch_text:
+        fail(errors, f"{orchestrator_skill}: design approval must preserve metadata updates")
     assert_order(
         orch_text,
         "`investigation.md` 的 `stage_status` 为 `blocked`",
@@ -131,10 +162,25 @@ def main() -> int:
         ]:
             if required not in contract_text:
                 fail(errors, f"{contract}: missing {required}")
+        assert_not_contains_any(contract_text, FORBIDDEN_ROUTE_SOURCE_PATTERNS, errors, str(contract))
+        assert_contains_all(
+            contract_text,
+            [
+                "`ai-feature-orchestrator` 显式路由到目标阶段 skill",
+                "阶段文档 metadata 写入规则",
+                "`updated_at`",
+                "`evidence_complete: true`",
+                "`task_count` 必须等于真实任务数量",
+                "输出规则必须说明 `updated_at` / `evidence_complete`",
+            ],
+            errors,
+            str(contract),
+        )
 
     for name in CHILD_SKILLS:
         path = SKILLS / name / "SKILL.md"
         text = path.read_text()
+        assert_not_contains_any(text, FORBIDDEN_ROUTE_SOURCE_PATTERNS, errors, str(path))
         for required in ["Activation policy", "启动模式与 route contract", "Safety policy"]:
             if required not in text:
                 fail(errors, f"{path}: missing {required}")
@@ -145,6 +191,33 @@ def main() -> int:
             fail(errors, f"{path}: missing no-guess-directory guard")
         if "WORKFLOW_CONTRACT.md" not in text:
             fail(errors, f"{path}: missing shared contract reference")
+        if "`ai-feature-orchestrator` 显式路由到本 skill" not in text:
+            fail(errors, f"{path}: routed invocation must be restricted to ai-feature-orchestrator")
+        if "被 `ai-feature-orchestrator` 路由" not in text:
+            fail(errors, f"{path}: route contract must name ai-feature-orchestrator as router")
+        assert_contains_all(text, CHILD_OUTPUT_REQUIREMENTS[name], errors, str(path))
+
+    implementation_text = (SKILLS / "ai-implementation-execution" / "SKILL.md").read_text()
+    assert_order(
+        implementation_text,
+        "真实 `DOING` 任务，优先恢复",
+        "第一个真实 `TODO` 任务",
+        errors,
+        "implementation task selection",
+    )
+
+    verification_text = (SKILLS / "ai-verification-closeout" / "SKILL.md").read_text()
+    assert_contains_all(
+        verification_text,
+        [
+            "`requirements.md`、`investigation.md`、`design.md` 和 `tasks.md` 已存在",
+            "读取 `investigation.md` 的真实调用链",
+            "source of truth",
+            "结合 `investigation.md` 的真实链路和数据来源",
+        ],
+        errors,
+        "verification closeout investigation dependency",
+    )
 
     required_template_dirs = [TEMPLATE / "resource", TEMPLATE / "sql"]
     for directory in required_template_dirs:
@@ -206,6 +279,20 @@ def main() -> int:
         for required in ["Happy path", "Blocked requirement", "Resume DOING", "Verification failed"]:
             if required not in examples_text:
                 fail(errors, f"{golden_examples}: missing {required} example")
+        assert_contains_all(
+            examples_text,
+            [
+                "`evidence_complete: true`",
+                "`evidence_complete: false`",
+                "`updated_at`",
+                "`task_count` 等于真实任务数量",
+                "必须读取 `investigation.md`",
+                "source of truth",
+                "未读取 `investigation.md` 就把验证结论写成 complete",
+            ],
+            errors,
+            str(golden_examples),
+        )
 
     for doc_path in [*sorted(SKILLS.glob("*/SKILL.md")), ORCHESTRATOR / "WORKFLOW_CONTRACT.md"]:
         if "AI feature workflow" in doc_path.read_text():

@@ -1,6 +1,6 @@
 ---
 name: ai-requirement-intake
-description: "AI 需求澄清技能。Activation restricted: use only when the user explicitly names `ai-requirement-intake`, or a legally activated AI Feature Workflow or orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary requirement clarification or feature discussion."
+description: "AI 需求澄清技能。Activation restricted: use only when the user explicitly names `ai-requirement-intake`, or `ai-feature-orchestrator` explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary requirement clarification or feature discussion."
 ---
 
 # AI Requirement Intake
@@ -18,7 +18,7 @@ description: "AI 需求澄清技能。Activation restricted: use only when the u
 本 skill 只能在以下情况下使用：
 
 1. 用户在当前请求中明确写出 `ai-requirement-intake`，或明确要求使用 AI Feature Workflow 的需求澄清阶段。
-2. `ai-feature-orchestrator` 或另一个已经合法触发的 skill 显式路由到本 skill，并传入 `feature_dir`。
+2. `ai-feature-orchestrator` 显式路由到本 skill，并传入 `feature_dir`。
 
 不满足时：
 
@@ -29,7 +29,7 @@ description: "AI 需求澄清技能。Activation restricted: use only when the u
 ## 启动模式与 route contract
 
 - `direct_explicit`：用户在当前请求中明确写出 `ai-requirement-intake`。这种模式也必须提供已有 `feature_dir`；如果缺少，立即停止并提示用户改用 `ai-feature-orchestrator` 新建或选择 feature 目录。
-- `routed_invocation`：不是用户直接点名本 skill，而是被工作流路由。此时必须同时收到：
+- `routed_invocation`：不是用户直接点名本 skill，而是被 `ai-feature-orchestrator` 路由。此时必须同时收到：
   - `activation_source: ai-feature-orchestrator`
   - `feature_dir: <相对或绝对路径>`
   - `stage_evidence: <为什么进入需求澄清阶段的证据>`
@@ -79,4 +79,4 @@ description: "AI 需求澄清技能。Activation restricted: use only when the u
 
 ## 输出
 
-更新 `requirements.md` 和 `resource/README.md`。如果仍有阻塞问题，在 `requirements.md` frontmatter 将 `stage_status` 标记为 `blocked`，并在“待确认问题”中记录；如果范围和 acceptance criteria 已稳定，将 `stage_status` 标记为 `ready`。输出下一步建议后停止。
+更新 `requirements.md` 和 `resource/README.md`。如果仍有阻塞问题，在 `requirements.md` frontmatter 将 `stage_status` 标记为 `blocked`、`evidence_complete: false`，并在“待确认问题”中记录；如果范围和 acceptance criteria 已稳定，将 `stage_status` 标记为 `ready`、`evidence_complete: true`。每次写入 `requirements.md` 或 `resource/README.md` 都必须同步更新对应 frontmatter 的 `updated_at`。输出下一步建议后停止。

@@ -1,6 +1,6 @@
 ---
 name: ai-repo-investigation
-description: "AI 仓库证据勘察技能。Activation restricted: use only when the user explicitly names `ai-repo-investigation`, or a legally activated AI Feature Workflow or orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary debugging, repo investigation, root-cause analysis, or design prep."
+description: "AI 仓库证据勘察技能。Activation restricted: use only when the user explicitly names `ai-repo-investigation`, or `ai-feature-orchestrator` explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary debugging, repo investigation, root-cause analysis, or design prep."
 ---
 
 # AI Repo Investigation
@@ -18,7 +18,7 @@ description: "AI 仓库证据勘察技能。Activation restricted: use only when
 本 skill 只能在以下情况下使用：
 
 1. 用户在当前请求中明确写出 `ai-repo-investigation`，或明确要求使用 AI Feature Workflow 的仓库勘察阶段。
-2. `ai-feature-orchestrator` 或另一个已经合法触发的 skill 显式路由到本 skill，并传入 `feature_dir`。
+2. `ai-feature-orchestrator` 显式路由到本 skill，并传入 `feature_dir`。
 
 不满足时：
 
@@ -29,7 +29,7 @@ description: "AI 仓库证据勘察技能。Activation restricted: use only when
 ## 启动模式与 route contract
 
 - `direct_explicit`：用户在当前请求中明确写出 `ai-repo-investigation`。这种模式也必须提供已有 `feature_dir`；如果缺少，立即停止并提示用户改用 `ai-feature-orchestrator` 新建或选择 feature 目录。
-- `routed_invocation`：不是用户直接点名本 skill，而是被工作流路由。此时必须同时收到：
+- `routed_invocation`：不是用户直接点名本 skill，而是被 `ai-feature-orchestrator` 路由。此时必须同时收到：
   - `activation_source: ai-feature-orchestrator`
   - `feature_dir: <相对或绝对路径>`
   - `stage_evidence: <为什么进入仓库勘察阶段的证据>`
@@ -82,4 +82,4 @@ description: "AI 仓库证据勘察技能。Activation restricted: use only when
 
 ## 输出
 
-更新 `investigation.md`。如果关键链路、数据来源和已查文件证据齐备，将 frontmatter `stage_status` 标记为 `ready`；如果受外部条件阻塞，将 `stage_status` 标记为 `blocked` 并写明证据。输出下一步建议后停止。
+更新 `investigation.md`。如果关键链路、数据来源和已查文件证据齐备，将 frontmatter `stage_status` 标记为 `ready`、`evidence_complete: true`；如果受外部条件阻塞，将 `stage_status` 标记为 `blocked`、`evidence_complete: false` 并写明证据。每次写入 `investigation.md` 都必须同步更新 `updated_at`。输出下一步建议后停止。

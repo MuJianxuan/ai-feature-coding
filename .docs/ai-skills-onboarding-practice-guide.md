@@ -165,6 +165,13 @@ evidence_complete: false
 
 `updated_at` 在模板中可以为空；一旦阶段被更新，必须使用 ISO 8601 + timezone，例如 `2026-05-09T20:30:00+08:00`。
 
+metadata 更新规则：
+
+- 每次写入阶段文档，都必须同步更新该文档的 `updated_at`。
+- `evidence_complete: true` 只用于该阶段证据足以进入下一阶段，通常对应 `stage_status: ready` 或 `stage_status: complete`。
+- `stage_status: draft/blocked` 时，`evidence_complete` 应保持 `false`，并在正文写清缺口或阻塞证据。
+- `tasks.md task_count` 必须等于真实任务数量；任务拆解、批准后的 scope 变更或重新规划时必须同步更新。
+
 `design.md` 额外包含审批字段：
 
 ```yaml
@@ -255,7 +262,9 @@ approval_evidence: ""
 更新：
 
 - `tasks.md` 的 `stage_status: ready`。
+- `tasks.md` 的 `evidence_complete: true`。
 - `task_count` 改为真实任务数量。
+- `updated_at` 改为当前 ISO 8601 + timezone 时间。
 
 停止点：不自动开始编码。
 
@@ -277,13 +286,19 @@ approval_evidence: ""
 - 执行任务完成判定。
 - 通过则标记 `DONE`。
 - 记录改动文件、验证命令、结果、残余风险。
-- 更新 `verification.md` 中对应检查项。
+- 更新 `tasks.md` 和 `verification.md` 中对应检查项的 `updated_at`。
+- 未满足的验证项保持 `verification.md evidence_complete: false`，不要提前标记完成。
 
 停止点：完成一个任务后停下，不自动执行下一个任务。
 
 ### 8.6 Verification Closeout
 
 目标：把 acceptance criteria 和实际证据一一对齐。
+
+开始前：
+
+- 必须读取 `requirements.md`、`investigation.md`、`design.md` 和 `tasks.md`。
+- 其中 `investigation.md` 用于确认真实调用链、数据来源、相似实现和风险约束，避免只按设计文档做纸面验证。
 
 完成标准：
 
@@ -293,7 +308,9 @@ approval_evidence: ""
 - `handoff.md` 包含交付摘要、变更范围、配置 / SQL / 部署事项、用户复核入口。
 - 如需启动服务或预览，验证记录中应包含端口检查和进程信息。
 - 验证完成后 `verification.md stage_status: complete`。
+- 验证完成后 `verification.md evidence_complete: true`，否则保持 `false` 并写清缺口。
 - 交付信息齐备后 `handoff.md stage_status: complete`。
+- 交付信息齐备后 `handoff.md evidence_complete: true`。
 
 停止点：输出交付状态，不自动 commit / push / 发布。
 
@@ -339,9 +356,13 @@ python3 skills/ai-feature-orchestrator/scripts/validate_ai_skills.py
 - 子 skill 包含 activation policy、route contract、安全策略。
 - 模板 Markdown 都有 frontmatter。
 - 阶段模板 metadata 可解析，`tasks.md` 包含 `evidence_complete`，`design.md` 包含审批字段。
+- Contract 和各阶段输出规则都覆盖 `updated_at` / `evidence_complete`；`ai-task-planning` 覆盖 `task_count`。
+- Route source 已收紧为仅允许 `ai-feature-orchestrator` routed invocation，不能残留 “another legally activated skill” 这类泛化表述。
+- `ai-implementation-execution` 必须优先恢复真实 `DOING` 任务，再选择用户指定任务或第一个真实 `TODO`。
+- `ai-verification-closeout` 必须读取 `investigation.md`，用真实调用链和数据来源校准验证范围。
 - 模板不包含容易误判的 fake `TODO` / fake `AC-01` / fake `T01` / fake blocking placeholder。
 - Orchestrator blocked 判断顺序正确，不会被 draft/content 判断抢先命中。
-- golden examples 文件存在并覆盖 happy path、blocked、resume、verification failed。
+- golden examples 文件存在并覆盖 happy path、blocked、resume、verification failed，且样例同步覆盖 `updated_at` / `evidence_complete` / `task_count` / verification 读取 `investigation.md`。
 
 ## 12. Onboarding Checklist
 

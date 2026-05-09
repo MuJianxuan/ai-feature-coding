@@ -1,6 +1,6 @@
 ---
 name: ai-task-planning
-description: "AI 任务拆解技能。Activation restricted: use only when the user explicitly names `ai-task-planning`, or a legally activated AI Feature Workflow or orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary planning, TODO creation, or implementation breakdown requests."
+description: "AI 任务拆解技能。Activation restricted: use only when the user explicitly names `ai-task-planning`, or `ai-feature-orchestrator` explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary planning, TODO creation, or implementation breakdown requests."
 ---
 
 # AI Task Planning
@@ -18,7 +18,7 @@ description: "AI 任务拆解技能。Activation restricted: use only when the u
 本 skill 只能在以下情况下使用：
 
 1. 用户在当前请求中明确写出 `ai-task-planning`，或明确要求使用 AI Feature Workflow 的任务拆解阶段。
-2. `ai-feature-orchestrator` 或另一个已经合法触发的 skill 显式路由到本 skill，并传入 `feature_dir`。
+2. `ai-feature-orchestrator` 显式路由到本 skill，并传入 `feature_dir`。
 
 不满足时：
 
@@ -29,7 +29,7 @@ description: "AI 任务拆解技能。Activation restricted: use only when the u
 ## 启动模式与 route contract
 
 - `direct_explicit`：用户在当前请求中明确写出 `ai-task-planning`。这种模式也必须提供已有 `feature_dir`；如果缺少，立即停止并提示用户改用 `ai-feature-orchestrator` 新建或选择 feature 目录。
-- `routed_invocation`：不是用户直接点名本 skill，而是被工作流路由。此时必须同时收到：
+- `routed_invocation`：不是用户直接点名本 skill，而是被 `ai-feature-orchestrator` 路由。此时必须同时收到：
   - `activation_source: ai-feature-orchestrator`
   - `feature_dir: <相对或绝对路径>`
   - `stage_evidence: <为什么进入任务拆解阶段的证据>`
@@ -87,4 +87,4 @@ description: "AI 任务拆解技能。Activation restricted: use only when the u
 
 ## 输出
 
-更新 `tasks.md`，并在 frontmatter 将 `stage_status` 标记为 `ready`。除非用户明确要求，否则不要开始编码。输出下一步建议后停止。
+更新 `tasks.md`，并在 frontmatter 将 `stage_status` 标记为 `ready`、`evidence_complete: true`、`task_count` 更新为真实任务数量，同时同步更新 `updated_at`。如果本阶段因用户刚刚批准设计而写入 `design.md` 审批字段，也必须同步更新 `design.md` 的 `updated_at`，并保持 `design.md evidence_complete: true`。除非用户明确要求，否则不要开始编码。输出下一步建议后停止。
