@@ -1,6 +1,6 @@
 ---
 name: ai-requirement-intake
-description: "AI 需求澄清技能。Activation restricted: use only when the user explicitly names `ai-requirement-intake`, or a legally activated workflow/orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary requirement clarification or feature discussion."
+description: "AI 需求澄清技能。Activation restricted: use only when the user explicitly names `ai-requirement-intake`, or a legally activated AI Feature Workflow or orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary requirement clarification or feature discussion."
 ---
 
 # AI Requirement Intake
@@ -9,18 +9,22 @@ description: "AI 需求澄清技能。Activation restricted: use only when the u
 
 把用户输入变成可执行、可验证、可追踪的 `requirements.md`。不要急着写方案或代码。
 
+## 共享契约
+
+执行前必须遵守 `../ai-feature-orchestrator/WORKFLOW_CONTRACT.md`。如果本文件与 contract 冲突，采用更严格、更不容易误触发或越界的规则。
+
 ## Activation policy
 
 本 skill 只能在以下情况下使用：
 
-1. 用户在当前请求中明确写出 `ai-requirement-intake`，或明确要求使用这套 AI feature workflow 的需求澄清阶段。
+1. 用户在当前请求中明确写出 `ai-requirement-intake`，或明确要求使用 AI Feature Workflow 的需求澄清阶段。
 2. `ai-feature-orchestrator` 或另一个已经合法触发的 skill 显式路由到本 skill，并传入 `feature_dir`。
 
 不满足时：
 
 - 不得进入本 skill。
 - 不得创建、猜测或切换 `.docs/feature-*` 目录。
-- 不得把普通需求讨论自动升级成这套工作流。
+- 不得把普通需求讨论自动升级成 AI Feature Workflow。
 
 ## 启动模式与 route contract
 
@@ -47,6 +51,7 @@ description: "AI 需求澄清技能。Activation restricted: use only when the u
 - 禁止 git commit / push / checkout / branch / reset / worktree 等仓库状态变更，除非用户明确许可。
 - 禁止覆盖用户未提交改动；写入文档前后都要检查工作区状态。
 - 只询问仓库无法回答的问题；提问必须附已查证据。
+- 用户新增或改变 scope 时，先更新 `requirements.md` 的 in-scope / out-of-scope / acceptance criteria，再让后续阶段重算证据和设计。
 - 本阶段完成后必须停下，输出下一阶段建议；除非用户明确要求连续推进，不得自行调用下一阶段。
 
 ## 工作流

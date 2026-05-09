@@ -1,13 +1,13 @@
 ---
 name: ai-feature-orchestrator
-description: "AI 需求开发总调度技能。Activation restricted: use only when the user explicitly names `ai-feature-orchestrator`, explicitly asks to use/start this AI feature workflow or skills workflow, or another legally activated skill explicitly routes here. Do not auto-trigger for ordinary feature requests, repo audits, coding, debugging, design, planning, or closeout."
+description: "AI Feature Workflow 总调度技能。Activation restricted: use only when the user explicitly names `ai-feature-orchestrator`, explicitly asks to use/start this AI Feature Workflow or 技能工作流, or another legally activated skill explicitly routes here. Do not auto-trigger for ordinary feature requests, repo audits, coding, debugging, design, planning, or closeout."
 ---
 
 # AI Feature Orchestrator
 
 ## 目标
 
-把一个需求从输入资料推进到可验证交付。本 skill 是 AI 需求开发工作流的 source of truth，不依赖仓库根部额外 workflow 文档。
+把一个需求从输入资料推进到可验证交付。本 skill 是 AI Feature Workflow 的调度入口，不依赖仓库根部额外 workflow 文档。
 
 需求工作目录默认是 `.docs/feature-YYYYMMDD-short-name/`。模板由本 skill 自带，位于当前 skill 目录下的 `assets/feature-template/`。
 
@@ -15,14 +15,14 @@ description: "AI 需求开发总调度技能。Activation restricted: use only w
 
 本 skill 是 explicit opt-in，不参与普通 Codex 工作流的自动触发。只有满足以下任一条件，才允许进入本 skill：
 
-1. 用户在当前请求中明确写出 `ai-feature-orchestrator`，或明确要求“使用/启动这套 AI feature workflow / skills workflow / 技能工作流”。
+1. 用户在当前请求中明确写出 `ai-feature-orchestrator`，或明确要求“使用/启动这套 AI Feature Workflow / 技能工作流”。
 2. 另一个已经合法触发的 skill 在当前上下文中显式路由到本 skill。
 
 不满足以上条件时：
 
 - 禁止把普通“帮我实现功能 / 调查代码 / 写技术方案 / 拆任务 / 验证收口”解读为触发本 skill。
 - 禁止创建或选择 `.docs/feature-*` 目录。
-- 应回到普通 Codex 工作流；如果用户确实想进入本流程，提示其显式指定本 skill 或“这套 AI feature workflow”。
+- 应回到普通 Codex 工作流；如果用户确实想进入本流程，提示其显式指定本 skill 或“这套 AI Feature Workflow”。
 
 ## Workflow contract
 
@@ -33,6 +33,9 @@ description: "AI 需求开发总调度技能。Activation restricted: use only w
 - document metadata：阶段文档 frontmatter 与 `stage_status` 语义。
 - gate policy：默认一次只推进一个阶段。
 - safety policy：禁止破坏性操作和仓库状态变更。
+- design approval / scope change / service startup：设计审批、scope 变更和启动服务前检查。
+
+完整正反例可按需读取 `references/golden-examples.md`；正常执行时不必加载。
 
 ## 入口模式
 
@@ -133,17 +136,23 @@ SKILL_ROOT/
 1. `requirements.md` 缺失，或 `stage_status` 为 `draft`：路由到 `ai-requirement-intake`。
 2. `requirements.md` 的 `stage_status` 为 `blocked`，或存在真实阻塞问题：继续 `ai-requirement-intake`，不要进入设计。
 3. `requirements.md` 缺少真实 in-scope / out-of-scope / acceptance criteria：路由到 `ai-requirement-intake`。
-4. `investigation.md` 缺失，或 `stage_status` 为 `draft`，或没有真实调用链、数据来源、已查文件：路由到 `ai-repo-investigation`。
-5. `investigation.md` 的 `stage_status` 为 `blocked`：停止并报告阻塞证据。
-6. `design.md` 缺失，或 `stage_status` 为 `draft`，或没有影响范围、目标链路、风险回滚、验证策略：路由到 `ai-technical-design`。
-7. `design.md` 的 `stage_status` 为 `blocked`，或标记 `DESIGN_BLOCKED`：先处理设计阻塞，不进入任务拆解。
-8. `tasks.md` 缺失，或 `stage_status` 为 `draft`，或任务没有输入、输出、完成判定、关联模块/文件：路由到 `ai-task-planning`。
-9. `tasks.md` 存在真实 `BLOCKED` 任务：报告阻塞任务、已查证据和需要的外部条件；除非用户指定，否则不要跳到其他任务。
-10. `tasks.md` 存在真实 `DOING` 任务：路由到 `ai-implementation-execution`，优先恢复该任务。
-11. `tasks.md` 存在真实 `TODO` 任务：路由到 `ai-implementation-execution`，执行下一项或用户指定项。
-12. 所有 in-scope 任务为 `DONE`，但 `verification.md` 未完成 acceptance criteria 映射，或 `stage_status` 不是 `complete`：路由到 `ai-verification-closeout`。
-13. `verification.md` 完成但 `handoff.md` 缺少交付摘要、复核入口或残余风险，或 `stage_status` 不是 `complete`：路由到 `ai-verification-closeout`。
-14. 全部完成：输出交付状态，不重复执行。
+4. `investigation.md` 缺失：路由到 `ai-repo-investigation`。
+5. `investigation.md` 的 `stage_status` 为 `blocked`：停止并报告阻塞证据，不被 draft/content 判断覆盖。
+6. `investigation.md` 的 `stage_status` 为 `draft`，或没有真实调用链、数据来源、已查文件：路由到 `ai-repo-investigation`。
+7. `design.md` 缺失：路由到 `ai-technical-design`。
+8. `design.md` 的 `stage_status` 为 `blocked`，或标记 `DESIGN_BLOCKED`：停止并报告设计阻塞证据，不进入任务拆解。
+9. `design.md` 的 `stage_status` 为 `draft`，或没有影响范围、目标链路、风险回滚、验证策略：路由到 `ai-technical-design`。
+10. `design.md` 的 `stage_status` 为 `ready`，但 `approval_status` 不是 `approved`，且当前用户请求没有明确批准设计或要求进入任务拆解：停止并提示等待设计审批。
+11. 当前用户请求明确批准设计或要求进入任务拆解时，先在 `design.md` 记录 `approval_status: approved`、`approved_by`、`approved_at`、`approval_evidence`，再继续判断。
+12. `tasks.md` 缺失：路由到 `ai-task-planning`。
+13. `tasks.md` 的 `stage_status` 为 `blocked`：停止并报告任务规划阻塞证据。
+14. `tasks.md` 的 `stage_status` 为 `draft`，或任务没有输入、输出、完成判定、关联模块/文件：路由到 `ai-task-planning`。
+15. `tasks.md` 存在真实 `BLOCKED` 任务：报告阻塞任务、已查证据和需要的外部条件；除非用户指定，否则不要跳到其他任务。
+16. `tasks.md` 存在真实 `DOING` 任务：路由到 `ai-implementation-execution`，优先恢复该任务。
+17. `tasks.md` 存在真实 `TODO` 任务：路由到 `ai-implementation-execution`，执行下一项或用户指定项。
+18. 所有 in-scope 任务为 `DONE`，但 `verification.md` 未完成 acceptance criteria 映射，或 `stage_status` 不是 `complete`：路由到 `ai-verification-closeout`。
+19. `verification.md` 完成但 `handoff.md` 缺少交付摘要、复核入口或残余风险，或 `stage_status` 不是 `complete`：路由到 `ai-verification-closeout`。
+20. 全部完成：输出交付状态，不重复执行。
 
 ## 阶段路由
 

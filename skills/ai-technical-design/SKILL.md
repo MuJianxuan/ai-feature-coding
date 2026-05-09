@@ -1,6 +1,6 @@
 ---
 name: ai-technical-design
-description: "AI 技术设计技能。Activation restricted: use only when the user explicitly names `ai-technical-design`, or a legally activated workflow/orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary architecture, design, planning, or proposal work."
+description: "AI 技术设计技能。Activation restricted: use only when the user explicitly names `ai-technical-design`, or a legally activated AI Feature Workflow or orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary architecture, design, planning, or proposal work."
 ---
 
 # AI Technical Design
@@ -9,18 +9,22 @@ description: "AI 技术设计技能。Activation restricted: use only when the u
 
 基于 `requirements.md` 和 `investigation.md` 产出能直接拆任务的技术方案。设计必须解释为什么这样改，以及如何验证它真的满足需求。
 
+## 共享契约
+
+执行前必须遵守 `../ai-feature-orchestrator/WORKFLOW_CONTRACT.md`。如果本文件与 contract 冲突，采用更严格、更不容易误触发或越界的规则。
+
 ## Activation policy
 
 本 skill 只能在以下情况下使用：
 
-1. 用户在当前请求中明确写出 `ai-technical-design`，或明确要求使用这套 AI feature workflow 的技术设计阶段。
+1. 用户在当前请求中明确写出 `ai-technical-design`，或明确要求使用 AI Feature Workflow 的技术设计阶段。
 2. `ai-feature-orchestrator` 或另一个已经合法触发的 skill 显式路由到本 skill，并传入 `feature_dir`。
 
 不满足时：
 
 - 不得进入本 skill。
 - 不得创建、猜测或切换 `.docs/feature-*` 目录。
-- 不得把普通技术方案讨论自动升级成这套工作流。
+- 不得把普通技术方案讨论自动升级成 AI Feature Workflow。
 
 ## 启动模式与 route contract
 
@@ -47,6 +51,7 @@ description: "AI 技术设计技能。Activation restricted: use only when the u
 - 禁止 git commit / push / checkout / branch / reset / worktree 等仓库状态变更，除非用户明确许可。
 - 禁止覆盖用户未提交改动；写入 `design.md` 前后都要检查工作区状态。
 - 设计必须基于 `requirements.md` 与 `investigation.md` 的证据，不得引入无关重构。
+- 发现 scope 变化时按 contract 的 `Scope change protocol` 记录并停止，不得把未确认变更直接写进方案。
 - 本阶段完成后必须停下，输出下一阶段建议；除非用户明确要求连续推进，不得自行调用下一阶段。
 
 ## 输入检查
@@ -80,4 +85,4 @@ description: "AI 技术设计技能。Activation restricted: use only when the u
 
 ## 输出
 
-更新 `design.md`。如果方案仍依赖未确认业务决策，在文档顶部标记 `DESIGN_BLOCKED`，并将 frontmatter `stage_status` 标记为 `blocked`；如果设计可直接拆任务，将 `stage_status` 标记为 `ready`。输出下一步建议后停止。
+更新 `design.md`。如果方案仍依赖未确认业务决策，在文档顶部标记 `DESIGN_BLOCKED`，并将 frontmatter `stage_status` 标记为 `blocked`、`approval_status` 标记为 `blocked`；如果设计可直接拆任务，将 `stage_status` 标记为 `ready`，但保持 `approval_status: pending`，等待用户明确批准后才能进入 `ai-task-planning`。输出下一步建议后停止。

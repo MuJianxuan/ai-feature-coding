@@ -1,6 +1,6 @@
 ---
 name: ai-verification-closeout
-description: "AI 验证收口技能。Activation restricted: use only when the user explicitly names `ai-verification-closeout`, or a legally activated workflow/orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary testing, verification, QA, release notes, or handoff requests."
+description: "AI 验证收口技能。Activation restricted: use only when the user explicitly names `ai-verification-closeout`, or a legally activated AI Feature Workflow or orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary testing, verification, QA, release notes, or handoff requests."
 ---
 
 # AI Verification Closeout
@@ -9,18 +9,22 @@ description: "AI 验证收口技能。Activation restricted: use only when the u
 
 证明需求已经按 scope 交付，或清楚说明还剩什么风险和阻塞。验证不是跑一个命令，而是把 acceptance criteria 和实际证据对齐。
 
+## 共享契约
+
+执行前必须遵守 `../ai-feature-orchestrator/WORKFLOW_CONTRACT.md`。如果本文件与 contract 冲突，采用更严格、更不容易误触发或越界的规则。
+
 ## Activation policy
 
 本 skill 只能在以下情况下使用：
 
-1. 用户在当前请求中明确写出 `ai-verification-closeout`，或明确要求使用这套 AI feature workflow 的验证收口阶段。
+1. 用户在当前请求中明确写出 `ai-verification-closeout`，或明确要求使用 AI Feature Workflow 的验证收口阶段。
 2. `ai-feature-orchestrator` 或另一个已经合法触发的 skill 显式路由到本 skill，并传入 `feature_dir`。
 
 不满足时：
 
 - 不得进入本 skill。
 - 不得创建、猜测或切换 `.docs/feature-*` 目录。
-- 不得把普通 testing / QA / handoff 自动升级成这套工作流。
+- 不得把普通 testing / QA / handoff 自动升级成 AI Feature Workflow。
 
 ## 启动模式与 route contract
 
@@ -48,6 +52,7 @@ description: "AI 验证收口技能。Activation restricted: use only when the u
 - 禁止 git commit / push / checkout / branch / reset / worktree 等仓库状态变更，除非用户明确许可。
 - 禁止覆盖用户未提交改动；写入 `verification.md` / `handoff.md` 前后都要检查工作区状态。
 - 验证必须映射 acceptance criteria，失败或未覆盖项必须写入残余风险。
+- 需要启动服务或预览时，必须按 contract 的 `Service startup and port-check protocol` 记录端口、进程、日志和停止方式。
 - 本阶段完成后必须停下，输出交付状态和用户最短复核路径；不得自行提交或归档。
 
 ## 验证顺序

@@ -1,6 +1,6 @@
 ---
 name: ai-task-planning
-description: "AI 任务拆解技能。Activation restricted: use only when the user explicitly names `ai-task-planning`, or a legally activated workflow/orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary planning, TODO creation, or implementation breakdown requests."
+description: "AI 任务拆解技能。Activation restricted: use only when the user explicitly names `ai-task-planning`, or a legally activated AI Feature Workflow or orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary planning, TODO creation, or implementation breakdown requests."
 ---
 
 # AI Task Planning
@@ -9,18 +9,22 @@ description: "AI 任务拆解技能。Activation restricted: use only when the u
 
 把技术设计拆成 AI 可以逐项执行的任务清单。`tasks.md` 是编码执行的唯一驱动文件。
 
+## 共享契约
+
+执行前必须遵守 `../ai-feature-orchestrator/WORKFLOW_CONTRACT.md`。如果本文件与 contract 冲突，采用更严格、更不容易误触发或越界的规则。
+
 ## Activation policy
 
 本 skill 只能在以下情况下使用：
 
-1. 用户在当前请求中明确写出 `ai-task-planning`，或明确要求使用这套 AI feature workflow 的任务拆解阶段。
+1. 用户在当前请求中明确写出 `ai-task-planning`，或明确要求使用 AI Feature Workflow 的任务拆解阶段。
 2. `ai-feature-orchestrator` 或另一个已经合法触发的 skill 显式路由到本 skill，并传入 `feature_dir`。
 
 不满足时：
 
 - 不得进入本 skill。
 - 不得创建、猜测或切换 `.docs/feature-*` 目录。
-- 不得把普通任务拆解自动升级成这套工作流。
+- 不得把普通任务拆解自动升级成 AI Feature Workflow。
 
 ## 启动模式与 route contract
 
@@ -38,6 +42,8 @@ description: "AI 任务拆解技能。Activation restricted: use only when the u
 - 已收到明确的 `feature_dir`。
 - `feature_dir` 目录存在。
 - `requirements.md`、`investigation.md` 和 `design.md` 已存在。
+- `design.md` 的 `stage_status: ready`。
+- `design.md approval_status: approved`；如果 metadata 仍是 `pending` 但当前用户请求明确批准设计或明确要求进入任务拆解，先补齐审批字段；否则停止并报告等待设计审批。
 
 如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
 
@@ -46,7 +52,7 @@ description: "AI 任务拆解技能。Activation restricted: use only when the u
 - 禁止删除文件或目录，除非用户明确许可。
 - 禁止 git commit / push / checkout / branch / reset / worktree 等仓库状态变更，除非用户明确许可。
 - 禁止覆盖用户未提交改动；写入 `tasks.md` 前后都要检查工作区状态。
-- 只把已批准且 `stage_status: ready` 的 `design.md` 拆成任务，不得擅自扩 scope。
+- 只把已批准且 `stage_status: ready` 的 `design.md` 拆成任务，不得擅自扩 scope；发现 scope 变化时按 contract 的 `Scope change protocol` 回流处理。
 - 本阶段完成后必须停下，输出下一阶段建议；除非用户明确要求连续推进，不得自行调用下一阶段。
 
 ## 拆解规则
@@ -62,6 +68,7 @@ description: "AI 任务拆解技能。Activation restricted: use only when the u
    - 风险：可能影响的兼容性、数据、权限或性能。
 4. 不把“验证全部功能”作为单个大任务；验证也要按风险拆分。
 5. 如果发现设计不可拆或范围过大，回到 `design.md` 缩小边界。
+6. 如果用户刚刚明确批准设计但 metadata 仍是 `pending`，先把 `design.md` 的审批字段补齐，再拆任务。
 
 ## 推荐任务模板
 

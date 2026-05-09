@@ -3,6 +3,10 @@ feature_stage: design
 stage_status: draft
 updated_at: ""
 evidence_complete: false
+approval_status: pending
+approved_by: ""
+approved_at: ""
+approval_evidence: ""
 ---
 
 # Design

@@ -2,6 +2,7 @@
 feature_stage: tasks
 stage_status: draft
 updated_at: ""
+evidence_complete: false
 task_count: 0
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: ai-implementation-execution
-description: "AI 编码执行技能。Activation restricted: use only when the user explicitly names `ai-implementation-execution`, or a legally activated workflow/orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary coding, bug fixing, config edits, or implementation requests."
+description: "AI 编码执行技能。Activation restricted: use only when the user explicitly names `ai-implementation-execution`, or a legally activated AI Feature Workflow or orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary coding, bug fixing, config edits, or implementation requests."
 ---
 
 # AI Implementation Execution
@@ -9,18 +9,22 @@ description: "AI 编码执行技能。Activation restricted: use only when the u
 
 严格按 `tasks.md` 执行代码修改，不擅自扩大范围。每次执行都留下可复核证据。
 
+## 共享契约
+
+执行前必须遵守 `../ai-feature-orchestrator/WORKFLOW_CONTRACT.md`。如果本文件与 contract 冲突，采用更严格、更不容易误触发或越界的规则。
+
 ## Activation policy
 
 本 skill 只能在以下情况下使用：
 
-1. 用户在当前请求中明确写出 `ai-implementation-execution`，或明确要求使用这套 AI feature workflow 的编码执行阶段。
+1. 用户在当前请求中明确写出 `ai-implementation-execution`，或明确要求使用 AI Feature Workflow 的编码执行阶段。
 2. `ai-feature-orchestrator` 或另一个已经合法触发的 skill 显式路由到本 skill，并传入 `feature_dir`。
 
 不满足时：
 
 - 不得进入本 skill。
 - 不得创建、猜测或切换 `.docs/feature-*` 目录。
-- 不得把普通 coding / bugfix / config edit 自动升级成这套工作流。
+- 不得把普通 coding / bugfix / config edit 自动升级成 AI Feature Workflow。
 
 ## 启动模式与 route contract
 
@@ -37,7 +41,7 @@ description: "AI 编码执行技能。Activation restricted: use only when the u
 
 - 已收到明确的 `feature_dir`。
 - `feature_dir` 目录存在。
-- `requirements.md`、`investigation.md`、`design.md` 和 `tasks.md` 已存在。
+- `requirements.md`、`investigation.md`、`design.md`、`tasks.md` 和 `verification.md` 已存在。
 
 如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
 
@@ -46,12 +50,13 @@ description: "AI 编码执行技能。Activation restricted: use only when the u
 - 禁止删除文件或目录，除非用户明确许可。
 - 禁止 git commit / push / checkout / branch / reset / worktree 等仓库状态变更，除非用户明确许可。
 - 禁止覆盖用户未提交改动；开始前后都要检查工作区状态并区分用户改动和本次改动。
-- 启动服务前必须确认端口和已有进程状态。
+- 启动服务前必须按 contract 的 `Service startup and port-check protocol` 确认端口和已有进程状态。
+- 发现当前任务需要扩大 scope 时，按 contract 的 `Scope change protocol` 记录并停止请求确认，不得擅自扩任务。
 - 本阶段一次只执行一个 `TODO` / `DOING` 任务；任务完成后必须停下，输出下一步建议。除非用户明确要求连续推进，不得自行执行下一个任务或调用验证收口。
 
 ## 开始前
 
-1. 读取 `requirements.md`、`investigation.md`、`design.md`、`tasks.md`。
+1. 读取 `requirements.md`、`investigation.md`、`design.md`、`tasks.md`、`verification.md`。
 2. 选择第一个 `TODO` 任务，或用户明确指定的任务。
 3. 将任务状态改为 `DOING`，记录开始时间和执行者为 AI。
 4. 检查工作区状态。不要覆盖用户已有改动；遇到冲突先读懂再处理。

@@ -1,6 +1,6 @@
 ---
 name: ai-repo-investigation
-description: "AI 仓库证据勘察技能。Activation restricted: use only when the user explicitly names `ai-repo-investigation`, or a legally activated workflow/orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary debugging, repo investigation, root-cause analysis, or design prep."
+description: "AI 仓库证据勘察技能。Activation restricted: use only when the user explicitly names `ai-repo-investigation`, or a legally activated AI Feature Workflow or orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary debugging, repo investigation, root-cause analysis, or design prep."
 ---
 
 # AI Repo Investigation
@@ -9,18 +9,22 @@ description: "AI 仓库证据勘察技能。Activation restricted: use only when
 
 在写方案或改代码前，先找出真实链路。输出应能支撑后续 `design.md` 和 `tasks.md`，而不是停留在猜测。
 
+## 共享契约
+
+执行前必须遵守 `../ai-feature-orchestrator/WORKFLOW_CONTRACT.md`。如果本文件与 contract 冲突，采用更严格、更不容易误触发或越界的规则。
+
 ## Activation policy
 
 本 skill 只能在以下情况下使用：
 
-1. 用户在当前请求中明确写出 `ai-repo-investigation`，或明确要求使用这套 AI feature workflow 的仓库勘察阶段。
+1. 用户在当前请求中明确写出 `ai-repo-investigation`，或明确要求使用 AI Feature Workflow 的仓库勘察阶段。
 2. `ai-feature-orchestrator` 或另一个已经合法触发的 skill 显式路由到本 skill，并传入 `feature_dir`。
 
 不满足时：
 
 - 不得进入本 skill。
 - 不得创建、猜测或切换 `.docs/feature-*` 目录。
-- 不得把普通 debugging / code tracing 自动升级成这套工作流。
+- 不得把普通 debugging / code tracing 自动升级成 AI Feature Workflow。
 
 ## 启动模式与 route contract
 
@@ -47,6 +51,7 @@ description: "AI 仓库证据勘察技能。Activation restricted: use only when
 - 禁止 git commit / push / checkout / branch / reset / worktree 等仓库状态变更，除非用户明确许可。
 - 禁止覆盖用户未提交改动；写入 `investigation.md` 前后都要检查工作区状态。
 - 先查证据再结论；不得用猜测替代文件路径、函数、接口或数据来源。
+- 发现需求 scope 与真实代码链路不匹配时，按 contract 的 `Scope change protocol` 记录，不要直接扩大后续设计范围。
 - 本阶段完成后必须停下，输出下一阶段建议；除非用户明确要求连续推进，不得自行调用下一阶段。
 
 ## 搜索顺序
