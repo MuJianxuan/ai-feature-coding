@@ -1,8 +1,13 @@
+---
+feature_stage: resource_index
+stage_status: draft
+updated_at: ""
+---
+
 # Resource Index
 
 | 文件 | 来源 | 更新时间 | 用途 | 备注 |
 | --- | --- | --- | --- | --- |
-|  |  |  |  |  |
 
 ## 资料归档规则
 

@@ -22,6 +22,15 @@ description: "AI 技术设计技能。Activation restricted: use only when the u
 - 不得创建、猜测或切换 `.docs/feature-*` 目录。
 - 不得把普通技术方案讨论自动升级成这套工作流。
 
+## 启动模式与 route contract
+
+- `direct_explicit`：用户在当前请求中明确写出 `ai-technical-design`。这种模式也必须提供已有 `feature_dir`；如果缺少，立即停止并提示用户改用 `ai-feature-orchestrator` 新建或选择 feature 目录。
+- `routed_invocation`：不是用户直接点名本 skill，而是被工作流路由。此时必须同时收到：
+  - `activation_source: ai-feature-orchestrator`
+  - `feature_dir: <相对或绝对路径>`
+  - `stage_evidence: <为什么进入技术设计阶段的证据>`
+- 被动触发时缺少任一 route 字段，都必须拒绝启动；不得自行猜目录或补造上游文件。
+
 ## 前置检查
 
 开始前必须确认：
@@ -31,6 +40,14 @@ description: "AI 技术设计技能。Activation restricted: use only when the u
 - `requirements.md` 和 `investigation.md` 已存在。
 
 如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
+
+## Safety policy
+
+- 禁止删除文件或目录，除非用户明确许可。
+- 禁止 git commit / push / checkout / branch / reset / worktree 等仓库状态变更，除非用户明确许可。
+- 禁止覆盖用户未提交改动；写入 `design.md` 前后都要检查工作区状态。
+- 设计必须基于 `requirements.md` 与 `investigation.md` 的证据，不得引入无关重构。
+- 本阶段完成后必须停下，输出下一阶段建议；除非用户明确要求连续推进，不得自行调用下一阶段。
 
 ## 输入检查
 
@@ -63,4 +80,4 @@ description: "AI 技术设计技能。Activation restricted: use only when the u
 
 ## 输出
 
-更新 `design.md`。如果方案仍依赖未确认业务决策，在文档顶部标记 `DESIGN_BLOCKED`。
+更新 `design.md`。如果方案仍依赖未确认业务决策，在文档顶部标记 `DESIGN_BLOCKED`，并将 frontmatter `stage_status` 标记为 `blocked`；如果设计可直接拆任务，将 `stage_status` 标记为 `ready`。输出下一步建议后停止。

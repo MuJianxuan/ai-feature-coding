@@ -1,10 +1,13 @@
+---
+template: ai-feature-workflow
+stage: overview
+stage_status: ready
+updated_at: ""
+---
+
 # Feature 目录说明
 
-本目录是 `ai-feature-orchestrator` 自带的 feature 工作目录模板。创建新需求时复制整个目录到仓库根目录的 `.docs/feature-YYYYMMDD-short-name/`。
-
-```bash
-cp -r <SKILL_ROOT>/assets/feature-template ".docs/feature-YYYYMMDD-short-name"
-```
+本目录由 `ai-feature-orchestrator` 创建，默认位置为仓库根目录的 `.docs/feature-YYYYMMDD-short-name/`。
 
 ## 文件职责
 
@@ -22,3 +25,4 @@ cp -r <SKILL_ROOT>/assets/feature-template ".docs/feature-YYYYMMDD-short-name"
 - 先证据，后方案；先任务，后编码；先验证，后收口。
 - 文档用中文写，保留 technical English names。
 - 不确定内容必须标为 `待确认`、`推断` 或 `未验证`，不能伪装成结论。
+- 初始模板中的空表格和 `UNSET` 不代表有效阶段内容，阶段 skill 必须写入真实证据后再更新 `stage_status`。

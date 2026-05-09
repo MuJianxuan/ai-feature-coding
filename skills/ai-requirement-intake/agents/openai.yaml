@@ -3,4 +3,4 @@ interface:
   short_description: "Clarify feature scope and acceptance criteria"
   default_prompt: "Use $ai-requirement-intake to clarify this request and update requirements.md."
 policy:
-  allow_implicit_invocation: true
+  allow_implicit_invocation: false

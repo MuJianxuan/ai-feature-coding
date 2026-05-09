@@ -3,4 +3,4 @@ interface:
   short_description: "Trace real code and data paths before design"
   default_prompt: "Use $ai-repo-investigation to trace the real repository evidence before proposing changes."
 policy:
-  allow_implicit_invocation: true
+  allow_implicit_invocation: false

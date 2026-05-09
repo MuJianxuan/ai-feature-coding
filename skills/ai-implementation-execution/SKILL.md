@@ -22,6 +22,15 @@ description: "AI 编码执行技能。Activation restricted: use only when the u
 - 不得创建、猜测或切换 `.docs/feature-*` 目录。
 - 不得把普通 coding / bugfix / config edit 自动升级成这套工作流。
 
+## 启动模式与 route contract
+
+- `direct_explicit`：用户在当前请求中明确写出 `ai-implementation-execution`。这种模式也必须提供已有 `feature_dir`；如果缺少，立即停止并提示用户改用 `ai-feature-orchestrator` 新建或选择 feature 目录。
+- `routed_invocation`：不是用户直接点名本 skill，而是被工作流路由。此时必须同时收到：
+  - `activation_source: ai-feature-orchestrator`
+  - `feature_dir: <相对或绝对路径>`
+  - `stage_evidence: <为什么进入编码执行阶段的证据>`
+- 被动触发时缺少任一 route 字段，都必须拒绝启动；不得自行猜目录或补造上游文件。
+
 ## 前置检查
 
 开始前必须确认：
@@ -31,6 +40,14 @@ description: "AI 编码执行技能。Activation restricted: use only when the u
 - `requirements.md`、`investigation.md`、`design.md` 和 `tasks.md` 已存在。
 
 如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
+
+## Safety policy
+
+- 禁止删除文件或目录，除非用户明确许可。
+- 禁止 git commit / push / checkout / branch / reset / worktree 等仓库状态变更，除非用户明确许可。
+- 禁止覆盖用户未提交改动；开始前后都要检查工作区状态并区分用户改动和本次改动。
+- 启动服务前必须确认端口和已有进程状态。
+- 本阶段一次只执行一个 `TODO` / `DOING` 任务；任务完成后必须停下，输出下一步建议。除非用户明确要求连续推进，不得自行执行下一个任务或调用验证收口。
 
 ## 开始前
 
@@ -54,6 +71,16 @@ description: "AI 编码执行技能。Activation restricted: use only when the u
 2. 通过则把状态改为 `DONE`，写交付记录：改动文件、验证命令、结果、残余风险。
 3. 未通过但可继续排查时继续；确实缺少外部条件时改为 `BLOCKED` 并写明证据。
 4. 更新 `verification.md` 中对应检查项。
+
+## Resume protocol
+
+当任务中断或存在 `DOING` 时：
+
+1. 读取 `tasks.md` 中的 `DOING` 任务、交付记录和完成判定。
+2. 检查工作区 diff，区分已有用户改动、本次 AI 改动和未记录改动。
+3. 对照 `design.md` 和任务完成判定，确认还缺哪些文件、测试或证据。
+4. 如果 diff 与任务范围不一致，先记录风险并停止请求用户确认，不擅自覆盖或回滚。
+5. 恢复执行后继续维护同一个任务的交付记录；不得新开重复任务掩盖中断状态。
 
 ## 禁止
 

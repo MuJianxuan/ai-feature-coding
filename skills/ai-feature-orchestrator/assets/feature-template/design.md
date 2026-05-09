@@ -1,58 +1,63 @@
+---
+feature_stage: design
+stage_status: draft
+updated_at: ""
+evidence_complete: false
+---
+
 # Design
 
 ## 1. 方案摘要
 
-- 
+- UNSET
 
 ## 2. 影响范围
 
 | 类型 | 模块 / 文件 | 影响说明 |
 | --- | --- | --- |
-| Backend / Frontend / DB / Config / Test / Doc |  |  |
 
 ## 3. 目标链路
 
-1. 
+- UNSET
 
 ## 4. API 变更
 
-- Endpoint：
-- Request：
-- Response：
-- Error code：
-- 兼容性：
+- Endpoint：UNSET
+- Request：UNSET
+- Response：UNSET
+- Error code：UNSET
+- 兼容性：UNSET
 
 ## 5. 数据变更
 
-- DDL：
-- DML：
-- Migration：
-- Rollback：
-- 幂等性：
+- DDL：UNSET
+- DML：UNSET
+- Migration：UNSET
+- Rollback：UNSET
+- 幂等性：UNSET
 
 ## 6. 状态、事务与并发
 
-- 事务边界：
-- 缓存刷新：
-- Stream / event：
-- 异步任务：
+- 事务边界：UNSET
+- 缓存刷新：UNSET
+- Stream / event：UNSET
+- 异步任务：UNSET
 
 ## 7. 错误处理与日志
 
-- 异常传播：
-- 日志字段：
-- PII 处理：
+- 异常传播：UNSET
+- 日志字段：UNSET
+- PII 处理：UNSET
 
 ## 8. 风险与回滚
 
 | 风险 | 影响 | 缓解方案 | 回滚方式 |
 | --- | --- | --- | --- |
-|  |  |  |  |
 
 ## 9. 验证策略
 
-- 单元测试：
-- 集成测试：
-- 手工验证：
-- 数据校验：
-- UI 验证：
+- 单元测试：UNSET
+- 集成测试：UNSET
+- 手工验证：UNSET
+- 数据校验：UNSET
+- UI 验证：UNSET

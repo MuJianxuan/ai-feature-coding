@@ -3,4 +3,4 @@ interface:
   short_description: "Create atomic and verifiable tasks.md items"
   default_prompt: "Use $ai-task-planning to convert the approved design into tasks.md."
 policy:
-  allow_implicit_invocation: true
+  allow_implicit_invocation: false

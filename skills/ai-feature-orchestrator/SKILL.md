@@ -24,6 +24,16 @@ description: "AI 需求开发总调度技能。Activation restricted: use only w
 - 禁止创建或选择 `.docs/feature-*` 目录。
 - 应回到普通 Codex 工作流；如果用户确实想进入本流程，提示其显式指定本 skill 或“这套 AI feature workflow”。
 
+## Workflow contract
+
+本工作流的完整契约维护在 `WORKFLOW_CONTRACT.md`。执行前优先遵守该契约中的：
+
+- activation contract：显式触发与被动路由边界。
+- route contract：阶段 skill 必须收到的路由字段。
+- document metadata：阶段文档 frontmatter 与 `stage_status` 语义。
+- gate policy：默认一次只推进一个阶段。
+- safety policy：禁止破坏性操作和仓库状态变更。
+
 ## 入口模式
 
 仅在 `Activation policy` 已满足后，才识别用户意图并决定是否创建目录、读取目录或只做审计。
@@ -109,20 +119,31 @@ SKILL_ROOT/
 
 ## 阶段推断
 
+阶段推断优先读取各阶段文档的 YAML frontmatter；没有 frontmatter 时再按内容结构做 fallback 判断。模板占位内容、空表格、`UNSET`、`<...>`、示例代码块均不算有效内容。
+
+`stage_status` 语义：
+
+- `draft`：阶段未完成，继续当前阶段 skill。
+- `ready`：阶段产物已满足下一阶段输入条件。
+- `blocked`：阶段存在外部阻塞，停止并报告阻塞证据。
+- `complete`：收口类阶段已完成。
+
 按顺序检查，命中即停止：
 
-1. `requirements.md` 缺失，或缺少 in-scope / out-of-scope / acceptance criteria：路由到 `ai-requirement-intake`。
-2. `requirements.md` 存在 `BLOCKING` 待确认问题：继续 `ai-requirement-intake`，不要进入设计。
-3. `investigation.md` 缺失，或没有真实调用链、数据来源、已查文件：路由到 `ai-repo-investigation`。
-4. `design.md` 缺失，或没有影响范围、目标链路、风险回滚、验证策略：路由到 `ai-technical-design`。
-5. `design.md` 标记 `DESIGN_BLOCKED`：先处理设计阻塞，不进入任务拆解。
-6. `tasks.md` 缺失，或任务没有输入、输出、完成判定、关联模块/文件：路由到 `ai-task-planning`。
-7. `tasks.md` 存在 `BLOCKED`：报告阻塞任务、已查证据和需要的外部条件；除非用户指定，否则不要跳到其他任务。
-8. `tasks.md` 存在 `DOING`：路由到 `ai-implementation-execution`，优先恢复该任务。
-9. `tasks.md` 存在 `TODO`：路由到 `ai-implementation-execution`，执行下一项或用户指定项。
-10. 所有 in-scope 任务为 `DONE`，但 `verification.md` 未完成 acceptance criteria 映射：路由到 `ai-verification-closeout`。
-11. `verification.md` 完成但 `handoff.md` 缺少交付摘要、复核入口或残余风险：路由到 `ai-verification-closeout`。
-12. 全部完成：输出交付状态，不重复执行。
+1. `requirements.md` 缺失，或 `stage_status` 为 `draft`：路由到 `ai-requirement-intake`。
+2. `requirements.md` 的 `stage_status` 为 `blocked`，或存在真实阻塞问题：继续 `ai-requirement-intake`，不要进入设计。
+3. `requirements.md` 缺少真实 in-scope / out-of-scope / acceptance criteria：路由到 `ai-requirement-intake`。
+4. `investigation.md` 缺失，或 `stage_status` 为 `draft`，或没有真实调用链、数据来源、已查文件：路由到 `ai-repo-investigation`。
+5. `investigation.md` 的 `stage_status` 为 `blocked`：停止并报告阻塞证据。
+6. `design.md` 缺失，或 `stage_status` 为 `draft`，或没有影响范围、目标链路、风险回滚、验证策略：路由到 `ai-technical-design`。
+7. `design.md` 的 `stage_status` 为 `blocked`，或标记 `DESIGN_BLOCKED`：先处理设计阻塞，不进入任务拆解。
+8. `tasks.md` 缺失，或 `stage_status` 为 `draft`，或任务没有输入、输出、完成判定、关联模块/文件：路由到 `ai-task-planning`。
+9. `tasks.md` 存在真实 `BLOCKED` 任务：报告阻塞任务、已查证据和需要的外部条件；除非用户指定，否则不要跳到其他任务。
+10. `tasks.md` 存在真实 `DOING` 任务：路由到 `ai-implementation-execution`，优先恢复该任务。
+11. `tasks.md` 存在真实 `TODO` 任务：路由到 `ai-implementation-execution`，执行下一项或用户指定项。
+12. 所有 in-scope 任务为 `DONE`，但 `verification.md` 未完成 acceptance criteria 映射，或 `stage_status` 不是 `complete`：路由到 `ai-verification-closeout`。
+13. `verification.md` 完成但 `handoff.md` 缺少交付摘要、复核入口或残余风险，或 `stage_status` 不是 `complete`：路由到 `ai-verification-closeout`。
+14. 全部完成：输出交付状态，不重复执行。
 
 ## 阶段路由
 
@@ -142,6 +163,21 @@ SKILL_ROOT/
 - `stage_evidence: <命中阶段推断的文件和事实>`
 
 没有上述显式路由信息时，阶段 skill 必须拒绝以“被动触发”身份启动。
+
+## 阶段停止点
+
+- 默认一次只推进一个阶段：本 skill 可以路由到一个阶段 skill，但该阶段 skill 完成后必须停下并输出下一步建议。
+- 跨阶段继续执行前必须有用户新的明确确认，例如“继续下一阶段”或“连续推进”。
+- 用户未明确授权连续推进时，禁止阶段 skill 自行调用下一个阶段 skill。
+- 只读审计模式只输出状态、缺口和建议，不修改任何文件。
+
+## Safety policy
+
+- 禁止删除文件或目录，除非用户明确许可。
+- 禁止 git commit / push / checkout / branch / reset / worktree 等仓库状态变更，除非用户明确许可。
+- 禁止覆盖用户未提交改动；修改前后都要检查工作区状态。
+- 启动服务前必须确认端口和已有进程状态。
+- 所有文档用中文写，保留 technical English names、路径、API 名。
 
 ## 通用约束
 

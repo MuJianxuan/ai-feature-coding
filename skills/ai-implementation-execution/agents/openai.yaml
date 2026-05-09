@@ -3,4 +3,4 @@ interface:
   short_description: "Implement tasks while preserving evidence"
   default_prompt: "Use $ai-implementation-execution to implement the next task from tasks.md."
 policy:
-  allow_implicit_invocation: true
+  allow_implicit_invocation: false

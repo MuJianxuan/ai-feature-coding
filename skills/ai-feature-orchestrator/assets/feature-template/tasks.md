@@ -1,27 +1,21 @@
+---
+feature_stage: tasks
+stage_status: draft
+updated_at: ""
+task_count: 0
+---
+
 # Tasks
 
-## 状态说明
+## 1. 状态说明
 
-- `TODO`：未开始。
-- `DOING`：进行中。
-- `DONE`：已完成，且完成判定通过。
-- `BLOCKED`：受阻，需外部条件。
+任务状态枚举和阶段判定规则见 `ai-feature-orchestrator/WORKFLOW_CONTRACT.md`。本文件初始为空，只有 `ai-task-planning` 写入的真实任务才算有效任务。
 
-## 任务清单
+## 2. 任务清单
 
-### T01 - <任务名>
+当前无真实任务。
 
-- status: TODO
-- 输入：
-- 输出：
-- 关联模块/文件：
-- 执行要点：
-- 完成判定：
-- 风险：
-- 交付记录：
-
-## 任务总览
+## 3. 任务总览
 
 | ID | 任务 | 状态 | 完成判定 | 交付记录 |
 | --- | --- | --- | --- | --- |
-| T01 |  | TODO |  |  |
