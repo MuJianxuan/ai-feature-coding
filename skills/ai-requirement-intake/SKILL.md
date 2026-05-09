@@ -1,6 +1,6 @@
 ---
 name: ai-requirement-intake
-description: "AI 需求澄清技能。Use when a feature request needs to be converted into `requirements.md`, including business goal, scope, non-goals, acceptance criteria, stakeholders, assumptions, constraints, and questions that cannot be answered from the repository."
+description: "AI 需求澄清技能。Activation restricted: use only when the user explicitly names `ai-requirement-intake`, or a legally activated workflow/orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary requirement clarification or feature discussion."
 ---
 
 # AI Requirement Intake
@@ -8,6 +8,29 @@ description: "AI 需求澄清技能。Use when a feature request needs to be con
 ## 目标
 
 把用户输入变成可执行、可验证、可追踪的 `requirements.md`。不要急着写方案或代码。
+
+## Activation policy
+
+本 skill 只能在以下情况下使用：
+
+1. 用户在当前请求中明确写出 `ai-requirement-intake`，或明确要求使用这套 AI feature workflow 的需求澄清阶段。
+2. `ai-feature-orchestrator` 或另一个已经合法触发的 skill 显式路由到本 skill，并传入 `feature_dir`。
+
+不满足时：
+
+- 不得进入本 skill。
+- 不得创建、猜测或切换 `.docs/feature-*` 目录。
+- 不得把普通需求讨论自动升级成这套工作流。
+
+## 前置检查
+
+开始前必须确认：
+
+- 已收到明确的 `feature_dir`。
+- `feature_dir` 目录存在。
+- `requirements.md` 和 `resource/README.md` 已由 orchestrator/template 准备好。
+
+如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游准备文件。
 
 ## 工作流
 

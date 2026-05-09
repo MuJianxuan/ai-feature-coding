@@ -1,6 +1,6 @@
 ---
 name: ai-task-planning
-description: "AI 任务拆解技能。Use when an approved `design.md` must be converted into `tasks.md` with ordered, atomic, independently verifiable development tasks that can safely drive AI implementation."
+description: "AI 任务拆解技能。Activation restricted: use only when the user explicitly names `ai-task-planning`, or a legally activated workflow/orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary planning, TODO creation, or implementation breakdown requests."
 ---
 
 # AI Task Planning
@@ -8,6 +8,29 @@ description: "AI 任务拆解技能。Use when an approved `design.md` must be c
 ## 目标
 
 把技术设计拆成 AI 可以逐项执行的任务清单。`tasks.md` 是编码执行的唯一驱动文件。
+
+## Activation policy
+
+本 skill 只能在以下情况下使用：
+
+1. 用户在当前请求中明确写出 `ai-task-planning`，或明确要求使用这套 AI feature workflow 的任务拆解阶段。
+2. `ai-feature-orchestrator` 或另一个已经合法触发的 skill 显式路由到本 skill，并传入 `feature_dir`。
+
+不满足时：
+
+- 不得进入本 skill。
+- 不得创建、猜测或切换 `.docs/feature-*` 目录。
+- 不得把普通任务拆解自动升级成这套工作流。
+
+## 前置检查
+
+开始前必须确认：
+
+- 已收到明确的 `feature_dir`。
+- `feature_dir` 目录存在。
+- `requirements.md`、`investigation.md` 和 `design.md` 已存在。
+
+如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
 
 ## 拆解规则
 

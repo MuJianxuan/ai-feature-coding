@@ -1,6 +1,6 @@
 ---
 name: ai-repo-investigation
-description: "AI 仓库证据勘察技能。Use when Codex must trace real code paths, data sources, API contracts, persistence, frontend state, tests, logs, or similar implementations before proposing a fix or design. Produces `investigation.md` evidence for AI feature work."
+description: "AI 仓库证据勘察技能。Activation restricted: use only when the user explicitly names `ai-repo-investigation`, or a legally activated workflow/orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary debugging, repo investigation, root-cause analysis, or design prep."
 ---
 
 # AI Repo Investigation
@@ -8,6 +8,29 @@ description: "AI 仓库证据勘察技能。Use when Codex must trace real code 
 ## 目标
 
 在写方案或改代码前，先找出真实链路。输出应能支撑后续 `design.md` 和 `tasks.md`，而不是停留在猜测。
+
+## Activation policy
+
+本 skill 只能在以下情况下使用：
+
+1. 用户在当前请求中明确写出 `ai-repo-investigation`，或明确要求使用这套 AI feature workflow 的仓库勘察阶段。
+2. `ai-feature-orchestrator` 或另一个已经合法触发的 skill 显式路由到本 skill，并传入 `feature_dir`。
+
+不满足时：
+
+- 不得进入本 skill。
+- 不得创建、猜测或切换 `.docs/feature-*` 目录。
+- 不得把普通 debugging / code tracing 自动升级成这套工作流。
+
+## 前置检查
+
+开始前必须确认：
+
+- 已收到明确的 `feature_dir`。
+- `feature_dir` 目录存在。
+- `requirements.md` 已存在，并包含当前阶段要服务的 scope / acceptance criteria。
+
+如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
 
 ## 搜索顺序
 

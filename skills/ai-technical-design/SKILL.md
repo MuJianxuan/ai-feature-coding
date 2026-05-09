@@ -1,6 +1,6 @@
 ---
 name: ai-technical-design
-description: "AI 技术设计技能。Use when requirements and repository evidence need to be turned into `design.md`, including architecture impact, module boundaries, API/database changes, compatibility, migration, error handling, rollback, and verification strategy."
+description: "AI 技术设计技能。Activation restricted: use only when the user explicitly names `ai-technical-design`, or a legally activated workflow/orchestrator explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary architecture, design, planning, or proposal work."
 ---
 
 # AI Technical Design
@@ -8,6 +8,29 @@ description: "AI 技术设计技能。Use when requirements and repository evide
 ## 目标
 
 基于 `requirements.md` 和 `investigation.md` 产出能直接拆任务的技术方案。设计必须解释为什么这样改，以及如何验证它真的满足需求。
+
+## Activation policy
+
+本 skill 只能在以下情况下使用：
+
+1. 用户在当前请求中明确写出 `ai-technical-design`，或明确要求使用这套 AI feature workflow 的技术设计阶段。
+2. `ai-feature-orchestrator` 或另一个已经合法触发的 skill 显式路由到本 skill，并传入 `feature_dir`。
+
+不满足时：
+
+- 不得进入本 skill。
+- 不得创建、猜测或切换 `.docs/feature-*` 目录。
+- 不得把普通技术方案讨论自动升级成这套工作流。
+
+## 前置检查
+
+开始前必须确认：
+
+- 已收到明确的 `feature_dir`。
+- `feature_dir` 目录存在。
+- `requirements.md` 和 `investigation.md` 已存在。
+
+如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
 
 ## 输入检查
 

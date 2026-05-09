@@ -1,6 +1,6 @@
 ---
 name: ai-feature-orchestrator
-description: "AI 需求开发总调度技能。Use when a user wants to start a new feature from a product requirement document, continue a specified `.docs/feature-YYYYMMDD-short-name/` directory, inspect multiple feature directories, audit current workflow state, or close a feature through an evidence-first AI development workflow. This skill is the source of truth for routing requirement intake, repo investigation, technical design, task planning, implementation, verification, and handoff."
+description: "AI 需求开发总调度技能。Activation restricted: use only when the user explicitly names `ai-feature-orchestrator`, explicitly asks to use/start this AI feature workflow or skills workflow, or another legally activated skill explicitly routes here. Do not auto-trigger for ordinary feature requests, repo audits, coding, debugging, design, planning, or closeout."
 ---
 
 # AI Feature Orchestrator
@@ -11,13 +11,26 @@ description: "AI 需求开发总调度技能。Use when a user wants to start a 
 
 需求工作目录默认是 `.docs/feature-YYYYMMDD-short-name/`。模板由本 skill 自带，位于当前 skill 目录下的 `assets/feature-template/`。
 
+## Activation policy
+
+本 skill 是 explicit opt-in，不参与普通 Codex 工作流的自动触发。只有满足以下任一条件，才允许进入本 skill：
+
+1. 用户在当前请求中明确写出 `ai-feature-orchestrator`，或明确要求“使用/启动这套 AI feature workflow / skills workflow / 技能工作流”。
+2. 另一个已经合法触发的 skill 在当前上下文中显式路由到本 skill。
+
+不满足以上条件时：
+
+- 禁止把普通“帮我实现功能 / 调查代码 / 写技术方案 / 拆任务 / 验证收口”解读为触发本 skill。
+- 禁止创建或选择 `.docs/feature-*` 目录。
+- 应回到普通 Codex 工作流；如果用户确实想进入本流程，提示其显式指定本 skill 或“这套 AI feature workflow”。
+
 ## 入口模式
 
-先识别用户意图，再决定是否创建目录、读取目录或只做审计。
+仅在 `Activation policy` 已满足后，才识别用户意图并决定是否创建目录、读取目录或只做审计。
 
 ### NEW_FEATURE
 
-触发条件：
+模式条件（仅在 `Activation policy` 已满足后判断）：
 
 - 用户给出新的产品需求、PRD、截图、会议纪要、口头需求或接口草案。
 - 用户没有指定已有 `.docs/feature-*` 目录。
@@ -33,7 +46,7 @@ description: "AI 需求开发总调度技能。Use when a user wants to start a 
 
 ### CONTINUE_FEATURE
 
-触发条件：
+模式条件（仅在 `Activation policy` 已满足后判断）：
 
 - 用户明确指定已有需求目录。
 - 用户说继续实现、继续任务、处理下一项、从某个 feature 目录恢复。
@@ -48,7 +61,7 @@ description: "AI 需求开发总调度技能。Use when a user wants to start a 
 
 ### INSPECT_FEATURES
 
-触发条件：
+模式条件（仅在 `Activation policy` 已满足后判断）：
 
 - 用户没有给新需求资料。
 - 用户没有指定需求目录。
@@ -64,7 +77,7 @@ description: "AI 需求开发总调度技能。Use when a user wants to start a 
 
 ### AD_HOC_AUDIT
 
-触发条件：
+模式条件（仅在 `Activation policy` 已满足后判断）：
 
 - 用户要求检查当前流程状态、审计目录、看做到哪一步、找缺口。
 
@@ -121,6 +134,14 @@ SKILL_ROOT/
 - `ai-verification-closeout`：验收映射、回归检查、交付总结和残余风险收口。
 
 路由到任何阶段 skill 时，都必须带上 feature 目录路径和当前阶段判断证据，避免阶段 skill 重新猜目录。
+
+路由消息必须显式包含：
+
+- `activation_source: ai-feature-orchestrator`
+- `feature_dir: <相对或绝对路径>`
+- `stage_evidence: <命中阶段推断的文件和事实>`
+
+没有上述显式路由信息时，阶段 skill 必须拒绝以“被动触发”身份启动。
 
 ## 通用约束
 
