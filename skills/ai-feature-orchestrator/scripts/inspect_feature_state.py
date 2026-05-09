@@ -48,6 +48,7 @@ STAGE_ALLOWED_STATUSES = {
 }
 ISO_WITH_TZ = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$")
 PLACEHOLDER_TOKENS = {"UNSET", "<...>", "当前无真实任务。"}
+TASK_FIELD_RE = re.compile(r"^-\s*([^:：]+?)\s*[:：]\s*(.*)$")
 DELIVERY_RECORD_REQUIREMENTS = {
     "改动文件": ("改动文件", "变更文件", "修改文件", "文件：", "文件:"),
     "验证命令或证据": ("验证命令", "验证证据", "验证：", "验证:", "命令：", "命令:"),
@@ -161,6 +162,12 @@ def is_placeholder_text(value: str) -> bool:
     return False
 
 
+def has_placeholder_marker(value: str) -> bool:
+    if "UNSET" in value:
+        return True
+    return bool(re.search(r"<[^>\n]+>", value))
+
+
 def is_table_separator(line: str) -> bool:
     return bool(re.fullmatch(r"\|\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?", line.strip()))
 
@@ -211,6 +218,15 @@ def section_has_real_content(body: str, heading: str) -> bool:
     return any(is_real_line(line) for line in section_text(body, heading).splitlines())
 
 
+def section_has_no_placeholder_markers(body: str, heading: str) -> bool:
+    return not has_placeholder_marker(section_text(body, heading))
+
+
+def section_complete(body: str, heading: str) -> bool:
+    section = section_text(body, heading)
+    return bool(section.strip()) and section_has_real_content(body, heading) and not has_placeholder_marker(section)
+
+
 def has_real_table_row(body: str, *, id_prefix: str | None = None) -> bool:
     for line in body.splitlines():
         cells = table_cells(line)
@@ -259,9 +275,15 @@ def has_blocking_requirement(body: str) -> bool:
 
 def requirements_complete(body: str) -> bool:
     return (
-        section_has_real_content(body, "In Scope")
-        and section_has_real_content(body, "Out of Scope")
+        section_complete(body, "背景")
+        and section_complete(body, "目标")
+        and section_complete(body, "In Scope")
+        and section_complete(body, "Out of Scope")
+        and section_complete(body, "用户路径 / 业务流程")
         and has_real_table_row(section_text(body, "Acceptance Criteria"), id_prefix="AC")
+        and section_has_no_placeholder_markers(body, "Acceptance Criteria")
+        and section_complete(body, "非功能要求")
+        and section_complete(body, "约束与假设")
     )
 
 
@@ -284,20 +306,49 @@ def requirement_ac_ids(body: str) -> list[str]:
     return ids
 
 
+def duplicate_requirement_ac_ids(body: str) -> list[str]:
+    section = section_text(body, "Acceptance Criteria")
+    seen: set[str] = set()
+    duplicates: set[str] = set()
+    for line in section.splitlines():
+        cells = table_cells(line)
+        if not cells or is_table_separator(line) or is_header_row(line):
+            continue
+        ac_id = cells[0].strip()
+        if is_placeholder_text(ac_id) or not ac_id.upper().startswith("AC"):
+            continue
+        normalized = ac_id.upper()
+        if normalized in seen:
+            duplicates.add(normalized)
+        seen.add(normalized)
+    return sorted(duplicates)
+
+
 def investigation_complete(body: str) -> bool:
     return (
         has_real_table_row(section_text(body, "已查文件"))
-        and section_has_real_content(body, "真实调用链 / 数据流")
-        and section_has_real_content(body, "数据来源")
+        and section_complete(body, "真实调用链 / 数据流")
+        and section_complete(body, "数据来源")
+        and section_complete(body, "接口与协议")
+        and section_complete(body, "相似实现")
+        and section_complete(body, "风险与未知")
+        and section_complete(body, "对设计的约束")
     )
 
 
 def design_complete(body: str) -> bool:
     return (
-        has_real_table_row(section_text(body, "影响范围"))
-        and section_has_real_content(body, "目标链路")
+        section_complete(body, "方案摘要")
+        and has_real_table_row(section_text(body, "影响范围"))
+        and section_has_no_placeholder_markers(body, "影响范围")
+        and section_complete(body, "目标链路")
+        and section_complete(body, "API 变更")
+        and section_complete(body, "数据变更")
+        and section_complete(body, "状态、事务与并发")
+        and section_complete(body, "错误处理与日志")
         and section_has_real_content(body, "风险与回滚")
-        and section_has_real_content(body, "验证策略")
+        and section_has_no_placeholder_markers(body, "风险与回滚")
+        and section_complete(body, "验证策略")
     )
 
 
@@ -394,6 +445,28 @@ def delivery_record_issue(status: str, delivery_record: str) -> str | None:
     return None
 
 
+def extract_task_field(block: str, field: str) -> str:
+    lines = block.splitlines()
+    for index, line in enumerate(lines):
+        match = TASK_FIELD_RE.match(line)
+        if not match or match.group(1).strip() != field:
+            continue
+
+        value_parts: list[str] = []
+        first_value = match.group(2).strip()
+        if first_value:
+            value_parts.append(first_value)
+
+        for continuation in lines[index + 1 :]:
+            if TASK_FIELD_RE.match(continuation):
+                break
+            stripped = continuation.strip()
+            if stripped:
+                value_parts.append(stripped)
+        return "\n".join(value_parts).strip()
+    return ""
+
+
 def parse_tasks(body: str) -> list[dict[str, Any]]:
     matches = list(re.finditer(r"^###\s+(T\d+)\s+-\s+(.+?)\s*$", body, re.MULTILINE))
     tasks: list[dict[str, Any]] = []
@@ -409,14 +482,12 @@ def parse_tasks(body: str) -> list[dict[str, Any]]:
         missing_fields: list[str] = []
 
         for field in required_fields:
-            field_match = re.search(rf"^-\s*{re.escape(field)}\s*[:：]\s*(.+?)\s*$", block, re.MULTILINE)
-            value = field_match.group(1).strip() if field_match else ""
+            value = extract_task_field(block, field)
             fields[field] = value
             if is_placeholder_text(value):
                 missing_fields.append(field)
 
-        delivery_match = re.search(r"^-\s*交付记录\s*[:：]\s*(.+?)\s*$", block, re.MULTILINE)
-        delivery_record = delivery_match.group(1).strip() if delivery_match else ""
+        delivery_record = extract_task_field(block, "交付记录")
         delivery_issue = delivery_record_issue(status, delivery_record)
         is_real = status in VALID_TASK_STATUSES and not missing_fields
         tasks.append(
@@ -507,6 +578,8 @@ def verification_complete(metadata: dict[str, str], body: str, expected_ac_ids: 
 
 
 def handoff_complete(metadata: dict[str, str], body: str) -> bool:
+    ops_section = section_text(body, "配置 / SQL / 部署事项")
+    required_ops_labels = ("配置", "SQL", "部署", "数据修复")
     return (
         stage_status(metadata) == "complete"
         and metadata_true(metadata, "evidence_complete")
@@ -514,6 +587,7 @@ def handoff_complete(metadata: dict[str, str], body: str) -> bool:
         and section_has_real_content(body, "交付摘要")
         and has_real_table_row(section_text(body, "变更范围"))
         and section_has_real_content(body, "配置 / SQL / 部署事项")
+        and all(label in ops_section for label in required_ops_labels)
         and section_has_real_content(body, "用户复核入口")
         and section_has_real_content(body, "验证结论")
         and section_has_real_content(body, "残余风险与后续建议")
@@ -596,8 +670,18 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             feature_dir=feature_dir,
             state="requirements_incomplete",
             next_skill="ai-requirement-intake",
-            reason="requirements.md lacks real in-scope, out-of-scope, or acceptance criteria content",
-            evidence_items=[evidence(req_path, "missing real scope or acceptance criteria")],
+            reason="requirements.md lacks required real content or still contains placeholder markers",
+            evidence_items=[evidence(req_path, "missing real requirements sections or placeholder markers remain")],
+        )
+    duplicate_ac_ids = duplicate_requirement_ac_ids(req_body)
+    if duplicate_ac_ids:
+        return make_result(
+            feature_dir=feature_dir,
+            state="requirement_duplicate_ac_id",
+            next_skill="ai-requirement-intake",
+            blocking=True,
+            reason="requirements.md has duplicate acceptance-criteria IDs",
+            evidence_items=[evidence(req_path, "duplicate_ac_ids: " + ", ".join(duplicate_ac_ids))],
         )
     expected_ac_ids = requirement_ac_ids(req_body)
 

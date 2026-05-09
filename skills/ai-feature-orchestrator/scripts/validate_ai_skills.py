@@ -285,6 +285,10 @@ def write_ready_requirements(
 
 - 不支持 PDF 导出。
 
+## 4. 用户路径 / 业务流程
+
+- 管理员打开审计日志页面，按当前筛选条件点击导出 CSV。
+
 ## 5. Acceptance Criteria
 
 | ID | 验收标准 | 验证方式 | 状态 |
@@ -292,7 +296,82 @@ def write_ready_requirements(
 | AC-01 | 管理员可以导出 CSV | 手工点击导出并检查文件 | READY |
 {second_ac}
 {non_blocking_question}
+
+## 6. 非功能要求
+
+- 性能：导出请求沿用现有分页查询条件，不新增全表扫描。
+- 安全：复用管理员权限校验。
+- 兼容性：不改变现有审计日志列表接口。
+- 可观测性：记录导出请求结果。
+
+## 7. 约束与假设
+
+- 约束：首期只覆盖 CSV，不覆盖 PDF。
+- 假设：现有审计日志表是 source of truth。
 """,
+    )
+
+
+def write_ready_requirements_with_placeholder_gap(feature_dir: Path) -> None:
+    write_doc(
+        feature_dir / "requirements.md",
+        stage_meta("requirements", "ready", True),
+        """
+# Requirements
+
+## 1. 背景
+
+- 需求来源：测试场景
+- 业务背景：UNSET
+
+## 2. 目标
+
+- 业务目标：支持导出 CSV。
+
+## 3. 范围
+
+### In Scope
+
+- 管理员导出审计日志 CSV。
+
+### Out of Scope
+
+- 不支持 PDF 导出。
+
+## 4. 用户路径 / 业务流程
+
+- 管理员打开审计日志页面并点击导出。
+
+## 5. Acceptance Criteria
+
+| ID | 验收标准 | 验证方式 | 状态 |
+| --- | --- | --- | --- |
+| AC-01 | 管理员可以导出 CSV | 手工点击导出并检查文件 | READY |
+
+## 6. 非功能要求
+
+- 安全：复用管理员权限校验。
+
+## 7. 约束与假设
+
+- 约束：首期只覆盖 CSV。
+""",
+    )
+
+
+def write_requirements_with_duplicate_ac(feature_dir: Path) -> None:
+    write_ready_requirements(feature_dir)
+    path = feature_dir / "requirements.md"
+    path.write_text(
+        path.read_text().replace(
+            "| AC-01 | 管理员可以导出 CSV | 手工点击导出并检查文件 | READY |",
+            "\n".join(
+                [
+                    "| AC-01 | 管理员可以导出 CSV | 手工点击导出并检查文件 | READY |",
+                    "| AC-01 | 导出结果包含当前筛选条件 | 检查 CSV 内容 | READY |",
+                ]
+            ),
+        )
     )
 
 
@@ -322,6 +401,26 @@ def write_ready_investigation(feature_dir: Path) -> None:
 - Source of truth：audit_logs 表。
 - 写入点：审计事件写入器。
 - 读取点：审计日志查询 service。
+
+## 5. 接口与协议
+
+- Request shape：复用现有审计日志查询参数。
+- Response shape：返回 text/csv 下载响应。
+- Stream / event 行为：不涉及 stream。
+- 错误处理：复用现有权限错误。
+- logging / persistence：记录导出请求日志。
+
+## 6. 相似实现
+
+| 位置 | 可复用点 | 限制 |
+| --- | --- | --- |
+| src/report/export.ts | CSV 生成与响应头模式 | 字段和权限不同，不能直接复用字段列表 |
+
+## 7. 风险与未知
+
+| 类型 | 内容 | 证据 | 处理方式 |
+| --- | --- | --- | --- |
+| 已证实 | 需复用权限 guard | 已查 audit service | 设计中明确权限链路 |
 
 ## 8. 对设计的约束
 
@@ -358,6 +457,35 @@ def write_ready_design(feature_dir: Path, *, approved: bool = False) -> None:
 ## 3. 目标链路
 
 - UI -> API -> audit service -> CSV response。
+
+## 4. API 变更
+
+- Endpoint：新增或扩展审计日志导出 endpoint。
+- Request：复用审计日志筛选参数。
+- Response：返回 CSV 文件响应。
+- Error code：复用现有权限错误。
+- 兼容性：不改变现有列表接口。
+
+## 5. 数据变更
+
+- DDL：不涉及。
+- DML：不涉及。
+- Migration：不涉及。
+- Rollback：删除导出入口和导出 handler。
+- 幂等性：导出为只读操作。
+
+## 6. 状态、事务与并发
+
+- 事务边界：只读查询，无新增写事务。
+- 缓存刷新：不涉及。
+- Stream / event：不涉及。
+- 异步任务：不涉及。
+
+## 7. 错误处理与日志
+
+- 异常传播：复用现有 API error response。
+- 日志字段：记录导出用户、筛选条件摘要和结果。
+- PII 处理：CSV 字段沿用审计日志展示规则。
 
 ## 8. 风险与回滚
 
@@ -398,6 +526,40 @@ def write_tasks(feature_dir: Path, *, status: str, delivery_record: str | None =
 - 完成判定：targeted tests 通过，手工导出 CSV 成功
 - 风险：CSV 字段兼容性
 - 交付记录：{delivery_record}
+""",
+    )
+
+
+def write_multiline_task(feature_dir: Path) -> None:
+    write_doc(
+        feature_dir / "tasks.md",
+        stage_meta("tasks", "ready", True, task_count=1),
+        """
+# Tasks
+
+## 2. 任务清单
+
+### T01 - 实现审计日志导出
+
+- status: TODO
+- 输入：
+  - requirements.md#AC-01
+  - design.md#目标链路
+- 输出：
+  - 导出 API
+  - UI 导出入口
+- 关联模块/文件：
+  - src/audit/export.ts
+  - src/pages/Audit.tsx
+- 执行要点：
+  - 复用现有权限 guard
+  - 复用 CSV 响应头 helper
+- 完成判定：
+  - targeted tests 通过
+  - 手工导出 CSV 成功
+- 风险：
+  - CSV 字段兼容性
+- 交付记录：待执行
 """,
     )
 
@@ -608,6 +770,42 @@ def write_complete_handoff_without_ops(feature_dir: Path) -> None:
     )
 
 
+def write_complete_handoff_with_unlabeled_ops(feature_dir: Path) -> None:
+    write_doc(
+        feature_dir / "handoff.md",
+        stage_meta("handoff", "complete", True),
+        """
+# Handoff
+
+## 1. 交付摘要
+
+- 已完成审计日志 CSV 导出。
+
+## 2. 变更范围
+
+| 文件 / 模块 | 变更说明 |
+| --- | --- |
+| src/audit/export.ts | 新增导出逻辑 |
+
+## 3. 配置 / SQL / 部署事项
+
+- 无额外操作。
+
+## 4. 用户复核入口
+
+- 使用管理员账号打开 Audit 页面，点击导出。
+
+## 5. 验证结论
+
+- AC-01 已通过。
+
+## 6. 残余风险与后续建议
+
+- 暂无残余风险。
+""",
+    )
+
+
 def load_inspector(errors: list[str]):
     inspector_path = ORCHESTRATOR / "scripts" / "inspect_feature_state.py"
     if not inspector_path.is_file():
@@ -676,6 +874,30 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             blocking=False,
             errors=errors,
             label="inspector non-blocking requirement question",
+        )
+
+        requirement_placeholder_gap = make_scenario(scenarios_root, "requirement-placeholder-gap")
+        write_ready_requirements_with_placeholder_gap(requirement_placeholder_gap)
+        result = inspector.inspect_feature_state(requirement_placeholder_gap)
+        assert_state(
+            result,
+            state="requirements_incomplete",
+            next_skill="ai-requirement-intake",
+            blocking=False,
+            errors=errors,
+            label="inspector ready requirements must not keep placeholder gaps",
+        )
+
+        duplicate_ac = make_scenario(scenarios_root, "duplicate-ac")
+        write_requirements_with_duplicate_ac(duplicate_ac)
+        result = inspector.inspect_feature_state(duplicate_ac)
+        assert_state(
+            result,
+            state="requirement_duplicate_ac_id",
+            next_skill="ai-requirement-intake",
+            blocking=True,
+            errors=errors,
+            label="inspector duplicate acceptance criteria IDs must block",
         )
 
         req_metadata_inconsistent = make_scenario(scenarios_root, "requirement-metadata-inconsistent")
@@ -804,6 +1026,21 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             blocking=True,
             errors=errors,
             label="inspector task missing required field",
+        )
+
+        multiline_task = make_scenario(scenarios_root, "multiline-task")
+        write_ready_requirements(multiline_task)
+        write_ready_investigation(multiline_task)
+        write_ready_design(multiline_task, approved=True)
+        write_multiline_task(multiline_task)
+        result = inspector.inspect_feature_state(multiline_task)
+        assert_state(
+            result,
+            state="task_todo",
+            next_skill="ai-implementation-execution",
+            blocking=False,
+            errors=errors,
+            label="inspector multiline task fields",
         )
 
         task_count_missing = make_scenario(scenarios_root, "task-count-missing")
@@ -1019,6 +1256,23 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             blocking=False,
             errors=errors,
             label="inspector complete handoff must include config/sql/deploy notes",
+        )
+
+        handoff_unlabeled_ops = make_scenario(scenarios_root, "handoff-unlabeled-ops")
+        write_ready_requirements(handoff_unlabeled_ops)
+        write_ready_investigation(handoff_unlabeled_ops)
+        write_ready_design(handoff_unlabeled_ops, approved=True)
+        write_tasks(handoff_unlabeled_ops, status="DONE")
+        write_complete_verification(handoff_unlabeled_ops)
+        write_complete_handoff_with_unlabeled_ops(handoff_unlabeled_ops)
+        result = inspector.inspect_feature_state(handoff_unlabeled_ops)
+        assert_state(
+            result,
+            state="handoff_incomplete",
+            next_skill="ai-verification-closeout",
+            blocking=False,
+            errors=errors,
+            label="inspector complete handoff must label config/sql/deploy/data repair notes",
         )
 
         handoff_metadata_inconsistent = make_scenario(scenarios_root, "handoff-metadata-inconsistent")
