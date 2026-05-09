@@ -42,8 +42,13 @@ description: "AI 任务拆解技能。Activation restricted: use only when the u
 - 已收到明确的 `feature_dir`。
 - `feature_dir` 目录存在。
 - `requirements.md`、`investigation.md` 和 `design.md` 已存在。
+- `requirements.md stage_status: ready` 且 `requirements.md evidence_complete: true`。
+- `investigation.md stage_status: ready` 且 `investigation.md evidence_complete: true`。
 - `design.md` 的 `stage_status: ready`。
+- `design.md stage_status: ready` 且 `design.md evidence_complete: true`。
 - `design.md approval_status: approved`；如果 metadata 仍是 `pending` 但当前用户请求明确批准设计或明确要求进入任务拆解，先补齐审批字段；否则停止并报告等待设计审批。
+- `approved_by`、`approved_at`、`approval_evidence` 已补齐，且 `approved_at` 是 ISO 8601 + timezone。
+- 上述 `requirements.md`、`investigation.md`、`design.md` 的 `updated_at` 均已写入 ISO 8601 + timezone。
 
 如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
 

@@ -38,6 +38,14 @@ STAGE_SKILLS = {
 
 VALID_TASK_STATUSES = {"TODO", "DOING", "DONE", "BLOCKED"}
 VALID_STAGE_STATUSES = {"draft", "ready", "blocked", "complete"}
+STAGE_ALLOWED_STATUSES = {
+    "requirements": {"draft", "ready", "blocked"},
+    "investigation": {"draft", "ready", "blocked"},
+    "design": {"draft", "ready", "blocked"},
+    "tasks": {"draft", "ready", "blocked"},
+    "verification": {"draft", "blocked", "complete"},
+    "handoff": {"draft", "blocked", "complete"},
+}
 ISO_WITH_TZ = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$")
 PLACEHOLDER_TOKENS = {"UNSET", "<...>", "当前无真实任务。"}
 HEADER_CELLS = {
@@ -307,6 +315,12 @@ def stage_metadata_issue(stage: str, metadata: dict[str, str]) -> str | None:
         if not status:
             return f"{stage} document is missing stage_status"
         return f"{stage} document has invalid stage_status: {status}"
+    allowed_statuses = STAGE_ALLOWED_STATUSES.get(stage, VALID_STAGE_STATUSES)
+    if status not in allowed_statuses:
+        return (
+            f"{stage} document has invalid stage_status for this stage: "
+            f"{status}; allowed: {', '.join(sorted(allowed_statuses))}"
+        )
 
     evidence_value = metadata.get("evidence_complete", "").strip().lower()
     if evidence_value not in {"true", "false"}:

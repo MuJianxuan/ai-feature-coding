@@ -12,8 +12,9 @@
 
 - 普通“帮我写代码 / 查 bug / 设计方案 / 拆任务 / 做验证”不会自动触发 AI Feature Workflow。
 - 只有用户明确指定 `ai-feature-orchestrator` 或某个阶段 skill，才允许启动。
-- 阶段 skill 被动触发时，必须由合法上游显式路由，并携带完整 route payload。
+- 阶段 skill 被动触发时，必须由 `ai-feature-orchestrator` 显式路由，并携带完整 route payload。
 - 默认一次只推进一个阶段；跨阶段继续需要用户再次确认。
+- 本指南是 onboarding 辅助说明；如与 `skills/ai-feature-orchestrator/WORKFLOW_CONTRACT.md` 冲突，以 contract 为准。
 
 ## 2. Source of truth
 
@@ -192,6 +193,15 @@ approval_evidence: ""
 | `blocked` | 存在外部阻塞，停止推进并报告证据。 |
 | `complete` | 验证或交付收口完成。 |
 
+阶段级合法状态：
+
+| 阶段文档 | 合法 `stage_status` |
+| --- | --- |
+| `requirements.md` / `investigation.md` / `design.md` / `tasks.md` | `draft` / `ready` / `blocked` |
+| `verification.md` / `handoff.md` | `draft` / `blocked` / `complete` |
+
+`complete` 只用于 `verification.md` / `handoff.md`；前置阶段完成时使用 `ready`。
+
 ## 8. 阶段推进实践
 
 ### 8.1 Requirement Intake
@@ -357,12 +367,14 @@ python3 skills/ai-feature-orchestrator/scripts/validate_ai_skills.py
 - 阶段模板 metadata 可解析，`tasks.md` 包含 `evidence_complete`，`design.md` 包含审批字段。
 - Contract 和各阶段输出规则都覆盖 `updated_at` / `evidence_complete`；`ai-task-planning` 覆盖 `task_count`。
 - `inspect_feature_state.py` 会阻止 `feature_stage` / `stage_status` 漂移、`ready/complete` 但 `updated_at` / `evidence_complete` 不一致、设计批准证据字段缺失、`tasks.md task_count` 缺失、`DONE` 任务交付记录缺失、verification 未覆盖全部 acceptance criteria 等非法继续推进。
+- `inspect_feature_state.py` 会检查阶段级 `stage_status` 枚举：前置阶段不能写 `complete`，verification / handoff 不能写 `ready`。
 - `inspect_feature_state.py` 会拒绝把 `skills/ai-feature-orchestrator/assets/feature-template/` 当成真实 feature 目录。
 - Route source 已收紧为仅允许 `ai-feature-orchestrator` routed invocation，不能残留 “another legally activated skill” 这类泛化表述。
 - `ai-implementation-execution` 必须优先恢复真实 `DOING` 任务，再选择用户指定任务或第一个真实 `TODO`。
 - `ai-verification-closeout` 必须读取 `investigation.md`，用真实调用链和数据来源校准验证范围。
 - 模板不包含容易误判的 fake `TODO` / fake `AC-01` / fake `T01` / fake blocking placeholder。
 - Orchestrator blocked 判断顺序正确，不会被 draft/content 判断抢先命中。
+- 子阶段 skill 的 direct invocation 也必须执行 upstream metadata gate，不能只因为上游文件存在就继续。
 - golden examples 文件存在并覆盖 happy path、blocked、resume、verification failed，且样例同步覆盖 `updated_at` / `evidence_complete` / `task_count` / verification 读取 `investigation.md`。
 
 ## 12. Onboarding Checklist

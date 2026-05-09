@@ -134,6 +134,11 @@ SKILL_ROOT/
 - `blocked`：阶段存在外部阻塞，停止并报告阻塞证据。
 - `complete`：收口类阶段已完成。
 
+阶段级合法状态：
+
+- `requirements.md` / `investigation.md` / `design.md` / `tasks.md`：只能使用 `draft` / `ready` / `blocked`；完成当前阶段时标记为 `ready`，不能标记为 `complete`。
+- `verification.md` / `handoff.md`：只能使用 `draft` / `blocked` / `complete`；未收口时保持 `draft` 或 `blocked`，不能标记为 `ready`。
+
 按顺序检查，命中即停止：
 
 1. `requirements.md` 缺失，或 `stage_status` 为 `draft`：路由到 `ai-requirement-intake`。

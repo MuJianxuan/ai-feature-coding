@@ -43,6 +43,13 @@ description: "AI 验证收口技能。Activation restricted: use only when the u
 - `feature_dir` 目录存在。
 - `requirements.md`、`investigation.md`、`design.md` 和 `tasks.md` 已存在。
 - `verification.md` 和 `handoff.md` 已由 orchestrator/template 准备好。
+- `requirements.md stage_status: ready` 且 `requirements.md evidence_complete: true`。
+- `investigation.md stage_status: ready` 且 `investigation.md evidence_complete: true`。
+- `design.md stage_status: ready` 且 `design.md evidence_complete: true`。
+- `design.md approval_status: approved`，且 `approved_by`、`approved_at`、`approval_evidence` 已补齐。
+- `tasks.md stage_status: ready` 且 `tasks.md evidence_complete: true`。
+- `task_count` 与真实任务数量一致。
+- 不存在 `TODO` 或 `DOING` 任务；仍有未执行任务时回到 `ai-implementation-execution`。
 
 如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
 

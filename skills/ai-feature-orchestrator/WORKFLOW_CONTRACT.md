@@ -36,6 +36,7 @@ stage_evidence:
 阶段 skill 的行为：
 
 - 如果是 `direct_explicit` 但缺少 `feature_dir`：停止，提示用户提供已有目录，或改用 `ai-feature-orchestrator`。
+- 如果是 `direct_explicit` 且已有 `feature_dir`：仍必须执行本阶段的 upstream metadata gate；不得只因为文件存在就绕过上一阶段的 `ready`、`evidence_complete`、设计审批或 `task_count` 校验。
 - 如果是 `routed_invocation` 但缺少 `activation_source`、`feature_dir` 或 `stage_evidence` 任一字段：拒绝启动。
 - 不得自己猜测 feature 目录。
 - 不得自己创建上游阶段文档来绕过前置检查。
@@ -55,7 +56,7 @@ stage_evidence:
 
 ```yaml
 feature_stage: requirements # requirements / investigation / design / tasks / verification / handoff
-stage_status: draft # draft / ready / blocked / complete
+stage_status: draft # 按阶段限制：requirements/investigation/design/tasks 使用 draft/ready/blocked；verification/handoff 使用 draft/blocked/complete
 updated_at: "2026-05-09T00:00:00+08:00"
 evidence_complete: false
 ```
@@ -87,6 +88,19 @@ approval_evidence: ""
 - `ready`：阶段产物可作为下一阶段输入。
 - `blocked`：阶段缺少外部条件，不能继续自动推进。
 - `complete`：验证或交付收口已完成。
+
+阶段级合法状态：
+
+| 阶段文档 | 合法 `stage_status` |
+| --- | --- |
+| `requirements.md` | `draft` / `ready` / `blocked` |
+| `investigation.md` | `draft` / `ready` / `blocked` |
+| `design.md` | `draft` / `ready` / `blocked` |
+| `tasks.md` | `draft` / `ready` / `blocked` |
+| `verification.md` | `draft` / `blocked` / `complete` |
+| `handoff.md` | `draft` / `blocked` / `complete` |
+
+`complete` 只允许用于验证和交付收口阶段；`requirements`、`investigation`、`design`、`tasks` 完成后应标记为 `ready`，不能标记为 `complete`。`verification.md` 和 `handoff.md` 不使用 `ready`，未收口时保持 `draft` 或 `blocked`。
 
 阶段完成时必须更新 metadata：
 
@@ -131,7 +145,19 @@ approval_evidence: ""
 - `DONE` 任务必须补齐真实 `交付记录`，包括改动文件、验证命令或证据、结果和残余风险。
 - 不是模板说明、空表格或示例代码块。
 
-## 6. Gate policy
+## 6. Upstream metadata gate
+
+阶段 skill 在 `direct_explicit` 或 `routed_invocation` 下都必须执行相同的 upstream metadata gate：
+
+- `ai-repo-investigation`：要求 `requirements.md stage_status: ready` 且 `requirements.md evidence_complete: true`。
+- `ai-technical-design`：要求 `requirements.md stage_status: ready`、`investigation.md stage_status: ready`，且二者 `evidence_complete: true`。
+- `ai-task-planning`：要求 `requirements.md`、`investigation.md`、`design.md` 均为 `stage_status: ready` 且 `evidence_complete: true`；同时要求 `design.md approval_status: approved`，并补齐 `approved_by`、`approved_at`、`approval_evidence`。
+- `ai-implementation-execution`：要求 `requirements.md`、`investigation.md`、`design.md`、`tasks.md` 均为 `stage_status: ready` 且 `evidence_complete: true`；要求 `design.md approval_status: approved`；要求 `tasks.md task_count` 与真实任务数量一致，且至少存在一个真实 `TODO` 或 `DOING` 任务。
+- `ai-verification-closeout`：要求 `requirements.md`、`investigation.md`、`design.md`、`tasks.md` 均为 `stage_status: ready` 且 `evidence_complete: true`；要求 `design.md approval_status: approved`；要求 `tasks.md task_count` 与真实任务数量一致，且不存在 `TODO` 或 `DOING` 任务。
+
+任一 gate 不满足时，停止并报告具体文档、字段和值；不要临时补造上游阶段内容，不要自行改状态以通过 gate。
+
+## 7. Gate policy
 
 默认一次只推进一个阶段。
 
@@ -150,7 +176,7 @@ approval_evidence: ""
 
 只有用户明确说“连续推进”“继续下一阶段”“继续执行下一项任务”时，才允许进入下一步。
 
-## 7. Design approval contract
+## 8. Design approval contract
 
 设计审批是 `design.md` 到 `tasks.md` 的硬门禁：
 
@@ -164,7 +190,7 @@ approval_evidence: ""
 3. 如果 `design.md` 未批准，`ai-task-planning` 必须停止并报告等待设计审批，不能把 `stage_status: ready` 等同于已批准。
 4. 如果用户要求修改设计，应回到 `ai-technical-design`，不得在 `tasks.md` 中绕过设计变更。
 
-## 8. Safety policy
+## 9. Safety policy
 
 所有阶段必须遵守：
 
@@ -175,7 +201,7 @@ approval_evidence: ""
 - 文档用中文写，保留 technical English names、路径、API 名。
 - 缺少账号、密钥、业务决策、外部权限时才问用户；提问必须附已查证据。
 
-## 9. Service startup and port-check protocol
+## 10. Service startup and port-check protocol
 
 任何阶段需要启动服务、预览或后台进程时，必须先在阶段文档或输出中记录：
 
@@ -186,7 +212,7 @@ approval_evidence: ""
 
 如果端口已被无关进程占用，停止并请求用户确认；不得擅自 kill。
 
-## 10. Scope change protocol
+## 11. Scope change protocol
 
 任何阶段发现当前工作需要扩大或改变 scope 时：
 
@@ -195,7 +221,7 @@ approval_evidence: ""
 3. 用户确认后，按影响范围回流更新 `requirements.md`、`investigation.md`、`design.md` 和 `tasks.md`。
 4. 禁止通过在 `tasks.md` 临时新增任务来绕过 requirements / design 的 scope 边界。
 
-## 11. Resume protocol
+## 12. Resume protocol
 
 恢复中断任务时：
 
@@ -205,7 +231,7 @@ approval_evidence: ""
 4. 如果 diff 超出当前任务范围，停止并报告风险，不擅自覆盖或回滚。
 5. 继续时沿用同一任务记录，不创建重复任务掩盖中断。
 
-## 12. Smoke-test expectations
+## 13. Smoke-test expectations
 
 维护 AI Feature Workflow 时至少检查：
 
@@ -213,6 +239,7 @@ approval_evidence: ""
 - 所有阶段 skill 都包含 `Activation policy`、`route contract`、`Safety policy`。
 - 模板 Markdown 都有 frontmatter。
 - 阶段模板 frontmatter 可解析，且包含合法 `feature_stage`、`stage_status`、`updated_at`、`evidence_complete`。
+- 阶段文档必须遵守阶段级 `stage_status` 枚举：`complete` 只允许 `verification.md` / `handoff.md`，`ready` 不用于 `verification.md` / `handoff.md`。
 - 辅助模板 Markdown 可解析，但不得包含 `feature_stage` 或 `stage_status`。
 - `design.md` 包含设计审批字段，`tasks.md` 包含 `task_count`。
 - 各阶段 skill 的输出规则必须说明 `updated_at` / `evidence_complete` 的更新方式；`ai-task-planning` 必须说明 `task_count` 更新为真实任务数量。
@@ -220,4 +247,5 @@ approval_evidence: ""
 - 模板不包含会被误判为真实任务或阻塞项的默认行。
 - Orchestrator 的 route payload 字段和子 skill preflight 一致。
 - Orchestrator 的 blocked 阶段判断顺序不会被 draft/content 判断抢先命中。
+- 子阶段 skill 的 direct invocation preflight 必须覆盖 upstream metadata gate，不能只检查文件存在。
 - `scripts/inspect_feature_state.py` 覆盖初始模板、拒绝误用内置模板目录、等待设计审批、任务恢复、验证收口、完成态，以及 `feature_stage` / `stage_status` 漂移、`ready/complete` metadata 不一致、设计审批证据缺失、`task_count` 缺失、`DONE` 任务交付记录缺失、verification 未覆盖全部 acceptance criteria 等防误推进场景。

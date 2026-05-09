@@ -39,6 +39,44 @@ CHILD_OUTPUT_REQUIREMENTS = {
     "ai-implementation-execution": ["updated_at", "evidence_complete", "task_count"],
     "ai-verification-closeout": ["updated_at", "evidence_complete"],
 }
+CHILD_PREFLIGHT_REQUIREMENTS = {
+    "ai-repo-investigation": [
+        "`requirements.md stage_status: ready`",
+        "`requirements.md evidence_complete: true`",
+    ],
+    "ai-technical-design": [
+        "`requirements.md stage_status: ready`",
+        "`investigation.md stage_status: ready`",
+        "`requirements.md evidence_complete: true`",
+        "`investigation.md evidence_complete: true`",
+    ],
+    "ai-task-planning": [
+        "`requirements.md stage_status: ready`",
+        "`investigation.md stage_status: ready`",
+        "`design.md stage_status: ready`",
+        "`design.md evidence_complete: true`",
+        "`design.md approval_status: approved`",
+        "`approved_by`、`approved_at`、`approval_evidence`",
+    ],
+    "ai-implementation-execution": [
+        "`requirements.md stage_status: ready`",
+        "`investigation.md stage_status: ready`",
+        "`design.md stage_status: ready`",
+        "`tasks.md stage_status: ready`",
+        "`design.md approval_status: approved`",
+        "`task_count` 与真实任务数量一致",
+        "至少存在一个真实 `TODO` 或 `DOING` 任务",
+    ],
+    "ai-verification-closeout": [
+        "`requirements.md stage_status: ready`",
+        "`investigation.md stage_status: ready`",
+        "`design.md stage_status: ready`",
+        "`tasks.md stage_status: ready`",
+        "`design.md approval_status: approved`",
+        "`task_count` 与真实任务数量一致",
+        "不存在 `TODO` 或 `DOING` 任务",
+    ],
+}
 STAGE_TEMPLATE_FILES = {
     "requirements.md": "requirements",
     "investigation.md": "investigation",
@@ -48,6 +86,14 @@ STAGE_TEMPLATE_FILES = {
     "handoff.md": "handoff",
 }
 VALID_STAGE_STATUS = {"draft", "ready", "blocked", "complete"}
+STAGE_ALLOWED_STATUS = {
+    "requirements": {"draft", "ready", "blocked"},
+    "investigation": {"draft", "ready", "blocked"},
+    "design": {"draft", "ready", "blocked"},
+    "tasks": {"draft", "ready", "blocked"},
+    "verification": {"draft", "blocked", "complete"},
+    "handoff": {"draft", "blocked", "complete"},
+}
 ISO_WITH_TZ = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$")
 BAD_TEMPLATE_PATTERNS = [
     "BLOCKING / NON_BLOCKING",
@@ -551,6 +597,19 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             label="inspector requirement stage_status must be a valid enum",
         )
 
+        req_complete_status = make_scenario(scenarios_root, "requirement-complete-status")
+        write_ready_requirements(req_complete_status)
+        rewrite_frontmatter(req_complete_status / "requirements.md", {"stage_status": "complete"})
+        result = inspector.inspect_feature_state(req_complete_status)
+        assert_state(
+            result,
+            state="requirements_metadata_inconsistent",
+            next_skill="ai-requirement-intake",
+            blocking=True,
+            errors=errors,
+            label="inspector requirement stage_status complete must be rejected",
+        )
+
         inv_metadata_inconsistent = make_scenario(scenarios_root, "investigation-metadata-inconsistent")
         write_ready_requirements(inv_metadata_inconsistent)
         write_ready_investigation(inv_metadata_inconsistent)
@@ -753,6 +812,29 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             label="inspector complete verification must have updated_at",
         )
 
+        verification_ready_status = make_scenario(scenarios_root, "verification-ready-status")
+        write_ready_requirements(verification_ready_status)
+        write_ready_investigation(verification_ready_status)
+        write_ready_design(verification_ready_status, approved=True)
+        write_tasks(verification_ready_status, status="DONE")
+        rewrite_frontmatter(
+            verification_ready_status / "verification.md",
+            {
+                "stage_status": "ready",
+                "updated_at": "2026-05-09T20:30:00+08:00",
+                "evidence_complete": True,
+            },
+        )
+        result = inspector.inspect_feature_state(verification_ready_status)
+        assert_state(
+            result,
+            state="verification_metadata_inconsistent",
+            next_skill="ai-verification-closeout",
+            blocking=True,
+            errors=errors,
+            label="inspector verification stage_status ready must be rejected",
+        )
+
         empty_handoff = make_scenario(scenarios_root, "empty-handoff")
         write_ready_requirements(empty_handoff)
         write_ready_investigation(empty_handoff)
@@ -901,6 +983,13 @@ def main() -> int:
         if "被 `ai-feature-orchestrator` 路由" not in text:
             fail(errors, f"{path}: route contract must name ai-feature-orchestrator as router")
         assert_contains_all(text, CHILD_OUTPUT_REQUIREMENTS[name], errors, str(path))
+        if name in CHILD_PREFLIGHT_REQUIREMENTS:
+            assert_contains_all(
+                text,
+                CHILD_PREFLIGHT_REQUIREMENTS[name],
+                errors,
+                f"{path} metadata preflight",
+            )
 
     implementation_text = (SKILLS / "ai-implementation-execution" / "SKILL.md").read_text()
     assert_order(
@@ -957,6 +1046,11 @@ def main() -> int:
                     fail(errors, f"{md_path}: missing stage metadata {required}")
             if metadata.get("stage_status") not in VALID_STAGE_STATUS:
                 fail(errors, f"{md_path}: invalid stage_status {metadata.get('stage_status')!r}")
+            elif metadata.get("stage_status") not in STAGE_ALLOWED_STATUS[expected_stage]:
+                fail(
+                    errors,
+                    f"{md_path}: invalid stage_status {metadata.get('stage_status')!r} for {expected_stage}",
+                )
             if metadata.get("feature_stage") != expected_stage:
                 fail(errors, f"{md_path}: feature_stage must be {expected_stage!r}")
             if metadata.get("evidence_complete") not in {"false", "true"}:

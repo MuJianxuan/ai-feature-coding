@@ -42,6 +42,13 @@ description: "AI 编码执行技能。Activation restricted: use only when the u
 - 已收到明确的 `feature_dir`。
 - `feature_dir` 目录存在。
 - `requirements.md`、`investigation.md`、`design.md`、`tasks.md` 和 `verification.md` 已存在。
+- `requirements.md stage_status: ready` 且 `requirements.md evidence_complete: true`。
+- `investigation.md stage_status: ready` 且 `investigation.md evidence_complete: true`。
+- `design.md stage_status: ready` 且 `design.md evidence_complete: true`。
+- `design.md approval_status: approved`，且 `approved_by`、`approved_at`、`approval_evidence` 已补齐。
+- `tasks.md stage_status: ready` 且 `tasks.md evidence_complete: true`。
+- `task_count` 与真实任务数量一致。
+- 至少存在一个真实 `TODO` 或 `DOING` 任务。
 
 如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
 

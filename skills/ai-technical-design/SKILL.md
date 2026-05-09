@@ -42,6 +42,11 @@ description: "AI 技术设计技能。Activation restricted: use only when the u
 - 已收到明确的 `feature_dir`。
 - `feature_dir` 目录存在。
 - `requirements.md` 和 `investigation.md` 已存在。
+- `requirements.md stage_status: ready`。
+- `requirements.md evidence_complete: true`。
+- `investigation.md stage_status: ready`。
+- `investigation.md evidence_complete: true`。
+- `requirements.md` 和 `investigation.md` 的 `updated_at` 均已写入 ISO 8601 + timezone。
 
 如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
 
