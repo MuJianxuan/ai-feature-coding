@@ -189,7 +189,12 @@ def stage_meta(stage: str, status: str, evidence_complete: bool, **extra: object
     return metadata
 
 
-def write_ready_requirements(feature_dir: Path, *, include_non_blocking_question: bool = False) -> None:
+def write_ready_requirements(
+    feature_dir: Path,
+    *,
+    include_non_blocking_question: bool = False,
+    include_second_ac: bool = False,
+) -> None:
     non_blocking_question = (
         """
 ## 8. 待确认问题
@@ -199,6 +204,11 @@ def write_ready_requirements(feature_dir: Path, *, include_non_blocking_question
 | Q-01 | CSV 字段展示顺序是否要固定 | NON_BLOCKING | 已查现有列表无固定导出顺序约束 | 后续可确认，不阻塞当前链路勘察 |
 """
         if include_non_blocking_question
+        else ""
+    )
+    second_ac = (
+        "| AC-02 | 无权限用户不能导出 CSV | 使用无权限账号调用导出接口 | READY |"
+        if include_second_ac
         else ""
     )
     write_doc(
@@ -234,6 +244,7 @@ def write_ready_requirements(feature_dir: Path, *, include_non_blocking_question
 | ID | 验收标准 | 验证方式 | 状态 |
 | --- | --- | --- | --- |
 | AC-01 | 管理员可以导出 CSV | 手工点击导出并检查文件 | READY |
+{second_ac}
 {non_blocking_question}
 """,
     )
@@ -316,7 +327,13 @@ def write_ready_design(feature_dir: Path, *, approved: bool = False) -> None:
     )
 
 
-def write_tasks(feature_dir: Path, *, status: str) -> None:
+def write_tasks(feature_dir: Path, *, status: str, delivery_record: str | None = None) -> None:
+    if delivery_record is None:
+        delivery_record = (
+            "改动文件：src/audit/export.ts, src/pages/Audit.tsx；验证命令：targeted tests；结果：PASS；残余风险：无"
+            if status == "DONE"
+            else "待执行"
+        )
     write_doc(
         feature_dir / "tasks.md",
         stage_meta("tasks", "ready", True, task_count=1),
@@ -334,7 +351,7 @@ def write_tasks(feature_dir: Path, *, status: str) -> None:
 - 执行要点：复用现有权限 guard
 - 完成判定：targeted tests 通过，手工导出 CSV 成功
 - 风险：CSV 字段兼容性
-- 交付记录：测试场景记录
+- 交付记录：{delivery_record}
 """,
     )
 
@@ -521,6 +538,19 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             label="inspector ready requirement must have evidence_complete true",
         )
 
+        req_invalid_status = make_scenario(scenarios_root, "requirement-invalid-status")
+        write_ready_requirements(req_invalid_status)
+        rewrite_frontmatter(req_invalid_status / "requirements.md", {"stage_status": "finished"})
+        result = inspector.inspect_feature_state(req_invalid_status)
+        assert_state(
+            result,
+            state="requirements_metadata_inconsistent",
+            next_skill="ai-requirement-intake",
+            blocking=True,
+            errors=errors,
+            label="inspector requirement stage_status must be a valid enum",
+        )
+
         inv_metadata_inconsistent = make_scenario(scenarios_root, "investigation-metadata-inconsistent")
         write_ready_requirements(inv_metadata_inconsistent)
         write_ready_investigation(inv_metadata_inconsistent)
@@ -533,6 +563,20 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             blocking=True,
             errors=errors,
             label="inspector ready investigation must have updated_at",
+        )
+
+        inv_stage_mismatch = make_scenario(scenarios_root, "investigation-stage-mismatch")
+        write_ready_requirements(inv_stage_mismatch)
+        write_ready_investigation(inv_stage_mismatch)
+        rewrite_frontmatter(inv_stage_mismatch / "investigation.md", {"feature_stage": "design"})
+        result = inspector.inspect_feature_state(inv_stage_mismatch)
+        assert_state(
+            result,
+            state="investigation_metadata_inconsistent",
+            next_skill="ai-repo-investigation",
+            blocking=True,
+            errors=errors,
+            label="inspector investigation feature_stage must match filename",
         )
 
         approval_pending = make_scenario(scenarios_root, "approval-pending")
@@ -612,6 +656,21 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             label="inspector tasks.md must include task_count",
         )
 
+        done_delivery_incomplete = make_scenario(scenarios_root, "done-delivery-incomplete")
+        write_ready_requirements(done_delivery_incomplete)
+        write_ready_investigation(done_delivery_incomplete)
+        write_ready_design(done_delivery_incomplete, approved=True)
+        write_tasks(done_delivery_incomplete, status="DONE", delivery_record="待执行")
+        result = inspector.inspect_feature_state(done_delivery_incomplete)
+        assert_state(
+            result,
+            state="task_done_delivery_incomplete",
+            next_skill="ai-implementation-execution",
+            blocking=True,
+            errors=errors,
+            label="inspector DONE tasks must have real delivery records",
+        )
+
         doing = make_scenario(scenarios_root, "doing-task")
         write_ready_requirements(doing)
         write_ready_investigation(doing)
@@ -641,6 +700,25 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             errors=errors,
             label="inspector verification closeout",
         )
+
+        verification_missing_ac = make_scenario(scenarios_root, "verification-missing-ac")
+        write_ready_requirements(verification_missing_ac, include_second_ac=True)
+        write_ready_investigation(verification_missing_ac)
+        write_ready_design(verification_missing_ac, approved=True)
+        write_tasks(verification_missing_ac, status="DONE")
+        write_complete_verification(verification_missing_ac)
+        result = inspector.inspect_feature_state(verification_missing_ac)
+        assert_state(
+            result,
+            state="verification_incomplete",
+            next_skill="ai-verification-closeout",
+            blocking=False,
+            errors=errors,
+            label="inspector complete verification must cover every requirement AC",
+        )
+        diagnostics = result.get("diagnostics") or []
+        if not any("AC-02" in diagnostic for diagnostic in diagnostics):
+            fail(errors, "inspector missing-AC diagnostic should mention AC-02")
 
         failed_verification = make_scenario(scenarios_root, "failed-verification")
         write_ready_requirements(failed_verification)

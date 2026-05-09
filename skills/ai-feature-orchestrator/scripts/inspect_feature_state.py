@@ -37,6 +37,7 @@ STAGE_SKILLS = {
 }
 
 VALID_TASK_STATUSES = {"TODO", "DOING", "DONE", "BLOCKED"}
+VALID_STAGE_STATUSES = {"draft", "ready", "blocked", "complete"}
 ISO_WITH_TZ = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$")
 PLACEHOLDER_TOKENS = {"UNSET", "<...>", "当前无真实任务。"}
 HEADER_CELLS = {
@@ -250,6 +251,25 @@ def requirements_complete(body: str) -> bool:
     )
 
 
+def requirement_ac_ids(body: str) -> list[str]:
+    section = section_text(body, "Acceptance Criteria")
+    ids: list[str] = []
+    seen: set[str] = set()
+    for line in section.splitlines():
+        cells = table_cells(line)
+        if not cells or is_table_separator(line) or is_header_row(line):
+            continue
+        ac_id = cells[0].strip()
+        if is_placeholder_text(ac_id) or not ac_id.upper().startswith("AC"):
+            continue
+        normalized = ac_id.upper()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        ids.append(normalized)
+    return ids
+
+
 def investigation_complete(body: str) -> bool:
     return (
         has_real_table_row(section_text(body, "已查文件"))
@@ -276,8 +296,23 @@ def has_iso_timestamp(metadata: dict[str, str], field: str = "updated_at") -> bo
 
 
 def stage_metadata_issue(stage: str, metadata: dict[str, str]) -> str | None:
+    declared_stage = metadata.get("feature_stage", "").strip()
+    if declared_stage != stage:
+        if not declared_stage:
+            return f"{stage} document is missing feature_stage"
+        return f"{stage} document feature_stage is {declared_stage}, expected {stage}"
+
     status = stage_status(metadata)
+    if status not in VALID_STAGE_STATUSES:
+        if not status:
+            return f"{stage} document is missing stage_status"
+        return f"{stage} document has invalid stage_status: {status}"
+
     evidence_value = metadata.get("evidence_complete", "").strip().lower()
+    if evidence_value not in {"true", "false"}:
+        if not evidence_value:
+            return f"{stage} document is missing evidence_complete"
+        return f"{stage} evidence_complete must be true or false"
 
     if status in {"ready", "complete"}:
         if evidence_value != "true":
@@ -340,6 +375,15 @@ def parse_tasks(body: str) -> list[dict[str, Any]]:
             if is_placeholder_text(value):
                 missing_fields.append(field)
 
+        delivery_match = re.search(r"^-\s*交付记录\s*[:：]\s*(.+?)\s*$", block, re.MULTILINE)
+        delivery_record = delivery_match.group(1).strip() if delivery_match else ""
+        delivery_record_incomplete = (
+            status == "DONE"
+            and (
+                is_placeholder_text(delivery_record)
+                or delivery_record in {"待执行", "待补充", "暂无", "无"}
+            )
+        )
         is_real = status in VALID_TASK_STATUSES and not missing_fields
         tasks.append(
             {
@@ -349,16 +393,19 @@ def parse_tasks(body: str) -> list[dict[str, Any]]:
                 "is_real": is_real,
                 "missing_fields": missing_fields,
                 "fields": fields,
+                "delivery_record": delivery_record,
+                "delivery_record_incomplete": delivery_record_incomplete,
             }
         )
 
     return tasks
 
 
-def verification_results(body: str) -> list[str]:
+def verification_rows(body: str) -> list[dict[str, str]]:
     section = section_text(body, "验收标准映射")
     result_index: int | None = None
-    results: list[str] = []
+    evidence_index: int | None = None
+    rows: list[dict[str, str]] = []
 
     for line in section.splitlines():
         cells = table_cells(line)
@@ -366,6 +413,7 @@ def verification_results(body: str) -> list[str]:
             continue
         if "结果" in cells:
             result_index = cells.index("结果")
+            evidence_index = cells.index("验证证据") if "验证证据" in cells else None
             continue
         if is_header_row(line):
             continue
@@ -375,24 +423,48 @@ def verification_results(body: str) -> list[str]:
         result = cells[result_index].strip()
         if is_placeholder_text(ac_id) or is_placeholder_text(result):
             continue
-        results.append(result.upper())
+        evidence_value = cells[evidence_index].strip() if evidence_index is not None and len(cells) > evidence_index else ""
+        rows.append(
+            {
+                "ac_id": ac_id.upper(),
+                "result": result.upper(),
+                "evidence": evidence_value,
+            }
+        )
 
-    return results
+    return rows
 
 
 def normalize_verification_result(value: str) -> str:
     return value.strip().upper().split()[0].strip("。；;,.，")
 
 
-def verification_complete(metadata: dict[str, str], body: str) -> tuple[bool, list[str]]:
+def verification_complete(metadata: dict[str, str], body: str, expected_ac_ids: list[str]) -> tuple[bool, list[str]]:
     diagnostics: list[str] = []
     if stage_status(metadata) != "complete" or not metadata_true(metadata, "evidence_complete"):
         return False, diagnostics
-    results = verification_results(body)
-    if not results:
+    rows = verification_rows(body)
+    if not rows:
         diagnostics.append("verification.md has complete metadata but no real acceptance-criteria result rows")
         return False, diagnostics
-    non_pass_results = [result for result in results if normalize_verification_result(result) != "PASS"]
+    rows_by_ac = {row["ac_id"]: row for row in rows}
+    missing_ac_ids = [ac_id for ac_id in expected_ac_ids if ac_id not in rows_by_ac]
+    if missing_ac_ids:
+        diagnostics.append("verification.md complete metadata is missing acceptance criteria: " + ", ".join(missing_ac_ids))
+        return False, diagnostics
+    missing_evidence = [
+        ac_id
+        for ac_id in expected_ac_ids
+        if is_placeholder_text(rows_by_ac.get(ac_id, {}).get("evidence", ""))
+    ]
+    if missing_evidence:
+        diagnostics.append("verification.md complete metadata has acceptance criteria without real evidence: " + ", ".join(missing_evidence))
+        return False, diagnostics
+    non_pass_results = [
+        row["ac_id"]
+        for row in rows
+        if normalize_verification_result(row["result"]) != "PASS"
+    ]
     if non_pass_results:
         diagnostics.append("verification.md complete metadata requires all acceptance-criteria results to be PASS")
         return False, diagnostics
@@ -491,6 +563,7 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             reason="requirements.md lacks real in-scope, out-of-scope, or acceptance criteria content",
             evidence_items=[evidence(req_path, "missing real scope or acceptance criteria")],
         )
+    expected_ac_ids = requirement_ac_ids(req_body)
 
     inv = load_stage(feature_dir, "investigation")
     if inv is None:
@@ -644,6 +717,23 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             reason="tasks.md has BLOCKED task(s)",
             evidence_items=[evidence(tasks_path, "blocked_tasks: " + ", ".join(task["id"] for task in blocked_tasks))],
         )
+    done_delivery_incomplete_tasks = [
+        task for task in real_tasks if task["delivery_record_incomplete"]
+    ]
+    if done_delivery_incomplete_tasks:
+        return make_result(
+            feature_dir=feature_dir,
+            state="task_done_delivery_incomplete",
+            next_skill="ai-implementation-execution",
+            blocking=True,
+            reason="DONE task(s) lack real delivery records",
+            evidence_items=[
+                evidence(
+                    tasks_path,
+                    "done_delivery_incomplete_tasks: " + ", ".join(task["id"] for task in done_delivery_incomplete_tasks),
+                )
+            ],
+        )
     doing_tasks = [task for task in real_tasks if task["status"] == "DOING"]
     if doing_tasks:
         return make_result(
@@ -682,7 +772,11 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             verification_path,
             verification_metadata_issue,
         )
-    verification_is_complete, verification_diagnostics = verification_complete(verification_meta, verification_body)
+    verification_is_complete, verification_diagnostics = verification_complete(
+        verification_meta,
+        verification_body,
+        expected_ac_ids,
+    )
     if not verification_is_complete:
         return make_result(
             feature_dir=feature_dir,
