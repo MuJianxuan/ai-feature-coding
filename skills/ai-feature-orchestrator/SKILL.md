@@ -155,12 +155,15 @@ SKILL_ROOT/
 12. `tasks.md` 缺失：路由到 `ai-task-planning`。
 13. `tasks.md` 的 `stage_status` 为 `blocked`：停止并报告任务规划阻塞证据。
 14. `tasks.md` 的 `stage_status` 为 `draft`，或任务没有输入、输出、完成判定、关联模块/文件：路由到 `ai-task-planning`。
-15. `tasks.md` 存在真实 `BLOCKED` 任务：报告阻塞任务、已查证据和需要的外部条件；除非用户指定，否则不要跳到其他任务。
-16. `tasks.md` 存在真实 `DOING` 任务：路由到 `ai-implementation-execution`，优先恢复该任务。
-17. `tasks.md` 存在真实 `TODO` 任务：路由到 `ai-implementation-execution`，执行下一项或用户指定项。
-18. 所有 in-scope 任务为 `DONE`，但 `verification.md` 未完成 acceptance criteria 映射，或 `stage_status` 不是 `complete`：路由到 `ai-verification-closeout`。
-19. `verification.md` 完成但 `handoff.md` 缺少交付摘要、复核入口或残余风险，或 `stage_status` 不是 `complete`：路由到 `ai-verification-closeout`。
-20. 全部完成：输出交付状态，不重复执行。
+15. `tasks.md` 的 `task_count` 缺失、不等于真实任务数量，或存在重复真实任务 ID：停止并路由到 `ai-task-planning` 修正任务清单。
+16. `tasks.md` 存在真实 `BLOCKED` 任务：报告阻塞任务、已查证据和需要的外部条件；除非用户指定，否则不要跳到其他任务。
+17. `tasks.md` 中 `DONE` 任务缺少结构化交付记录（改动文件、验证命令或证据、结果、残余风险）：路由到 `ai-implementation-execution` 补齐交付证据。
+18. `tasks.md` 存在多个真实 `DOING` 任务：停止并报告恢复目标歧义，不自行选择任一任务。
+19. `tasks.md` 存在一个真实 `DOING` 任务：路由到 `ai-implementation-execution`，优先恢复该任务。
+20. `tasks.md` 存在真实 `TODO` 任务：路由到 `ai-implementation-execution`，执行下一项或用户指定项。
+21. 所有 in-scope 任务为 `DONE`，但 `verification.md` 未完成 acceptance criteria 映射，或 `stage_status` 不是 `complete`：路由到 `ai-verification-closeout`。
+22. `verification.md` 完成但 `handoff.md` 缺少交付摘要、配置 / SQL / 部署事项、复核入口或残余风险，或 `stage_status` 不是 `complete`：路由到 `ai-verification-closeout`。
+23. 全部完成：输出交付状态，不重复执行。
 
 ## 阶段路由
 

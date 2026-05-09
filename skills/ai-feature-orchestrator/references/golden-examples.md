@@ -18,8 +18,8 @@
 4. 用户说“继续下一阶段”后进入 `ai-repo-investigation`，写真实代码链路和数据来源；完成时 `investigation.md stage_status: ready`、`evidence_complete: true`，并更新 `updated_at`。
 5. `ai-technical-design` 写方案，`design.md stage_status: ready`、`evidence_complete: true` 且 `approval_status: pending`，然后停下等待用户批准。
 6. 用户明确批准设计后，记录 `approval_status: approved`、`approved_by`、`approved_at`、`approval_evidence`，同步更新 `updated_at`，再进入 `ai-task-planning`。
-7. `ai-task-planning` 写真实任务后，`tasks.md stage_status: ready`、`evidence_complete: true`、`task_count` 等于真实任务数量，并更新 `updated_at`。
-8. 编码阶段一次只执行一个 `TODO` / `DOING` 任务；验证阶段必须读取 `investigation.md` 的真实调用链和数据来源，再把每条 AC 映射到命令、接口响应、数据查询或手工步骤。
+7. `ai-task-planning` 写真实任务后，`tasks.md stage_status: ready`、`evidence_complete: true`、`task_count` 等于真实任务数量，并更新 `updated_at`；真实任务 ID 不重复。
+8. 编码阶段一次只执行一个 `TODO` / `DOING` 任务；`DONE` 任务交付记录必须包含改动文件、验证命令或证据、结果、残余风险。验证阶段必须读取 `investigation.md` 的真实调用链和数据来源，再把每条 AC 映射到命令、接口响应、数据查询或手工步骤。
 
 不允许行为：
 
@@ -27,6 +27,8 @@
 - 设计刚写完就自动拆任务。
 - 一个任务完成后自动执行下一个任务。
 - `task_count` 仍为 0 或 `updated_at` 未更新却声称任务规划完成。
+- 同时存在多个 `DOING` 任务时自行选择一个继续。
+- 用“已完成”替代结构化交付记录。
 - 验证阶段只按 `design.md` / `tasks.md` 做纸面验证，跳过 `investigation.md` 的真实链路和 source of truth。
 
 ## 2. Blocked requirement
@@ -69,7 +71,7 @@
 1. `ai-implementation-execution` 优先恢复 T03，不选择后续 TODO。
 2. 开始前检查工作区 diff，区分用户改动和 AI 改动。
 3. 对照 T03 的输入、输出、完成判定继续，不创建 T03b 或重复任务掩盖中断。
-4. 修改 `tasks.md` 的任务状态、交付记录或风险时，更新 `updated_at`，并保持 `task_count` 等于真实任务数量。
+4. 修改 `tasks.md` 的任务状态、交付记录或风险时，更新 `updated_at`，并保持 `task_count` 等于真实任务数量；如果发现多个 `DOING` 或重复任务 ID，先停止整理状态，不自行选择。
 5. 如果 diff 超出 T03 范围，停止并报告风险，等待用户确认。
 
 不允许行为：
@@ -87,7 +89,8 @@
 1. `ai-verification-closeout` 先读取 `investigation.md` 的真实调用链、数据来源、相似实现和风险，再记录 AC-02 的失败证据：命令、接口响应、日志或手工步骤。
 2. `verification.md` 保持未完成或写明 FAIL / BLOCKED 结论，`evidence_complete: false`，并更新 `updated_at`。
 3. `handoff.md` 写残余风险和最短复核路径；如果交付信息仍不完整，保持 `evidence_complete: false`。
-4. 如果修复失败项需要新代码，回到 `tasks.md` 新增或恢复任务；不要把失败项隐藏成 PASS。
+4. `handoff.md` 必须写明配置 / SQL / 部署 / 数据修复事项；无相关事项也要显式写“无”。
+5. 如果修复失败项需要新代码，回到 `tasks.md` 新增或恢复任务；不要把失败项隐藏成 PASS。
 
 不允许行为：
 

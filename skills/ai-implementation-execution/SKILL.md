@@ -80,7 +80,7 @@ description: "AI 编码执行技能。Activation restricted: use only when the u
 ## 完成规则
 
 1. 执行任务的完成判定。
-2. 通过则把状态改为 `DONE`，写交付记录：改动文件、验证命令、结果、残余风险。
+2. 通过则把状态改为 `DONE`，写结构化交付记录：改动文件、验证命令或验证证据、结果、残余风险；“已完成”这类弱描述不能作为 `DONE` 证据。
 3. 未通过但可继续排查时继续；确实缺少外部条件时改为 `BLOCKED` 并写明证据。
 4. 每次修改 `tasks.md` 的任务状态、交付记录或风险时，都必须同步更新 `tasks.md updated_at`，并保持 `task_count` 等于真实任务数量。
 5. 除非经过 scope change 回流并重新规划任务，否则不要在编码执行阶段改变 `tasks.md stage_status` 或随意调整 `task_count`。

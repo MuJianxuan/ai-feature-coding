@@ -267,7 +267,7 @@ approval_evidence: ""
 - 执行要点。
 - 完成判定。
 - 风险。
-- 交付记录字段。规划期可以为空或写“待执行”；任务进入 `DONE` 时必须补齐真实交付记录。
+- 交付记录字段。规划期可以为空或写“待执行”；任务进入 `DONE` 时必须补齐结构化交付记录：改动文件、验证命令或验证证据、结果、残余风险；“已完成”这类弱描述不算完成证据。
 
 更新：
 
@@ -295,7 +295,7 @@ approval_evidence: ""
 
 - 执行任务完成判定。
 - 通过则标记 `DONE`。
-- 记录改动文件、验证命令、结果、残余风险。
+- 记录改动文件、验证命令或验证证据、结果、残余风险。
 - 更新 `tasks.md` 和 `verification.md` 中对应检查项的 `updated_at`。
 - 未满足的验证项保持 `verification.md evidence_complete: false`，不要提前标记完成。
 
@@ -316,7 +316,7 @@ approval_evidence: ""
 - 每条 AC 都有真实验证证据和 PASS / FAIL / BLOCKED 结论。
 - 只有所有 in-scope AC 都是 PASS 时，`verification.md stage_status: complete` 且 `evidence_complete: true`。
 - 失败、阻塞或未覆盖项必须写入残余风险，并保持或更新 `verification.md stage_status: draft/blocked`、`evidence_complete: false`。
-- `handoff.md` 包含交付摘要、变更范围、配置 / SQL / 部署事项、用户复核入口。
+- `handoff.md` 包含交付摘要、变更范围、配置 / SQL / 部署事项、用户复核入口；无配置、SQL、部署或数据修复时也要显式写“无”。
 - 如需启动服务或预览，验证记录中应包含端口检查和进程信息。
 - 交付信息齐备后 `handoff.md stage_status: complete`。
 - 交付信息齐备后 `handoff.md evidence_complete: true`。
@@ -366,7 +366,7 @@ python3 skills/ai-feature-orchestrator/scripts/validate_ai_skills.py
 - 模板 Markdown 都有 frontmatter。
 - 阶段模板 metadata 可解析，`tasks.md` 包含 `evidence_complete`，`design.md` 包含审批字段。
 - Contract 和各阶段输出规则都覆盖 `updated_at` / `evidence_complete`；`ai-task-planning` 覆盖 `task_count`。
-- `inspect_feature_state.py` 会阻止 `feature_stage` / `stage_status` 漂移、`ready/complete` 但 `updated_at` / `evidence_complete` 不一致、设计批准证据字段缺失、`tasks.md task_count` 缺失、`DONE` 任务交付记录缺失、verification 未覆盖全部 acceptance criteria 等非法继续推进。
+- `inspect_feature_state.py` 会阻止 `feature_stage` / `stage_status` 漂移、`ready/complete` 但 `updated_at` / `evidence_complete` 不一致、设计批准证据字段缺失、`tasks.md task_count` 缺失或不匹配、重复任务 ID、多个 `DOING`、`DONE` 任务交付记录缺失或弱描述、handoff 缺少配置 / SQL / 部署事项、verification 未覆盖全部 acceptance criteria 等非法继续推进。
 - `inspect_feature_state.py` 会检查阶段级 `stage_status` 枚举：前置阶段不能写 `complete`，verification / handoff 不能写 `ready`。
 - `inspect_feature_state.py` 会拒绝把 `skills/ai-feature-orchestrator/assets/feature-template/` 当成真实 feature 目录。
 - Route source 已收紧为仅允许 `ai-feature-orchestrator` routed invocation，不能残留 “another legally activated skill” 这类泛化表述。

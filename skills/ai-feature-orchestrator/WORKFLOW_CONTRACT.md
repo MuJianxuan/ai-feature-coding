@@ -108,7 +108,7 @@ approval_evidence: ""
 - `ai-repo-investigation`：真实链路、数据来源、已查文件齐备时，把 `investigation.md` 标记为 `ready`。
 - `ai-technical-design`：方案可拆任务时，把 `design.md` 标记为 `ready`，并保持 `approval_status: pending`；依赖业务决策时标记为 `blocked`。
 - `ai-task-planning`：只在 `design.md stage_status: ready` 且 `approval_status: approved` 后拆任务；如果当前用户请求明确批准设计，必须先补齐审批字段再拆任务。真实任务写入后，把 `tasks.md` 标记为 `ready` 并更新 `task_count`。
-- `ai-verification-closeout`：只有所有 in-scope acceptance criteria 都有真实验证证据且结果为 `PASS` 时，才把 `verification.md` 标记为 `complete`、`evidence_complete: true`；存在 `FAIL`、`BLOCKED` 或未覆盖项时，保持或更新为 `draft/blocked`、`evidence_complete: false` 并写清证据。交付摘要齐备后，把 `handoff.md` 标记为 `complete`。
+- `ai-verification-closeout`：只有所有 in-scope acceptance criteria 都有真实验证证据且结果为 `PASS` 时，才把 `verification.md` 标记为 `complete`、`evidence_complete: true`；存在 `FAIL`、`BLOCKED` 或未覆盖项时，保持或更新为 `draft/blocked`、`evidence_complete: false` 并写清证据。交付摘要、变更范围、配置 / SQL / 部署事项、复核入口、验证结论和残余风险齐备后，才把 `handoff.md` 标记为 `complete`；无相关配置、SQL、部署或数据修复时也必须显式写“无”。
 
 ## 4. Placeholder policy
 
@@ -142,8 +142,9 @@ approval_evidence: ""
 
 - 标题包含稳定任务 ID，例如 `T01 - ...`。
 - 规划期有非空 `输入`、`输出`、`完成判定`、`关联模块/文件`、`执行要点`、`风险`。
-- `DONE` 任务必须补齐真实 `交付记录`，包括改动文件、验证命令或证据、结果和残余风险。
+- `DONE` 任务必须补齐真实且结构化的 `交付记录`，至少包含：改动文件、验证命令或验证证据、结果、残余风险；“已完成”这类弱描述不能算完成证据。
 - 不是模板说明、空表格或示例代码块。
+- 同一 `tasks.md` 中真实任务 ID 不能重复；同时只能存在一个真实 `DOING` 任务，否则恢复目标不唯一，必须停止整理任务状态。
 
 ## 6. Upstream metadata gate
 
@@ -248,4 +249,4 @@ approval_evidence: ""
 - Orchestrator 的 route payload 字段和子 skill preflight 一致。
 - Orchestrator 的 blocked 阶段判断顺序不会被 draft/content 判断抢先命中。
 - 子阶段 skill 的 direct invocation preflight 必须覆盖 upstream metadata gate，不能只检查文件存在。
-- `scripts/inspect_feature_state.py` 覆盖初始模板、拒绝误用内置模板目录、等待设计审批、任务恢复、验证收口、完成态，以及 `feature_stage` / `stage_status` 漂移、`ready/complete` metadata 不一致、设计审批证据缺失、`task_count` 缺失、`DONE` 任务交付记录缺失、verification 未覆盖全部 acceptance criteria 等防误推进场景。
+- `scripts/inspect_feature_state.py` 覆盖初始模板、拒绝误用内置模板目录、等待设计审批、任务恢复、验证收口、完成态，以及 `feature_stage` / `stage_status` 漂移、`ready/complete` metadata 不一致、设计审批证据缺失、`task_count` 缺失或不匹配、重复任务 ID、多个 `DOING`、`DONE` 任务交付记录缺失或弱描述、handoff 缺少配置 / SQL / 部署事项、verification 未覆盖全部 acceptance criteria 等防误推进场景。

@@ -48,6 +48,12 @@ STAGE_ALLOWED_STATUSES = {
 }
 ISO_WITH_TZ = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$")
 PLACEHOLDER_TOKENS = {"UNSET", "<...>", "当前无真实任务。"}
+DELIVERY_RECORD_REQUIREMENTS = {
+    "改动文件": ("改动文件", "变更文件", "修改文件", "文件：", "文件:"),
+    "验证命令或证据": ("验证命令", "验证证据", "验证：", "验证:", "命令：", "命令:"),
+    "结果": ("结果", "PASS", "FAIL", "BLOCKED"),
+    "残余风险": ("残余风险", "剩余风险", "风险：", "风险:"),
+}
 HEADER_CELLS = {
     "id",
     "ac id",
@@ -368,6 +374,26 @@ def parse_task_count(metadata: dict[str, str]) -> int | None:
         return None
 
 
+def delivery_record_issue(status: str, delivery_record: str) -> str | None:
+    if status != "DONE":
+        return None
+
+    if (
+        is_placeholder_text(delivery_record)
+        or delivery_record.strip() in {"待执行", "待补充", "暂无", "无"}
+    ):
+        return "交付记录为空或仍是占位内容"
+
+    missing = [
+        label
+        for label, keywords in DELIVERY_RECORD_REQUIREMENTS.items()
+        if not any(keyword in delivery_record for keyword in keywords)
+    ]
+    if missing:
+        return "交付记录缺少：" + "、".join(missing)
+    return None
+
+
 def parse_tasks(body: str) -> list[dict[str, Any]]:
     matches = list(re.finditer(r"^###\s+(T\d+)\s+-\s+(.+?)\s*$", body, re.MULTILINE))
     tasks: list[dict[str, Any]] = []
@@ -391,13 +417,7 @@ def parse_tasks(body: str) -> list[dict[str, Any]]:
 
         delivery_match = re.search(r"^-\s*交付记录\s*[:：]\s*(.+?)\s*$", block, re.MULTILINE)
         delivery_record = delivery_match.group(1).strip() if delivery_match else ""
-        delivery_record_incomplete = (
-            status == "DONE"
-            and (
-                is_placeholder_text(delivery_record)
-                or delivery_record in {"待执行", "待补充", "暂无", "无"}
-            )
-        )
+        delivery_issue = delivery_record_issue(status, delivery_record)
         is_real = status in VALID_TASK_STATUSES and not missing_fields
         tasks.append(
             {
@@ -408,7 +428,8 @@ def parse_tasks(body: str) -> list[dict[str, Any]]:
                 "missing_fields": missing_fields,
                 "fields": fields,
                 "delivery_record": delivery_record,
-                "delivery_record_incomplete": delivery_record_incomplete,
+                "delivery_record_issue": delivery_issue,
+                "delivery_record_incomplete": delivery_issue is not None,
             }
         )
 
@@ -492,6 +513,7 @@ def handoff_complete(metadata: dict[str, str], body: str) -> bool:
         and "UNSET" not in body
         and section_has_real_content(body, "交付摘要")
         and has_real_table_row(section_text(body, "变更范围"))
+        and section_has_real_content(body, "配置 / SQL / 部署事项")
         and section_has_real_content(body, "用户复核入口")
         and section_has_real_content(body, "验证结论")
         and section_has_real_content(body, "残余风险与后续建议")
@@ -714,6 +736,17 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             reason="tasks.md task_count does not match real task count",
             evidence_items=[evidence(tasks_path, f"task_count: {expected_task_count}; real_tasks: {len(real_tasks)}")],
         )
+    task_ids = [task["id"] for task in real_tasks]
+    duplicate_task_ids = sorted({task_id for task_id in task_ids if task_ids.count(task_id) > 1})
+    if duplicate_task_ids:
+        return make_result(
+            feature_dir=feature_dir,
+            state="task_duplicate_id",
+            next_skill="ai-task-planning",
+            blocking=True,
+            reason="tasks.md has duplicate real task IDs",
+            evidence_items=[evidence(tasks_path, "duplicate_task_ids: " + ", ".join(duplicate_task_ids))],
+        )
     if tasks_status == "draft" or not real_tasks:
         return make_result(
             feature_dir=feature_dir,
@@ -744,11 +777,24 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             evidence_items=[
                 evidence(
                     tasks_path,
-                    "done_delivery_incomplete_tasks: " + ", ".join(task["id"] for task in done_delivery_incomplete_tasks),
+                    "done_delivery_incomplete_tasks: "
+                    + ", ".join(
+                        f"{task['id']} ({task['delivery_record_issue']})"
+                        for task in done_delivery_incomplete_tasks
+                    ),
                 )
             ],
         )
     doing_tasks = [task for task in real_tasks if task["status"] == "DOING"]
+    if len(doing_tasks) > 1:
+        return make_result(
+            feature_dir=feature_dir,
+            state="task_doing_ambiguous",
+            next_skill="ai-implementation-execution",
+            blocking=True,
+            reason="tasks.md has multiple DOING tasks; resume target is ambiguous",
+            evidence_items=[evidence(tasks_path, "doing_tasks: " + ", ".join(task["id"] for task in doing_tasks))],
+        )
     if doing_tasks:
         return make_result(
             feature_dir=feature_dir,

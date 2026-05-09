@@ -423,6 +423,74 @@ def write_task_missing_required_field(feature_dir: Path) -> None:
     )
 
 
+def write_duplicate_task_ids(feature_dir: Path) -> None:
+    write_doc(
+        feature_dir / "tasks.md",
+        stage_meta("tasks", "ready", True, task_count=2),
+        """
+# Tasks
+
+## 2. 任务清单
+
+### T01 - 实现审计日志导出接口
+
+- status: TODO
+- 输入：requirements.md#AC-01
+- 输出：导出 API
+- 关联模块/文件：src/audit/export.ts
+- 执行要点：复用现有权限 guard
+- 完成判定：targeted tests 通过
+- 风险：CSV 字段兼容性
+- 交付记录：待执行
+
+### T01 - 接入审计日志导出按钮
+
+- status: TODO
+- 输入：design.md#目标链路
+- 输出：导出按钮
+- 关联模块/文件：src/pages/Audit.tsx
+- 执行要点：复用现有 toast 模式
+- 完成判定：手工导出 CSV 成功
+- 风险：导出失败提示一致性
+- 交付记录：待执行
+""",
+    )
+
+
+def write_multiple_doing_tasks(feature_dir: Path) -> None:
+    write_doc(
+        feature_dir / "tasks.md",
+        stage_meta("tasks", "ready", True, task_count=2),
+        """
+# Tasks
+
+## 2. 任务清单
+
+### T01 - 实现审计日志导出接口
+
+- status: DOING
+- 输入：requirements.md#AC-01
+- 输出：导出 API
+- 关联模块/文件：src/audit/export.ts
+- 执行要点：复用现有权限 guard
+- 完成判定：targeted tests 通过
+- 风险：CSV 字段兼容性
+- 交付记录：已开始实现 API
+
+### T02 - 接入审计日志导出按钮
+
+- status: DOING
+- 输入：design.md#目标链路
+- 输出：导出按钮
+- 关联模块/文件：src/pages/Audit.tsx
+- 执行要点：复用现有 toast 模式
+- 完成判定：手工导出 CSV 成功
+- 风险：导出失败提示一致性
+- 交付记录：已开始接入按钮
+""",
+    )
+
+
 def write_complete_verification(feature_dir: Path) -> None:
     write_doc(
         feature_dir / "verification.md",
@@ -476,6 +544,13 @@ def write_complete_handoff(feature_dir: Path) -> None:
 | --- | --- |
 | src/audit/export.ts | 新增导出逻辑 |
 
+## 3. 配置 / SQL / 部署事项
+
+- 配置：无配置变更。
+- SQL：无 SQL 变更。
+- 部署：无额外部署事项。
+- 数据修复：无数据修复。
+
 ## 4. 用户复核入口
 
 - 使用管理员账号打开 Audit 页面，点击导出。
@@ -497,6 +572,38 @@ def write_empty_complete_handoff(feature_dir: Path) -> None:
         stage_meta("handoff", "complete", True),
         """
 # Handoff
+""",
+    )
+
+
+def write_complete_handoff_without_ops(feature_dir: Path) -> None:
+    write_doc(
+        feature_dir / "handoff.md",
+        stage_meta("handoff", "complete", True),
+        """
+# Handoff
+
+## 1. 交付摘要
+
+- 已完成审计日志 CSV 导出。
+
+## 2. 变更范围
+
+| 文件 / 模块 | 变更说明 |
+| --- | --- |
+| src/audit/export.ts | 新增导出逻辑 |
+
+## 4. 用户复核入口
+
+- 使用管理员账号打开 Audit 页面，点击导出。
+
+## 5. 验证结论
+
+- AC-01 已通过。
+
+## 6. 残余风险与后续建议
+
+- 暂无残余风险。
 """,
     )
 
@@ -730,6 +837,51 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             label="inspector DONE tasks must have real delivery records",
         )
 
+        weak_delivery_record = make_scenario(scenarios_root, "weak-delivery-record")
+        write_ready_requirements(weak_delivery_record)
+        write_ready_investigation(weak_delivery_record)
+        write_ready_design(weak_delivery_record, approved=True)
+        write_tasks(weak_delivery_record, status="DONE", delivery_record="已完成")
+        result = inspector.inspect_feature_state(weak_delivery_record)
+        assert_state(
+            result,
+            state="task_done_delivery_incomplete",
+            next_skill="ai-implementation-execution",
+            blocking=True,
+            errors=errors,
+            label="inspector DONE tasks must include structured delivery evidence",
+        )
+
+        duplicate_task_ids = make_scenario(scenarios_root, "duplicate-task-ids")
+        write_ready_requirements(duplicate_task_ids)
+        write_ready_investigation(duplicate_task_ids)
+        write_ready_design(duplicate_task_ids, approved=True)
+        write_duplicate_task_ids(duplicate_task_ids)
+        result = inspector.inspect_feature_state(duplicate_task_ids)
+        assert_state(
+            result,
+            state="task_duplicate_id",
+            next_skill="ai-task-planning",
+            blocking=True,
+            errors=errors,
+            label="inspector duplicate task IDs must block execution",
+        )
+
+        multiple_doing = make_scenario(scenarios_root, "multiple-doing")
+        write_ready_requirements(multiple_doing)
+        write_ready_investigation(multiple_doing)
+        write_ready_design(multiple_doing, approved=True)
+        write_multiple_doing_tasks(multiple_doing)
+        result = inspector.inspect_feature_state(multiple_doing)
+        assert_state(
+            result,
+            state="task_doing_ambiguous",
+            next_skill="ai-implementation-execution",
+            blocking=True,
+            errors=errors,
+            label="inspector multiple DOING tasks must be ambiguous",
+        )
+
         doing = make_scenario(scenarios_root, "doing-task")
         write_ready_requirements(doing)
         write_ready_investigation(doing)
@@ -850,6 +1002,23 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             blocking=False,
             errors=errors,
             label="inspector empty handoff cannot be complete",
+        )
+
+        handoff_without_ops = make_scenario(scenarios_root, "handoff-without-ops")
+        write_ready_requirements(handoff_without_ops)
+        write_ready_investigation(handoff_without_ops)
+        write_ready_design(handoff_without_ops, approved=True)
+        write_tasks(handoff_without_ops, status="DONE")
+        write_complete_verification(handoff_without_ops)
+        write_complete_handoff_without_ops(handoff_without_ops)
+        result = inspector.inspect_feature_state(handoff_without_ops)
+        assert_state(
+            result,
+            state="handoff_incomplete",
+            next_skill="ai-verification-closeout",
+            blocking=False,
+            errors=errors,
+            label="inspector complete handoff must include config/sql/deploy notes",
         )
 
         handoff_metadata_inconsistent = make_scenario(scenarios_root, "handoff-metadata-inconsistent")
