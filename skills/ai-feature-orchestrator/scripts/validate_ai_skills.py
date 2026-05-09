@@ -3,9 +3,14 @@
 
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 import re
+import shutil
 import sys
+import tempfile
+
+sys.dont_write_bytecode = True
 
 ROOT = Path(__file__).resolve().parents[3]
 SKILLS = ROOT / "skills"
@@ -106,6 +111,333 @@ def assert_not_contains_any(text: str, forbidden_values: list[str], errors: list
             fail(errors, f"{label}: contains forbidden route-source wording {forbidden!r}")
 
 
+def write_doc(path: Path, frontmatter: dict[str, object], body: str) -> None:
+    lines = ["---"]
+    for key, value in frontmatter.items():
+        if isinstance(value, bool):
+            rendered = "true" if value else "false"
+        else:
+            rendered = str(value)
+        lines.append(f"{key}: {rendered}")
+    lines.extend(["---", "", body.lstrip()])
+    path.write_text("\n".join(lines))
+
+
+def stage_meta(stage: str, status: str, evidence_complete: bool, **extra: object) -> dict[str, object]:
+    metadata: dict[str, object] = {
+        "feature_stage": stage,
+        "stage_status": status,
+        "updated_at": "2026-05-09T20:30:00+08:00",
+        "evidence_complete": evidence_complete,
+    }
+    metadata.update(extra)
+    return metadata
+
+
+def write_ready_requirements(feature_dir: Path) -> None:
+    write_doc(
+        feature_dir / "requirements.md",
+        stage_meta("requirements", "ready", True),
+        """
+# Requirements
+
+## 1. 背景
+
+- 需求来源：测试场景
+- 业务背景：管理员需要导出审计日志。
+- 当前问题：缺少 CSV 导出入口。
+
+## 2. 目标
+
+- 业务目标：支持导出 CSV。
+- 用户价值：降低排查成本。
+- 成功标准：管理员可下载 CSV。
+
+## 3. 范围
+
+### In Scope
+
+- 管理员导出审计日志 CSV。
+
+### Out of Scope
+
+- 不支持 PDF 导出。
+
+## 5. Acceptance Criteria
+
+| ID | 验收标准 | 验证方式 | 状态 |
+| --- | --- | --- | --- |
+| AC-01 | 管理员可以导出 CSV | 手工点击导出并检查文件 | READY |
+""",
+    )
+
+
+def write_ready_investigation(feature_dir: Path) -> None:
+    write_doc(
+        feature_dir / "investigation.md",
+        stage_meta("investigation", "ready", True),
+        """
+# Investigation
+
+## 1. 结论摘要
+
+- 导出入口应复用现有审计日志查询链路。
+
+## 2. 已查文件
+
+| 路径 | 关键位置 | 结论 |
+| --- | --- | --- |
+| src/audit/export.ts | exportAuditLogs | 可复用查询条件 |
+
+## 3. 真实调用链 / 数据流
+
+- UI export button -> API client -> audit service -> audit_logs table。
+
+## 4. 数据来源
+
+- Source of truth：audit_logs 表。
+- 写入点：审计事件写入器。
+- 读取点：审计日志查询 service。
+
+## 8. 对设计的约束
+
+- 必须沿用现有权限判断。
+""",
+    )
+
+
+def write_ready_design(feature_dir: Path, *, approved: bool = False) -> None:
+    write_doc(
+        feature_dir / "design.md",
+        stage_meta(
+            "design",
+            "ready",
+            True,
+            approval_status="approved" if approved else "pending",
+            approved_by="user" if approved else "",
+            approved_at="2026-05-09T20:31:00+08:00" if approved else "",
+            approval_evidence="用户确认进入任务拆解" if approved else "",
+        ),
+        """
+# Design
+
+## 1. 方案摘要
+
+- 新增 CSV 导出按钮与后端导出接口，复用审计日志查询条件。
+
+## 2. 影响范围
+
+| 类型 | 模块 / 文件 | 影响说明 |
+| --- | --- | --- |
+| backend | src/audit/export.ts | 新增导出逻辑 |
+
+## 3. 目标链路
+
+- UI -> API -> audit service -> CSV response。
+
+## 8. 风险与回滚
+
+| 风险 | 影响 | 缓解方案 | 回滚方式 |
+| --- | --- | --- | --- |
+| 权限遗漏 | 非管理员误导出 | 复用权限 guard | 关闭导出入口 |
+
+## 9. 验证策略
+
+- 自动化验证：运行 audit export targeted tests。
+- 手工验证：管理员点击导出。
+""",
+    )
+
+
+def write_tasks(feature_dir: Path, *, status: str) -> None:
+    write_doc(
+        feature_dir / "tasks.md",
+        stage_meta("tasks", "ready", True, task_count=1),
+        f"""
+# Tasks
+
+## 2. 任务清单
+
+### T01 - 实现审计日志导出
+
+- status: {status}
+- 输入：requirements.md#AC-01，design.md#目标链路
+- 输出：导出 API 和 UI 入口
+- 关联模块/文件：src/audit/export.ts, src/pages/Audit.tsx
+- 执行要点：复用现有权限 guard
+- 完成判定：targeted tests 通过，手工导出 CSV 成功
+- 风险：CSV 字段兼容性
+- 交付记录：测试场景记录
+""",
+    )
+
+
+def write_complete_verification(feature_dir: Path) -> None:
+    write_doc(
+        feature_dir / "verification.md",
+        stage_meta("verification", "complete", True),
+        """
+# Verification
+
+## 1. 验收标准映射
+
+| AC ID | 验收标准 | 验证证据 | 结果 | 备注 |
+| --- | --- | --- | --- | --- |
+| AC-01 | 管理员可以导出 CSV | targeted tests + 手工导出 | PASS | 覆盖权限 guard |
+""",
+    )
+
+
+def write_complete_handoff(feature_dir: Path) -> None:
+    write_doc(
+        feature_dir / "handoff.md",
+        stage_meta("handoff", "complete", True),
+        """
+# Handoff
+
+## 1. 交付摘要
+
+- 已完成审计日志 CSV 导出。
+
+## 2. 变更范围
+
+| 文件 / 模块 | 变更说明 |
+| --- | --- |
+| src/audit/export.ts | 新增导出逻辑 |
+
+## 4. 用户复核入口
+
+- 使用管理员账号打开 Audit 页面，点击导出。
+
+## 5. 验证结论
+
+- AC-01 已通过。
+
+## 6. 残余风险与后续建议
+
+- 暂无残余风险。
+""",
+    )
+
+
+def load_inspector(errors: list[str]):
+    inspector_path = ORCHESTRATOR / "scripts" / "inspect_feature_state.py"
+    if not inspector_path.is_file():
+        fail(errors, f"{inspector_path}: missing state inspector")
+        return None
+    spec = importlib.util.spec_from_file_location("inspect_feature_state", inspector_path)
+    if spec is None or spec.loader is None:
+        fail(errors, f"{inspector_path}: cannot load module spec")
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def make_scenario(root: Path, name: str) -> Path:
+    target = root / name
+    shutil.copytree(TEMPLATE, target)
+    return target
+
+
+def assert_state(result: dict[str, object], *, state: str, next_skill: str | None, blocking: bool, errors: list[str], label: str) -> None:
+    if result.get("state") != state:
+        fail(errors, f"{label}: expected state {state!r}, got {result.get('state')!r}")
+    if result.get("next_skill") != next_skill:
+        fail(errors, f"{label}: expected next_skill {next_skill!r}, got {result.get('next_skill')!r}")
+    if result.get("blocking") is not blocking:
+        fail(errors, f"{label}: expected blocking {blocking!r}, got {result.get('blocking')!r}")
+
+
+def run_inspector_scenarios(errors: list[str]) -> None:
+    inspector = load_inspector(errors)
+    if inspector is None:
+        return
+
+    with tempfile.TemporaryDirectory(prefix="ai-feature-workflow-scenarios-") as tmpdir:
+        scenarios_root = Path(tmpdir)
+
+        initial = make_scenario(scenarios_root, "initial-template")
+        result = inspector.inspect_feature_state(initial)
+        assert_state(
+            result,
+            state="requirements_draft",
+            next_skill="ai-requirement-intake",
+            blocking=False,
+            errors=errors,
+            label="inspector initial template",
+        )
+
+        approval_pending = make_scenario(scenarios_root, "approval-pending")
+        write_ready_requirements(approval_pending)
+        write_ready_investigation(approval_pending)
+        write_ready_design(approval_pending, approved=False)
+        result = inspector.inspect_feature_state(approval_pending)
+        assert_state(
+            result,
+            state="waiting_design_approval",
+            next_skill="ai-task-planning",
+            blocking=True,
+            errors=errors,
+            label="inspector design approval pending",
+        )
+
+        task_planning = make_scenario(scenarios_root, "task-planning")
+        write_ready_requirements(task_planning)
+        write_ready_investigation(task_planning)
+        write_ready_design(task_planning, approved=True)
+        result = inspector.inspect_feature_state(task_planning)
+        assert_state(
+            result,
+            state="tasks_draft_or_empty",
+            next_skill="ai-task-planning",
+            blocking=False,
+            errors=errors,
+            label="inspector task planning",
+        )
+
+        doing = make_scenario(scenarios_root, "doing-task")
+        write_ready_requirements(doing)
+        write_ready_investigation(doing)
+        write_ready_design(doing, approved=True)
+        write_tasks(doing, status="DOING")
+        result = inspector.inspect_feature_state(doing)
+        assert_state(
+            result,
+            state="task_doing",
+            next_skill="ai-implementation-execution",
+            blocking=False,
+            errors=errors,
+            label="inspector doing task",
+        )
+
+        verification = make_scenario(scenarios_root, "verification")
+        write_ready_requirements(verification)
+        write_ready_investigation(verification)
+        write_ready_design(verification, approved=True)
+        write_tasks(verification, status="DONE")
+        result = inspector.inspect_feature_state(verification)
+        assert_state(
+            result,
+            state="verification_incomplete",
+            next_skill="ai-verification-closeout",
+            blocking=False,
+            errors=errors,
+            label="inspector verification closeout",
+        )
+
+        complete = make_scenario(scenarios_root, "complete")
+        write_ready_requirements(complete)
+        write_ready_investigation(complete)
+        write_ready_design(complete, approved=True)
+        write_tasks(complete, status="DONE")
+        write_complete_verification(complete)
+        write_complete_handoff(complete)
+        result = inspector.inspect_feature_state(complete)
+        if result.get("state") != "complete" or result.get("complete") is not True:
+            fail(errors, f"inspector complete: expected complete state, got {result}")
+
+
 def main() -> int:
     errors: list[str] = []
 
@@ -167,10 +499,13 @@ def main() -> int:
             contract_text,
             [
                 "`ai-feature-orchestrator` 显式路由到目标阶段 skill",
+                "路由执行机制",
+                "scripts/inspect_feature_state.py <feature_dir>",
                 "阶段文档 metadata 写入规则",
                 "`updated_at`",
                 "`evidence_complete: true`",
                 "`task_count` 必须等于真实任务数量",
+                "辅助模板 Markdown 可解析，但不得包含 `feature_stage` 或 `stage_status`",
                 "输出规则必须说明 `updated_at` / `evidence_complete`",
             ],
             errors,
@@ -230,10 +565,6 @@ def main() -> int:
     for md_path in sorted(TEMPLATE.rglob("*.md")):
         text = md_path.read_text()
         metadata = parse_frontmatter(md_path, errors)
-        if "stage_status" not in metadata:
-            fail(errors, f"{md_path}: missing stage_status metadata")
-        elif metadata["stage_status"] not in VALID_STAGE_STATUS:
-            fail(errors, f"{md_path}: invalid stage_status {metadata['stage_status']!r}")
         for pattern in BAD_TEMPLATE_PATTERNS:
             if pattern in text:
                 fail(errors, f"{md_path}: contains misleading placeholder pattern {pattern!r}")
@@ -244,6 +575,8 @@ def main() -> int:
             for required in ["feature_stage", "stage_status", "updated_at", "evidence_complete"]:
                 if required not in metadata:
                     fail(errors, f"{md_path}: missing stage metadata {required}")
+            if metadata.get("stage_status") not in VALID_STAGE_STATUS:
+                fail(errors, f"{md_path}: invalid stage_status {metadata.get('stage_status')!r}")
             if metadata.get("feature_stage") != expected_stage:
                 fail(errors, f"{md_path}: feature_stage must be {expected_stage!r}")
             if metadata.get("evidence_complete") not in {"false", "true"}:
@@ -252,8 +585,12 @@ def main() -> int:
             if updated_at and not ISO_WITH_TZ.match(updated_at):
                 fail(errors, f"{md_path}: updated_at must be ISO 8601 with timezone")
         elif relative_name in {"README.md", "resource/README.md"}:
-            if metadata.get("feature_stage") in STAGE_TEMPLATE_FILES.values():
-                fail(errors, f"{md_path}: auxiliary doc must not use a real feature_stage")
+            for forbidden in ["feature_stage", "stage_status"]:
+                if forbidden in metadata:
+                    fail(errors, f"{md_path}: auxiliary doc must not include {forbidden}")
+            for required in ["doc_type", "doc_status", "updated_at"]:
+                if required not in metadata:
+                    fail(errors, f"{md_path}: missing auxiliary metadata {required}")
 
     tasks_text = (TEMPLATE / "tasks.md").read_text()
     if "task_count: 0" not in tasks_text:
@@ -297,6 +634,8 @@ def main() -> int:
     for doc_path in [*sorted(SKILLS.glob("*/SKILL.md")), ORCHESTRATOR / "WORKFLOW_CONTRACT.md"]:
         if "AI feature workflow" in doc_path.read_text():
             fail(errors, f"{doc_path}: use unified term AI Feature Workflow")
+
+    run_inspector_scenarios(errors)
 
     if errors:
         print("AI skill smoke test failed:")

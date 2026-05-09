@@ -40,6 +40,13 @@ stage_evidence:
 - 不得自己猜测 feature 目录。
 - 不得自己创建上游阶段文档来绕过前置检查。
 
+路由执行机制：
+
+- 如果运行环境支持真实 skill handoff，`ai-feature-orchestrator` 输出完整 route payload，并交给目标阶段 skill 执行。
+- 如果运行环境没有自动 handoff，但可读取本仓库 `skills/<stage-skill>/SKILL.md`，`ai-feature-orchestrator` 必须读取目标阶段 skill 的 `SKILL.md`，按其规则执行这一阶段，然后停止。
+- 如果目标阶段 skill 不存在或不可读，`ai-feature-orchestrator` 停止，不伪执行阶段；只输出 route payload、缺失文件路径和下一步建议。
+- 无论采用哪种方式，都必须遵守 Gate policy：默认一次只推进一个阶段。
+
 ## 3. Document metadata contract
 
 每个 feature 阶段文档必须包含 YAML frontmatter。阶段文档只包括：`requirements.md`、`investigation.md`、`design.md`、`tasks.md`、`verification.md`、`handoff.md`。
@@ -72,7 +79,7 @@ approved_at: ""
 approval_evidence: ""
 ```
 
-辅助文档 `README.md`、`resource/README.md` 和 `sql/*.sql` 不参与阶段推断。它们可以有自己的 metadata，但不得被 orchestrator 当成 feature 阶段文档。
+辅助文档 `README.md`、`resource/README.md` 和 `sql/*.sql` 不参与阶段推断。它们可以有自己的 metadata，但不得使用 `feature_stage` 或 `stage_status`，应使用 `doc_type` / `doc_status` 等辅助字段，避免被 orchestrator 当成 feature 阶段文档。
 
 `stage_status` 语义：
 
@@ -101,6 +108,12 @@ approval_evidence: ""
 - `approval_status: pending` 不是设计批准。
 
 阶段推断不能只 grep 某个词。必须结合 metadata、表格真实行、任务条目和证据内容判断。
+
+可执行状态检查器：
+
+- `scripts/inspect_feature_state.py <feature_dir>` 是阶段推断的 stdlib-only 辅助检查器。
+- 输出必须包含 `state`、`next_skill`、`blocking`、`complete`、`reason` 和 `evidence`。
+- Orchestrator 执行时仍以 `SKILL.md` 和本 contract 为准；维护时必须让脚本和文档规则保持一致。
 
 ## 5. Task status contract
 
@@ -199,9 +212,11 @@ approval_evidence: ""
 - 所有阶段 skill 都包含 `Activation policy`、`route contract`、`Safety policy`。
 - 模板 Markdown 都有 frontmatter。
 - 阶段模板 frontmatter 可解析，且包含合法 `feature_stage`、`stage_status`、`updated_at`、`evidence_complete`。
+- 辅助模板 Markdown 可解析，但不得包含 `feature_stage` 或 `stage_status`。
 - `design.md` 包含设计审批字段，`tasks.md` 包含 `task_count`。
 - 各阶段 skill 的输出规则必须说明 `updated_at` / `evidence_complete` 的更新方式；`ai-task-planning` 必须说明 `task_count` 更新为真实任务数量。
 - `ai-verification-closeout` 的 preflight 和验证顺序必须读取 `investigation.md`，避免只验证 `design.md` / `tasks.md` 的纸面链路。
 - 模板不包含会被误判为真实任务或阻塞项的默认行。
 - Orchestrator 的 route payload 字段和子 skill preflight 一致。
 - Orchestrator 的 blocked 阶段判断顺序不会被 draft/content 判断抢先命中。
+- `scripts/inspect_feature_state.py` 覆盖初始模板、等待设计审批、任务恢复、验证收口和完成态等基础场景。

@@ -1,7 +1,7 @@
 ---
 template: ai-feature-workflow
-stage: overview
-stage_status: ready
+doc_type: overview
+doc_status: ready
 updated_at: ""
 ---
 

@@ -125,6 +125,8 @@ SKILL_ROOT/
 
 阶段推断优先读取各阶段文档的 YAML frontmatter；没有 frontmatter 时再按内容结构做 fallback 判断。模板占位内容、空表格、`UNSET`、`<...>`、示例代码块均不算有效内容。
 
+可执行辅助检查器：`scripts/inspect_feature_state.py <feature_dir>` 会按下列规则输出 `state`、`next_skill`、`blocking`、`reason` 和 `evidence`。执行真实流程时仍以本文件和 `WORKFLOW_CONTRACT.md` 为准；维护本套 skill 时必须让该脚本与本节规则保持一致。
+
 `stage_status` 语义：
 
 - `draft`：阶段未完成，继续当前阶段 skill。
@@ -173,6 +175,16 @@ SKILL_ROOT/
 - `stage_evidence: <命中阶段推断的文件和事实>`
 
 没有上述显式路由信息时，阶段 skill 必须拒绝以“被动触发”身份启动。
+
+## 路由执行机制
+
+本 skill 说“路由到阶段 skill”时，不是只写一句建议，而是必须按当前运行环境选择可执行方式：
+
+1. 如果运行环境支持真实 skill handoff：输出完整 route payload，并交给目标阶段 skill 执行。
+2. 如果运行环境没有自动 handoff，但可读取本仓库 `skills/<stage-skill>/SKILL.md`：本 skill 必须读取目标阶段 skill 的 `SKILL.md`，按其规则执行这一阶段，然后停止。
+3. 如果目标阶段 skill 不存在或不可读：停止，不伪执行阶段；只输出 route payload、缺失文件路径和下一步建议。
+
+无论采用哪种方式，都必须遵守“默认一次只推进一个阶段”：目标阶段完成后停下，等待用户新的明确确认。
 
 ## 阶段停止点
 

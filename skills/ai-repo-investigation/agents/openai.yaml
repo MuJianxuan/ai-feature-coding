@@ -1,6 +1,6 @@
 interface:
   display_name: "AI Repo Investigation"
   short_description: "Trace real code and data paths before design"
-  default_prompt: "Use $ai-repo-investigation to trace the real repository evidence before proposing changes."
+  default_prompt: "Use $ai-repo-investigation with feature_dir=.docs/feature-... to trace real repository evidence before design."
 policy:
   allow_implicit_invocation: false

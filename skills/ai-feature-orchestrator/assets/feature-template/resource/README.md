@@ -1,6 +1,6 @@
 ---
-feature_stage: resource_index
-stage_status: draft
+doc_type: resource_index
+doc_status: draft
 updated_at: ""
 ---
 

@@ -1,6 +1,6 @@
 interface:
   display_name: "AI Technical Design"
   short_description: "Turn requirements and evidence into design"
-  default_prompt: "Use $ai-technical-design to write a design.md based on requirements and investigation evidence."
+  default_prompt: "Use $ai-technical-design with feature_dir=.docs/feature-... to write design.md from requirements and investigation evidence."
 policy:
   allow_implicit_invocation: false
