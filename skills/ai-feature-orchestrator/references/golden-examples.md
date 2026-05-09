@@ -59,6 +59,8 @@
 - 输出：导出按钮、loading/error 状态
 - 完成判定：pnpm test -- AuditLogExport；手工点击导出能下载 CSV
 - 关联模块/文件：src/pages/AuditLog.tsx, src/api/audit.ts
+- 执行要点：复用既有 API client 和 toast 模式，保持导出按钮 loading/error 状态一致。
+- 风险：导出失败提示可能与现有列表错误态不一致；需手工覆盖失败路径。
 - 交付记录：已添加 API helper，UI 尚未接入 error toast
 ```
 

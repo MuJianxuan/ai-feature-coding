@@ -15,6 +15,9 @@ import re
 import sys
 from typing import Any
 
+ORCHESTRATOR_ROOT = Path(__file__).resolve().parents[1]
+TEMPLATE_DIR = ORCHESTRATOR_ROOT / "assets" / "feature-template"
+
 STAGE_DOCS = {
     "requirements": "requirements.md",
     "investigation": "investigation.md",
@@ -24,7 +27,17 @@ STAGE_DOCS = {
     "handoff": "handoff.md",
 }
 
+STAGE_SKILLS = {
+    "requirements": "ai-requirement-intake",
+    "investigation": "ai-repo-investigation",
+    "design": "ai-technical-design",
+    "tasks": "ai-task-planning",
+    "verification": "ai-verification-closeout",
+    "handoff": "ai-verification-closeout",
+}
+
 VALID_TASK_STATUSES = {"TODO", "DOING", "DONE", "BLOCKED"}
+ISO_WITH_TZ = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$")
 PLACEHOLDER_TOKENS = {"UNSET", "<...>", "当前无真实任务。"}
 HEADER_CELLS = {
     "id",
@@ -258,6 +271,44 @@ def metadata_true(metadata: dict[str, str], field: str) -> bool:
     return metadata.get(field, "").strip().lower() == "true"
 
 
+def has_iso_timestamp(metadata: dict[str, str], field: str = "updated_at") -> bool:
+    return bool(ISO_WITH_TZ.match(metadata.get(field, "").strip()))
+
+
+def stage_metadata_issue(stage: str, metadata: dict[str, str]) -> str | None:
+    status = stage_status(metadata)
+    evidence_value = metadata.get("evidence_complete", "").strip().lower()
+
+    if status in {"ready", "complete"}:
+        if evidence_value != "true":
+            return f"{stage} stage_status is {status} but evidence_complete is not true"
+        if not has_iso_timestamp(metadata):
+            return f"{stage} stage_status is {status} but updated_at is missing or not ISO 8601 with timezone"
+    elif status == "blocked":
+        if evidence_value != "false":
+            return f"{stage} stage_status is blocked but evidence_complete is not false"
+        if not has_iso_timestamp(metadata):
+            return f"{stage} stage_status is blocked but updated_at is missing or not ISO 8601 with timezone"
+    elif status == "draft":
+        if evidence_value == "true":
+            return f"{stage} stage_status is draft but evidence_complete is true"
+
+    return None
+
+
+def design_approval_issue(metadata: dict[str, str]) -> str | None:
+    if metadata.get("approval_status", "").strip().lower() != "approved":
+        return None
+
+    if is_placeholder_text(metadata.get("approved_by", "")):
+        return "approval_status is approved but approved_by is empty"
+    if not has_iso_timestamp(metadata, "approved_at"):
+        return "approval_status is approved but approved_at is missing or not ISO 8601 with timezone"
+    if is_placeholder_text(metadata.get("approval_evidence", "")):
+        return "approval_status is approved but approval_evidence is empty"
+    return None
+
+
 def parse_task_count(metadata: dict[str, str]) -> int | None:
     raw = metadata.get("task_count", "").strip()
     if not raw:
@@ -369,8 +420,28 @@ def load_stage(feature_dir: Path, stage: str) -> tuple[Path, dict[str, str], str
     return path, metadata, body
 
 
+def metadata_inconsistent_result(feature_dir: Path, stage: str, path: Path, issue: str) -> dict[str, Any]:
+    return make_result(
+        feature_dir=feature_dir,
+        state=f"{stage}_metadata_inconsistent",
+        next_skill=STAGE_SKILLS.get(stage),
+        blocking=True,
+        reason=issue,
+        evidence_items=[evidence(path, issue)],
+    )
+
+
 def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
     feature_dir = feature_dir.resolve()
+    if feature_dir == TEMPLATE_DIR.resolve():
+        return make_result(
+            feature_dir=feature_dir,
+            state="template_dir_rejected",
+            reason="feature_dir points to the bundled feature template, not a real feature directory",
+            blocking=True,
+            evidence_items=[evidence(feature_dir, "bundled template directory is not a feature workspace")],
+        )
+
     if not feature_dir.is_dir():
         return make_result(
             feature_dir=feature_dir,
@@ -392,6 +463,9 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
         )
     req_path, req_meta, req_body = req
     req_status = stage_status(req_meta)
+    req_metadata_issue = stage_metadata_issue("requirements", req_meta)
+    if req_metadata_issue:
+        return metadata_inconsistent_result(feature_dir, "requirements", req_path, req_metadata_issue)
     if req_status == "draft":
         return make_result(
             feature_dir=feature_dir,
@@ -430,6 +504,9 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
         )
     inv_path, inv_meta, inv_body = inv
     inv_status = stage_status(inv_meta)
+    inv_metadata_issue = stage_metadata_issue("investigation", inv_meta)
+    if inv_metadata_issue:
+        return metadata_inconsistent_result(feature_dir, "investigation", inv_path, inv_metadata_issue)
     if inv_status == "blocked":
         return make_result(
             feature_dir=feature_dir,
@@ -459,6 +536,9 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
         )
     design_path, design_meta, design_body = design
     design_status = stage_status(design_meta)
+    design_metadata_issue = stage_metadata_issue("design", design_meta)
+    if design_metadata_issue:
+        return metadata_inconsistent_result(feature_dir, "design", design_path, design_metadata_issue)
     if design_status == "blocked" or "DESIGN_BLOCKED" in design_body:
         return make_result(
             feature_dir=feature_dir,
@@ -484,6 +564,16 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             reason="design.md is ready but approval_status is not approved",
             evidence_items=[evidence(design_path, f"approval_status: {design_meta.get('approval_status', 'unset')}")],
         )
+    approval_issue = design_approval_issue(design_meta)
+    if approval_issue:
+        return make_result(
+            feature_dir=feature_dir,
+            state="design_approval_incomplete",
+            next_skill="ai-task-planning",
+            blocking=True,
+            reason=approval_issue,
+            evidence_items=[evidence(design_path, approval_issue)],
+        )
 
     tasks_stage = load_stage(feature_dir, "tasks")
     if tasks_stage is None:
@@ -497,6 +587,9 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
         )
     tasks_path, tasks_meta, tasks_body = tasks_stage
     tasks_status = stage_status(tasks_meta)
+    tasks_metadata_issue = stage_metadata_issue("tasks", tasks_meta)
+    if tasks_metadata_issue:
+        return metadata_inconsistent_result(feature_dir, "tasks", tasks_path, tasks_metadata_issue)
     real_tasks = [task for task in parse_tasks(tasks_body) if task["is_real"]]
     expected_task_count = parse_task_count(tasks_meta)
     if tasks_status == "blocked":
@@ -506,6 +599,24 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             blocking=True,
             reason="tasks.md stage_status is blocked",
             evidence_items=[evidence(tasks_path, "stage_status: blocked")],
+        )
+    if "task_count" not in tasks_meta:
+        return make_result(
+            feature_dir=feature_dir,
+            state="task_count_missing",
+            next_skill="ai-task-planning",
+            blocking=True,
+            reason="tasks.md frontmatter is missing task_count",
+            evidence_items=[evidence(tasks_path, "task_count missing")],
+        )
+    if expected_task_count is None:
+        return make_result(
+            feature_dir=feature_dir,
+            state="task_count_invalid",
+            next_skill="ai-task-planning",
+            blocking=True,
+            reason="tasks.md task_count is not an integer",
+            evidence_items=[evidence(tasks_path, f"task_count: {tasks_meta.get('task_count', 'unset')}")],
         )
     if expected_task_count is not None and expected_task_count != len(real_tasks):
         return make_result(
@@ -563,6 +674,14 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             evidence_items=[evidence(verification_path, "missing")],
         )
     verification_path, verification_meta, verification_body = verification
+    verification_metadata_issue = stage_metadata_issue("verification", verification_meta)
+    if verification_metadata_issue:
+        return metadata_inconsistent_result(
+            feature_dir,
+            "verification",
+            verification_path,
+            verification_metadata_issue,
+        )
     verification_is_complete, verification_diagnostics = verification_complete(verification_meta, verification_body)
     if not verification_is_complete:
         return make_result(
@@ -590,6 +709,9 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             evidence_items=[evidence(handoff_path, "missing")],
         )
     handoff_path, handoff_meta, handoff_body = handoff
+    handoff_metadata_issue = stage_metadata_issue("handoff", handoff_meta)
+    if handoff_metadata_issue:
+        return metadata_inconsistent_result(feature_dir, "handoff", handoff_path, handoff_metadata_issue)
     if not handoff_complete(handoff_meta, handoff_body):
         return make_result(
             feature_dir=feature_dir,

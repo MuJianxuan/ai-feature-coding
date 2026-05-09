@@ -86,6 +86,18 @@ def parse_frontmatter(path: Path, errors: list[str]) -> dict[str, str]:
     return metadata
 
 
+def read_frontmatter_text(path: Path, errors: list[str]) -> str:
+    text = path.read_text()
+    if not text.startswith("---\n"):
+        fail(errors, f"{path}: missing YAML frontmatter")
+        return ""
+    end = text.find("\n---", 4)
+    if end == -1:
+        fail(errors, f"{path}: unterminated YAML frontmatter")
+        return ""
+    return text[4:end]
+
+
 def assert_order(text: str, first: str, second: str, errors: list[str], label: str) -> None:
     first_index = text.find(first)
     second_index = text.find(second)
@@ -121,6 +133,49 @@ def write_doc(path: Path, frontmatter: dict[str, object], body: str) -> None:
         lines.append(f"{key}: {rendered}")
     lines.extend(["---", "", body.lstrip()])
     path.write_text("\n".join(lines))
+
+
+def rewrite_frontmatter(path: Path, updates: dict[str, object] | None = None, remove: set[str] | None = None) -> None:
+    updates = updates or {}
+    remove = remove or set()
+    text = path.read_text()
+    if not text.startswith("---\n"):
+        raise ValueError(f"{path}: missing frontmatter")
+    end = text.find("\n---", 4)
+    if end == -1:
+        raise ValueError(f"{path}: unterminated frontmatter")
+
+    seen: set[str] = set()
+    lines: list[str] = []
+    for line in text[4:end].splitlines():
+        if ":" not in line:
+            lines.append(line)
+            continue
+        key = line.split(":", 1)[0].strip()
+        if key in remove:
+            seen.add(key)
+            continue
+        if key in updates:
+            value = updates[key]
+            if isinstance(value, bool):
+                rendered = "true" if value else "false"
+            else:
+                rendered = str(value)
+            lines.append(f"{key}: {rendered}")
+            seen.add(key)
+        else:
+            lines.append(line)
+
+    for key, value in updates.items():
+        if key in seen or key in remove:
+            continue
+        if isinstance(value, bool):
+            rendered = "true" if value else "false"
+        else:
+            rendered = str(value)
+        lines.append(f"{key}: {rendered}")
+
+    path.write_text("---\n" + "\n".join(lines) + text[end:])
 
 
 def stage_meta(stage: str, status: str, evidence_complete: bool, **extra: object) -> dict[str, object]:
@@ -417,6 +472,16 @@ def run_inspector_scenarios(errors: list[str]) -> None:
     if inspector is None:
         return
 
+    result = inspector.inspect_feature_state(TEMPLATE)
+    assert_state(
+        result,
+        state="template_dir_rejected",
+        next_skill=None,
+        blocking=True,
+        errors=errors,
+        label="inspector must reject the bundled feature template directory",
+    )
+
     with tempfile.TemporaryDirectory(prefix="ai-feature-workflow-scenarios-") as tmpdir:
         scenarios_root = Path(tmpdir)
 
@@ -443,6 +508,33 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             label="inspector non-blocking requirement question",
         )
 
+        req_metadata_inconsistent = make_scenario(scenarios_root, "requirement-metadata-inconsistent")
+        write_ready_requirements(req_metadata_inconsistent)
+        rewrite_frontmatter(req_metadata_inconsistent / "requirements.md", {"evidence_complete": False})
+        result = inspector.inspect_feature_state(req_metadata_inconsistent)
+        assert_state(
+            result,
+            state="requirements_metadata_inconsistent",
+            next_skill="ai-requirement-intake",
+            blocking=True,
+            errors=errors,
+            label="inspector ready requirement must have evidence_complete true",
+        )
+
+        inv_metadata_inconsistent = make_scenario(scenarios_root, "investigation-metadata-inconsistent")
+        write_ready_requirements(inv_metadata_inconsistent)
+        write_ready_investigation(inv_metadata_inconsistent)
+        rewrite_frontmatter(inv_metadata_inconsistent / "investigation.md", {"updated_at": ""})
+        result = inspector.inspect_feature_state(inv_metadata_inconsistent)
+        assert_state(
+            result,
+            state="investigation_metadata_inconsistent",
+            next_skill="ai-repo-investigation",
+            blocking=True,
+            errors=errors,
+            label="inspector ready investigation must have updated_at",
+        )
+
         approval_pending = make_scenario(scenarios_root, "approval-pending")
         write_ready_requirements(approval_pending)
         write_ready_investigation(approval_pending)
@@ -455,6 +547,24 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             blocking=True,
             errors=errors,
             label="inspector design approval pending",
+        )
+
+        approval_incomplete = make_scenario(scenarios_root, "approval-incomplete")
+        write_ready_requirements(approval_incomplete)
+        write_ready_investigation(approval_incomplete)
+        write_ready_design(approval_incomplete, approved=True)
+        rewrite_frontmatter(
+            approval_incomplete / "design.md",
+            {"approved_by": "", "approved_at": "", "approval_evidence": ""},
+        )
+        result = inspector.inspect_feature_state(approval_incomplete)
+        assert_state(
+            result,
+            state="design_approval_incomplete",
+            next_skill="ai-task-planning",
+            blocking=True,
+            errors=errors,
+            label="inspector approved design must include approval evidence fields",
         )
 
         task_planning = make_scenario(scenarios_root, "task-planning")
@@ -484,6 +594,22 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             blocking=True,
             errors=errors,
             label="inspector task missing required field",
+        )
+
+        task_count_missing = make_scenario(scenarios_root, "task-count-missing")
+        write_ready_requirements(task_count_missing)
+        write_ready_investigation(task_count_missing)
+        write_ready_design(task_count_missing, approved=True)
+        write_tasks(task_count_missing, status="TODO")
+        rewrite_frontmatter(task_count_missing / "tasks.md", remove={"task_count"})
+        result = inspector.inspect_feature_state(task_count_missing)
+        assert_state(
+            result,
+            state="task_count_missing",
+            next_skill="ai-task-planning",
+            blocking=True,
+            errors=errors,
+            label="inspector tasks.md must include task_count",
         )
 
         doing = make_scenario(scenarios_root, "doing-task")
@@ -532,6 +658,23 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             label="inspector failed verification cannot be complete",
         )
 
+        verification_metadata_inconsistent = make_scenario(scenarios_root, "verification-metadata-inconsistent")
+        write_ready_requirements(verification_metadata_inconsistent)
+        write_ready_investigation(verification_metadata_inconsistent)
+        write_ready_design(verification_metadata_inconsistent, approved=True)
+        write_tasks(verification_metadata_inconsistent, status="DONE")
+        write_complete_verification(verification_metadata_inconsistent)
+        rewrite_frontmatter(verification_metadata_inconsistent / "verification.md", {"updated_at": ""})
+        result = inspector.inspect_feature_state(verification_metadata_inconsistent)
+        assert_state(
+            result,
+            state="verification_metadata_inconsistent",
+            next_skill="ai-verification-closeout",
+            blocking=True,
+            errors=errors,
+            label="inspector complete verification must have updated_at",
+        )
+
         empty_handoff = make_scenario(scenarios_root, "empty-handoff")
         write_ready_requirements(empty_handoff)
         write_ready_investigation(empty_handoff)
@@ -547,6 +690,24 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             blocking=False,
             errors=errors,
             label="inspector empty handoff cannot be complete",
+        )
+
+        handoff_metadata_inconsistent = make_scenario(scenarios_root, "handoff-metadata-inconsistent")
+        write_ready_requirements(handoff_metadata_inconsistent)
+        write_ready_investigation(handoff_metadata_inconsistent)
+        write_ready_design(handoff_metadata_inconsistent, approved=True)
+        write_tasks(handoff_metadata_inconsistent, status="DONE")
+        write_complete_verification(handoff_metadata_inconsistent)
+        write_complete_handoff(handoff_metadata_inconsistent)
+        rewrite_frontmatter(handoff_metadata_inconsistent / "handoff.md", {"evidence_complete": False})
+        result = inspector.inspect_feature_state(handoff_metadata_inconsistent)
+        assert_state(
+            result,
+            state="handoff_metadata_inconsistent",
+            next_skill="ai-verification-closeout",
+            blocking=True,
+            errors=errors,
+            label="inspector complete handoff must have evidence_complete true",
         )
 
         complete = make_scenario(scenarios_root, "complete")
@@ -639,6 +800,11 @@ def main() -> int:
     for name in CHILD_SKILLS:
         path = SKILLS / name / "SKILL.md"
         text = path.read_text()
+        frontmatter_text = read_frontmatter_text(path, errors)
+        if "complete route payload" not in frontmatter_text:
+            fail(errors, f"{path}: description must require complete route payload for routed invocation")
+        if "routes here with `feature_dir`" in frontmatter_text:
+            fail(errors, f"{path}: description must not imply feature_dir alone is sufficient")
         assert_not_contains_any(text, FORBIDDEN_ROUTE_SOURCE_PATTERNS, errors, str(path))
         for required in ["Activation policy", "启动模式与 route contract", "Safety policy"]:
             if required not in text:
@@ -652,6 +818,8 @@ def main() -> int:
             fail(errors, f"{path}: missing shared contract reference")
         if "`ai-feature-orchestrator` 显式路由到本 skill" not in text:
             fail(errors, f"{path}: routed invocation must be restricted to ai-feature-orchestrator")
+        if "完整 route payload" not in text:
+            fail(errors, f"{path}: routed invocation must require a complete route payload")
         if "被 `ai-feature-orchestrator` 路由" not in text:
             fail(errors, f"{path}: route contract must name ai-feature-orchestrator as router")
         assert_contains_all(text, CHILD_OUTPUT_REQUIREMENTS[name], errors, str(path))
@@ -760,6 +928,8 @@ def main() -> int:
                 "必须读取 `investigation.md`",
                 "source of truth",
                 "未读取 `investigation.md` 就把验证结论写成 complete",
+                "执行要点：",
+                "风险：",
             ],
             errors,
             str(golden_examples),

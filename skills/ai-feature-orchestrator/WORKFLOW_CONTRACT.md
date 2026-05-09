@@ -220,4 +220,4 @@ approval_evidence: ""
 - 模板不包含会被误判为真实任务或阻塞项的默认行。
 - Orchestrator 的 route payload 字段和子 skill preflight 一致。
 - Orchestrator 的 blocked 阶段判断顺序不会被 draft/content 判断抢先命中。
-- `scripts/inspect_feature_state.py` 覆盖初始模板、等待设计审批、任务恢复、验证收口和完成态等基础场景。
+- `scripts/inspect_feature_state.py` 覆盖初始模板、拒绝误用内置模板目录、等待设计审批、任务恢复、验证收口、完成态，以及 `ready/complete` metadata 不一致、设计审批证据缺失、`task_count` 缺失等防误推进场景。

@@ -356,6 +356,8 @@ python3 skills/ai-feature-orchestrator/scripts/validate_ai_skills.py
 - 模板 Markdown 都有 frontmatter。
 - 阶段模板 metadata 可解析，`tasks.md` 包含 `evidence_complete`，`design.md` 包含审批字段。
 - Contract 和各阶段输出规则都覆盖 `updated_at` / `evidence_complete`；`ai-task-planning` 覆盖 `task_count`。
+- `inspect_feature_state.py` 会阻止 `ready/complete` 但 `updated_at` / `evidence_complete` 不一致、设计批准证据字段缺失、`tasks.md task_count` 缺失或非法的继续推进。
+- `inspect_feature_state.py` 会拒绝把 `skills/ai-feature-orchestrator/assets/feature-template/` 当成真实 feature 目录。
 - Route source 已收紧为仅允许 `ai-feature-orchestrator` routed invocation，不能残留 “another legally activated skill” 这类泛化表述。
 - `ai-implementation-execution` 必须优先恢复真实 `DOING` 任务，再选择用户指定任务或第一个真实 `TODO`。
 - `ai-verification-closeout` 必须读取 `investigation.md`，用真实调用链和数据来源校准验证范围。

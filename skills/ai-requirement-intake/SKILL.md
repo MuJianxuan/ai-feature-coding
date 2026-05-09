@@ -1,6 +1,6 @@
 ---
 name: ai-requirement-intake
-description: "AI 需求澄清技能。Activation restricted: use only when the user explicitly names `ai-requirement-intake`, or `ai-feature-orchestrator` explicitly routes here with `feature_dir`. Do not auto-trigger for ordinary requirement clarification or feature discussion."
+description: "AI 需求澄清技能。Activation restricted: use only when the user explicitly names `ai-requirement-intake`, or `ai-feature-orchestrator` explicitly routes here with complete route payload. Do not auto-trigger for ordinary requirement clarification or feature discussion."
 ---
 
 # AI Requirement Intake
@@ -18,7 +18,7 @@ description: "AI 需求澄清技能。Activation restricted: use only when the u
 本 skill 只能在以下情况下使用：
 
 1. 用户在当前请求中明确写出 `ai-requirement-intake`，或明确要求使用 AI Feature Workflow 的需求澄清阶段。
-2. `ai-feature-orchestrator` 显式路由到本 skill，并传入 `feature_dir`。
+2. `ai-feature-orchestrator` 显式路由到本 skill，并提供完整 route payload（`activation_source`、`feature_dir`、`stage_evidence`）。
 
 不满足时：
 
