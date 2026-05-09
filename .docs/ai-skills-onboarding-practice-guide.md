@@ -257,7 +257,7 @@ approval_evidence: ""
 - 执行要点。
 - 完成判定。
 - 风险。
-- 交付记录。
+- 交付记录字段。规划期可以为空或写“待执行”；任务进入 `DONE` 时必须补齐真实交付记录。
 
 更新：
 
@@ -303,12 +303,11 @@ approval_evidence: ""
 完成标准：
 
 - `verification.md` 有验收标准映射表。
-- 每条 AC 都有 PASS / FAIL / BLOCKED 结论。
-- 失败或未覆盖项写入残余风险。
+- 每条 AC 都有真实验证证据和 PASS / FAIL / BLOCKED 结论。
+- 只有所有 in-scope AC 都是 PASS 时，`verification.md stage_status: complete` 且 `evidence_complete: true`。
+- 失败、阻塞或未覆盖项必须写入残余风险，并保持或更新 `verification.md stage_status: draft/blocked`、`evidence_complete: false`。
 - `handoff.md` 包含交付摘要、变更范围、配置 / SQL / 部署事项、用户复核入口。
 - 如需启动服务或预览，验证记录中应包含端口检查和进程信息。
-- 验证完成后 `verification.md stage_status: complete`。
-- 验证完成后 `verification.md evidence_complete: true`，否则保持 `false` 并写清缺口。
 - 交付信息齐备后 `handoff.md stage_status: complete`。
 - 交付信息齐备后 `handoff.md evidence_complete: true`。
 

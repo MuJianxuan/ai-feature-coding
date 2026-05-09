@@ -134,11 +134,22 @@ def stage_meta(stage: str, status: str, evidence_complete: bool, **extra: object
     return metadata
 
 
-def write_ready_requirements(feature_dir: Path) -> None:
+def write_ready_requirements(feature_dir: Path, *, include_non_blocking_question: bool = False) -> None:
+    non_blocking_question = (
+        """
+## 8. 待确认问题
+
+| ID | 问题 | 阻塞级别 | 已查证据 | 需要用户确认 |
+| --- | --- | --- | --- | --- |
+| Q-01 | CSV 字段展示顺序是否要固定 | NON_BLOCKING | 已查现有列表无固定导出顺序约束 | 后续可确认，不阻塞当前链路勘察 |
+"""
+        if include_non_blocking_question
+        else ""
+    )
     write_doc(
         feature_dir / "requirements.md",
         stage_meta("requirements", "ready", True),
-        """
+        f"""
 # Requirements
 
 ## 1. 背景
@@ -168,6 +179,7 @@ def write_ready_requirements(feature_dir: Path) -> None:
 | ID | 验收标准 | 验证方式 | 状态 |
 | --- | --- | --- | --- |
 | AC-01 | 管理员可以导出 CSV | 手工点击导出并检查文件 | READY |
+{non_blocking_question}
 """,
     )
 
@@ -272,6 +284,27 @@ def write_tasks(feature_dir: Path, *, status: str) -> None:
     )
 
 
+def write_task_missing_required_field(feature_dir: Path) -> None:
+    write_doc(
+        feature_dir / "tasks.md",
+        stage_meta("tasks", "ready", True, task_count=1),
+        """
+# Tasks
+
+## 2. 任务清单
+
+### T01 - 实现审计日志导出
+
+- status: TODO
+- 输入：requirements.md#AC-01，design.md#目标链路
+- 输出：导出 API 和 UI 入口
+- 关联模块/文件：src/audit/export.ts, src/pages/Audit.tsx
+- 完成判定：targeted tests 通过，手工导出 CSV 成功
+- 交付记录：待执行
+""",
+    )
+
+
 def write_complete_verification(feature_dir: Path) -> None:
     write_doc(
         feature_dir / "verification.md",
@@ -284,6 +317,26 @@ def write_complete_verification(feature_dir: Path) -> None:
 | AC ID | 验收标准 | 验证证据 | 结果 | 备注 |
 | --- | --- | --- | --- | --- |
 | AC-01 | 管理员可以导出 CSV | targeted tests + 手工导出 | PASS | 覆盖权限 guard |
+
+## 2. 结论摘要
+
+- 未发现 FAIL 或 BLOCKED 项。
+""",
+    )
+
+
+def write_failed_complete_verification(feature_dir: Path) -> None:
+    write_doc(
+        feature_dir / "verification.md",
+        stage_meta("verification", "complete", True),
+        """
+# Verification
+
+## 1. 验收标准映射
+
+| AC ID | 验收标准 | 验证证据 | 结果 | 备注 |
+| --- | --- | --- | --- | --- |
+| AC-01 | 管理员可以导出 CSV | targeted tests 失败 | FAIL | 权限 guard 未覆盖 |
 """,
     )
 
@@ -316,6 +369,16 @@ def write_complete_handoff(feature_dir: Path) -> None:
 ## 6. 残余风险与后续建议
 
 - 暂无残余风险。
+""",
+    )
+
+
+def write_empty_complete_handoff(feature_dir: Path) -> None:
+    write_doc(
+        feature_dir / "handoff.md",
+        stage_meta("handoff", "complete", True),
+        """
+# Handoff
 """,
     )
 
@@ -368,6 +431,18 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             label="inspector initial template",
         )
 
+        non_blocking = make_scenario(scenarios_root, "non-blocking-requirement")
+        write_ready_requirements(non_blocking, include_non_blocking_question=True)
+        result = inspector.inspect_feature_state(non_blocking)
+        assert_state(
+            result,
+            state="investigation_draft_or_incomplete",
+            next_skill="ai-repo-investigation",
+            blocking=False,
+            errors=errors,
+            label="inspector non-blocking requirement question",
+        )
+
         approval_pending = make_scenario(scenarios_root, "approval-pending")
         write_ready_requirements(approval_pending)
         write_ready_investigation(approval_pending)
@@ -394,6 +469,21 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             blocking=False,
             errors=errors,
             label="inspector task planning",
+        )
+
+        task_missing_field = make_scenario(scenarios_root, "task-missing-required-field")
+        write_ready_requirements(task_missing_field)
+        write_ready_investigation(task_missing_field)
+        write_ready_design(task_missing_field, approved=True)
+        write_task_missing_required_field(task_missing_field)
+        result = inspector.inspect_feature_state(task_missing_field)
+        assert_state(
+            result,
+            state="task_count_mismatch",
+            next_skill="ai-task-planning",
+            blocking=True,
+            errors=errors,
+            label="inspector task missing required field",
         )
 
         doing = make_scenario(scenarios_root, "doing-task")
@@ -424,6 +514,39 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             blocking=False,
             errors=errors,
             label="inspector verification closeout",
+        )
+
+        failed_verification = make_scenario(scenarios_root, "failed-verification")
+        write_ready_requirements(failed_verification)
+        write_ready_investigation(failed_verification)
+        write_ready_design(failed_verification, approved=True)
+        write_tasks(failed_verification, status="DONE")
+        write_failed_complete_verification(failed_verification)
+        result = inspector.inspect_feature_state(failed_verification)
+        assert_state(
+            result,
+            state="verification_incomplete",
+            next_skill="ai-verification-closeout",
+            blocking=False,
+            errors=errors,
+            label="inspector failed verification cannot be complete",
+        )
+
+        empty_handoff = make_scenario(scenarios_root, "empty-handoff")
+        write_ready_requirements(empty_handoff)
+        write_ready_investigation(empty_handoff)
+        write_ready_design(empty_handoff, approved=True)
+        write_tasks(empty_handoff, status="DONE")
+        write_complete_verification(empty_handoff)
+        write_empty_complete_handoff(empty_handoff)
+        result = inspector.inspect_feature_state(empty_handoff)
+        assert_state(
+            result,
+            state="handoff_incomplete",
+            next_skill="ai-verification-closeout",
+            blocking=False,
+            errors=errors,
+            label="inspector empty handoff cannot be complete",
         )
 
         complete = make_scenario(scenarios_root, "complete")
@@ -505,6 +628,7 @@ def main() -> int:
                 "`updated_at`",
                 "`evidence_complete: true`",
                 "`task_count` 必须等于真实任务数量",
+                "只有所有 in-scope acceptance criteria 都有真实验证证据且结果为 `PASS`",
                 "辅助模板 Markdown 可解析，但不得包含 `feature_stage` 或 `stage_status`",
                 "输出规则必须说明 `updated_at` / `evidence_complete`",
             ],
@@ -541,6 +665,14 @@ def main() -> int:
         "implementation task selection",
     )
 
+    task_planning_text = (SKILLS / "ai-task-planning" / "SKILL.md").read_text()
+    assert_contains_all(
+        task_planning_text,
+        ["每项规划期任务必须写", "执行要点", "风险", "任务进入 `DONE` 时必须由执行阶段补齐真实记录"],
+        errors,
+        "task planning required task fields",
+    )
+
     verification_text = (SKILLS / "ai-verification-closeout" / "SKILL.md").read_text()
     assert_contains_all(
         verification_text,
@@ -549,6 +681,8 @@ def main() -> int:
             "读取 `investigation.md` 的真实调用链",
             "source of truth",
             "结合 `investigation.md` 的真实链路和数据来源",
+            "只有所有 in-scope acceptance criteria 都有真实验证证据且结果为 `PASS`",
+            "存在 `FAIL`、`BLOCKED`、未覆盖项或无法解释的验证缺口",
         ],
         errors,
         "verification closeout investigation dependency",

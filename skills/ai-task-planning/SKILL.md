@@ -59,13 +59,15 @@ description: "AI 任务拆解技能。Activation restricted: use only when the u
 
 1. 每项任务只覆盖一个清晰目标，能独立完成和验证。
 2. 按依赖顺序排序：schema/config -> backend/domain -> API/adapter -> frontend/state -> tests/docs。
-3. 每项任务必须写：
+3. 每项规划期任务必须写：
    - `status`: `TODO` / `DOING` / `DONE` / `BLOCKED`
    - 输入：依赖的需求、设计、证据或文件。
    - 输出：预期改动文件或行为。
    - 完成判定：可执行命令、接口响应、UI 行为或数据状态。
    - 关联模块/文件：尽量列路径或搜索关键词。
+   - 执行要点：关键实现顺序、复用点或注意事项。
    - 风险：可能影响的兼容性、数据、权限或性能。
+   - 交付记录：规划期可以为空或写“待执行”；任务进入 `DONE` 时必须由执行阶段补齐真实记录。
 4. 不把“验证全部功能”作为单个大任务；验证也要按风险拆分。
 5. 如果发现设计不可拆或范围过大，回到 `design.md` 缩小边界。
 6. 如果用户刚刚明确批准设计但 metadata 仍是 `pending`，先把 `design.md` 的审批字段补齐，再拆任务。

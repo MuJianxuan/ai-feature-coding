@@ -91,4 +91,4 @@ description: "AI 验证收口技能。Activation restricted: use only when the u
 
 ## 输出
 
-更新 `verification.md` 和 `handoff.md`，每次写入都必须同步更新对应 frontmatter 的 `updated_at`。验收映射完成且失败 / 未覆盖项已明确记录时，将 `verification.md` frontmatter `stage_status` 标记为 `complete`、`evidence_complete: true`；如果仍有无法解释的验证缺口或外部阻塞，保持或更新为 `stage_status: draft/blocked`、`evidence_complete: false`。交付摘要、复核入口和残余风险齐备时，将 `handoff.md` frontmatter `stage_status` 标记为 `complete`、`evidence_complete: true`；否则保持 `evidence_complete: false`。输出交付状态后停止。
+更新 `verification.md` 和 `handoff.md`，每次写入都必须同步更新对应 frontmatter 的 `updated_at`。只有所有 in-scope acceptance criteria 都有真实验证证据且结果为 `PASS` 时，才将 `verification.md` frontmatter `stage_status` 标记为 `complete`、`evidence_complete: true`；存在 `FAIL`、`BLOCKED`、未覆盖项或无法解释的验证缺口时，保持或更新为 `stage_status: draft/blocked`、`evidence_complete: false`，并在正文写明证据和残余风险。交付摘要、变更范围、用户复核入口、验证结论和残余风险齐备时，将 `handoff.md` frontmatter `stage_status` 标记为 `complete`、`evidence_complete: true`；否则保持 `evidence_complete: false`。输出交付状态后停止。

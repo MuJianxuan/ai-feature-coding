@@ -197,14 +197,34 @@ def has_real_table_row(body: str, *, id_prefix: str | None = None) -> bool:
     return False
 
 
+def is_blocking_marker(value: str) -> bool:
+    return value.strip().upper() == "BLOCKING"
+
+
+def contains_standalone_blocking(value: str) -> bool:
+    normalized = value.upper().replace("NON-BLOCKING", "NON_BLOCKING")
+    return "NON_BLOCKING" not in normalized and bool(re.search(r"\bBLOCKING\b", normalized))
+
+
 def has_blocking_requirement(body: str) -> bool:
     questions = section_text(body, "待确认问题")
+    blocking_index: int | None = None
     for line in questions.splitlines():
         cells = table_cells(line)
-        if cells and not is_table_separator(line) and not is_header_row(line):
-            if any(cell.upper() == "BLOCKING" for cell in cells):
+        if cells:
+            if is_table_separator(line):
+                continue
+            if "阻塞级别" in cells:
+                blocking_index = cells.index("阻塞级别")
+                continue
+            if blocking_index is not None and len(cells) > blocking_index:
+                if is_blocking_marker(cells[blocking_index]):
+                    return True
+                continue
+            if any(is_blocking_marker(cell) for cell in cells):
                 return True
-        if "BLOCKING" in line.upper():
+            continue
+        if contains_standalone_blocking(line):
             return True
     return False
 
@@ -251,7 +271,7 @@ def parse_task_count(metadata: dict[str, str]) -> int | None:
 def parse_tasks(body: str) -> list[dict[str, Any]]:
     matches = list(re.finditer(r"^###\s+(T\d+)\s+-\s+(.+?)\s*$", body, re.MULTILINE))
     tasks: list[dict[str, Any]] = []
-    required_fields = ["输入", "输出", "完成判定", "关联模块/文件"]
+    required_fields = ["输入", "输出", "完成判定", "关联模块/文件", "执行要点", "风险"]
 
     for index, match in enumerate(matches):
         start = match.end()
@@ -284,12 +304,46 @@ def parse_tasks(body: str) -> list[dict[str, Any]]:
     return tasks
 
 
+def verification_results(body: str) -> list[str]:
+    section = section_text(body, "验收标准映射")
+    result_index: int | None = None
+    results: list[str] = []
+
+    for line in section.splitlines():
+        cells = table_cells(line)
+        if not cells or is_table_separator(line):
+            continue
+        if "结果" in cells:
+            result_index = cells.index("结果")
+            continue
+        if is_header_row(line):
+            continue
+        if result_index is None or len(cells) <= result_index:
+            continue
+        ac_id = cells[0].strip() if cells else ""
+        result = cells[result_index].strip()
+        if is_placeholder_text(ac_id) or is_placeholder_text(result):
+            continue
+        results.append(result.upper())
+
+    return results
+
+
+def normalize_verification_result(value: str) -> str:
+    return value.strip().upper().split()[0].strip("。；;,.，")
+
+
 def verification_complete(metadata: dict[str, str], body: str) -> tuple[bool, list[str]]:
     diagnostics: list[str] = []
     if stage_status(metadata) != "complete" or not metadata_true(metadata, "evidence_complete"):
         return False, diagnostics
-    if "FAIL" in body.upper() or "BLOCKED" in body.upper():
-        diagnostics.append("verification.md contains FAIL or BLOCKED while metadata says complete")
+    results = verification_results(body)
+    if not results:
+        diagnostics.append("verification.md has complete metadata but no real acceptance-criteria result rows")
+        return False, diagnostics
+    non_pass_results = [result for result in results if normalize_verification_result(result) != "PASS"]
+    if non_pass_results:
+        diagnostics.append("verification.md complete metadata requires all acceptance-criteria results to be PASS")
         return False, diagnostics
     return True, diagnostics
 
@@ -299,6 +353,11 @@ def handoff_complete(metadata: dict[str, str], body: str) -> bool:
         stage_status(metadata) == "complete"
         and metadata_true(metadata, "evidence_complete")
         and "UNSET" not in body
+        and section_has_real_content(body, "交付摘要")
+        and has_real_table_row(section_text(body, "变更范围"))
+        and section_has_real_content(body, "用户复核入口")
+        and section_has_real_content(body, "验证结论")
+        and section_has_real_content(body, "残余风险与后续建议")
     )
 
 
