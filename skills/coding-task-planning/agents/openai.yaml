@@ -1,0 +1,6 @@
+interface:
+  display_name: "Coding Task Planning"
+  short_description: "Create atomic and verifiable tasks.md items"
+  default_prompt: "Use $coding-task-planning with feature_dir=.docs/feature-... to convert the approved design into tasks.md."
+policy:
+  allow_implicit_invocation: false

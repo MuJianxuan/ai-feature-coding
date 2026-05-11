@@ -1,6 +1,0 @@
-interface:
-  display_name: "AI Implementation Execution"
-  short_description: "Implement tasks while preserving evidence"
-  default_prompt: "Use $ai-implementation-execution with feature_dir=.docs/feature-... to implement the next TODO/DOING task from tasks.md."
-policy:
-  allow_implicit_invocation: false

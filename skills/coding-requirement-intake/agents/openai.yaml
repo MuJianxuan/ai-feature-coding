@@ -1,0 +1,6 @@
+interface:
+  display_name: "Coding Requirement Intake"
+  short_description: "Clarify feature scope and acceptance criteria"
+  default_prompt: "Use $coding-requirement-intake with feature_dir=.docs/feature-... to clarify scope and update requirements.md."
+policy:
+  allow_implicit_invocation: false

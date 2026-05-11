@@ -1,0 +1,6 @@
+interface:
+  display_name: "Coding Verification Closeout"
+  short_description: "Map acceptance criteria to verification evidence"
+  default_prompt: "Use $coding-verification-closeout with feature_dir=.docs/feature-... to verify acceptance criteria and complete closeout docs."
+policy:
+  allow_implicit_invocation: false
