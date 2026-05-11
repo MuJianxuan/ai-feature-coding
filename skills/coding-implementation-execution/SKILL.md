@@ -64,7 +64,7 @@ description: "Coding 编码执行技能。Activation restricted: use only when t
 ## 开始前
 
 1. 读取 `requirements.md`、`investigation.md`、`design.md`、`tasks.md`、`verification.md`。
-2. 读取项目编码规范：如果 `.docs/spec/INDEX.md` 存在，读取其内容，了解当前项目已有的编码规范索引；执行代码修改时应遵循相关规范。如果 `.docs/spec/INDEX.md` 不存在或 `.docs/spec/` 目录不存在，跳过此步骤。
+2. 加载项目编码规范索引：如果 `.docs/spec/INDEX.md` 存在，读取其内容，了解当前项目已有哪些编码规范文档可供参考。如果 `.docs/spec/INDEX.md` 不存在或 `.docs/spec/` 目录不存在，跳过此步骤。
 3. 如果存在真实 `DOING` 任务，优先恢复该任务；否则选择用户明确指定的任务，或第一个真实 `TODO` 任务。
 4. 将任务状态改为 `DOING`，记录开始时间和执行者为 AI。
 5. 检查工作区状态。不要覆盖用户已有改动；遇到冲突先读懂再处理。
