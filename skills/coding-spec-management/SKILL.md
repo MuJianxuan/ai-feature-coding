@@ -23,7 +23,7 @@ description: "规范管理技能。引导用户基于代码现状、文档或提
 
 ## 前置检查
 
-1. 确认 `.docs/spec/INDEX.md` 存在。如果不存在，创建 `.docs/spec/` 目录和 `INDEX.md`（使用初始模板）。
+1. 确认 `.docs/spec/INDEX.md` 存在。如果不存在，从本 skill 的 `assets/INDEX.md` 复制到 `.docs/spec/INDEX.md`（同时创建 `.docs/spec/` 目录）。
 2. 确认 `.docs/spec/coding/` 目录存在。如果不存在，创建该目录。
 
 ## 输入来源
@@ -67,7 +67,7 @@ description: "规范管理技能。引导用户基于代码现状、文档或提
 
 新建文档时：
 - 文件名：`<kebab-case-topic>.md`，放在 `.docs/spec/coding/` 下。
-- 使用规范文档模板。
+- 从本 skill 的 `assets/spec-template.md` 复制模板，填充内容。
 - 更新 `.docs/spec/INDEX.md` 索引表格，新增一行。
 - 更新 `INDEX.md` 的 `updated_at`。
 
