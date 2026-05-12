@@ -6,7 +6,7 @@
 
 ## 1. Activation contract
 
-Coding Feature Workflow 是 explicit opt-in，不参与普通 Codex 工作流自动触发。
+Coding Feature Workflow 是 explicit opt-in，不参与普通工作流自动触发。
 
 允许启动的情况只有两类：
 

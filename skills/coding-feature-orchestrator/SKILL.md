@@ -23,7 +23,7 @@ description: "Coding Feature Workflow 总调度技能。Activation restricted: u
 
 - 禁止把普通“帮我实现功能 / 调查代码 / 写技术方案 / 拆任务 / 验证收口”解读为触发本 skill。
 - 禁止创建或选择 `.docs/feature-*` 目录。
-- 应回到普通 Codex 工作流；如果用户确实想进入本流程，提示其显式指定本 skill 或“这套 Coding Feature Workflow”。
+- 如果用户确实想进入本流程，提示其显式指定本 skill 或“这套 Coding Feature Workflow”。
 
 ## Workflow contract
 
