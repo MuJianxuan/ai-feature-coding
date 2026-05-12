@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Inspect a Coding Feature Workflow directory and infer the next stage.
 
-The script is intentionally stdlib-only so it can run in minimal Codex
-workspaces. It implements the same ordered stage rules described in
+The script is intentionally stdlib-only so it can run in any AI agent
+environment without extra dependencies. It implements the same ordered stage rules described in
 coding-feature-orchestrator/SKILL.md and WORKFLOW_CONTRACT.md.
 """
 

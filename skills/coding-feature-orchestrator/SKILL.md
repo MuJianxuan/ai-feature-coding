@@ -13,7 +13,7 @@ description: "Coding Feature Workflow 总调度技能。Activation restricted: u
 
 ## Activation policy
 
-本 skill 是 explicit opt-in，不参与普通 Codex 工作流的自动触发。只有满足以下条件，才允许进入本 skill：
+本 skill 是 explicit opt-in，不参与普通 Agent 工作流的自动触发。只有满足以下条件，才允许进入本 skill：
 
 - 用户在当前请求中明确写出 `coding-feature-orchestrator`，或明确要求“使用/启动这套 Coding Feature Workflow / 技能工作流”。
 
