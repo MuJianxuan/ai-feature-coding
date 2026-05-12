@@ -1,6 +1,0 @@
-interface:
-  display_name: "Coding Spec Management"
-  short_description: "Add or update coding specs in .docs/spec/"
-  default_prompt: "Use $coding-spec-management to add or update a coding specification."
-policy:
-  allow_implicit_invocation: false

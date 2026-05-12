@@ -236,7 +236,7 @@ approval_evidence: ""
 
 维护 Coding Feature Workflow 时至少检查：
 
-- 所有 `agents/openai.yaml` 的 `allow_implicit_invocation` 为 `false`。
+- 所有阶段 skill 的 `SKILL.md` description 字段包含 "Activation restricted" 声明。
 - 所有阶段 skill 都包含 `Activation policy`、`route contract`、`Safety policy`。
 - 模板 Markdown 都有 frontmatter。
 - 阶段模板 frontmatter 可解析，且包含合法 `feature_stage`、`stage_status`、`updated_at`、`evidence_complete`。

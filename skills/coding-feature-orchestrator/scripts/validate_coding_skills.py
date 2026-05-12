@@ -1308,12 +1308,12 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 def main() -> int:
     errors: list[str] = []
 
-    for yaml_path in sorted(SKILLS.glob("*/agents/openai.yaml")):
-        text = yaml_path.read_text()
-        if "allow_implicit_invocation: false" not in text:
-            fail(errors, f"{yaml_path}: allow_implicit_invocation must be false")
-        if "allow_implicit_invocation: true" in text:
-            fail(errors, f"{yaml_path}: implicit invocation is still true")
+    for skill_dir in sorted(SKILLS.glob("coding-*")):
+        skill_md = skill_dir / "SKILL.md"
+        if skill_md.is_file():
+            text = skill_md.read_text()
+            if "Activation restricted" not in text and "Activation policy" not in text:
+                fail(errors, f"{skill_md}: missing activation restriction declaration")
 
     orchestrator_skill = ORCHESTRATOR / "SKILL.md"
     orch_text = orchestrator_skill.read_text()

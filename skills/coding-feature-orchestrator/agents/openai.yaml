@@ -1,6 +1,0 @@
-interface:
-  display_name: "Coding Feature Orchestrator"
-  short_description: "Route a feature through the Coding Feature Workflow"
-  default_prompt: "Use $coding-feature-orchestrator to start or continue an evidence-first Coding Feature Workflow."
-policy:
-  allow_implicit_invocation: false
