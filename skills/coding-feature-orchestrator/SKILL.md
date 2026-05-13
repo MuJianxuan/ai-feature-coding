@@ -1,6 +1,6 @@
 ---
 name: coding-feature-orchestrator
-description: "Coding Feature Workflow 总调度技能。Activation restricted: use only when the user explicitly names `coding-feature-orchestrator`, explicitly asks to use/start this Coding Feature Workflow or 技能工作流. Do not auto-trigger for ordinary feature requests, repo audits, coding, debugging, design, planning, or closeout."
+description: "use only when the user explicitly names `coding-feature-orchestrator`. Do not auto-trigger for ordinary feature requests, repo audits, coding, debugging, design, planning, or closeout."
 ---
 
 # Coding Feature Orchestrator
