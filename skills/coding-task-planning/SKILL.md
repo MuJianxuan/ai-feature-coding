@@ -46,6 +46,7 @@ description: "Coding 任务拆解技能。Activation restricted: use only when t
 - `investigation.md stage_status: ready` 且 `investigation.md evidence_complete: true`。
 - `design.md` 的 `stage_status: ready`。
 - `design.md stage_status: ready` 且 `design.md evidence_complete: true`。
+- `design.md` 已包含方案选项与取舍、澄清问题与边界情况、外部知识依据或无需外部调研的说明。
 - `design.md approval_status: approved`；如果 metadata 仍是 `pending` 但当前用户请求明确批准设计或明确要求进入任务拆解，先补齐审批字段；否则停止并报告等待设计审批。
 - `approved_by`、`approved_at`、`approval_evidence` 已补齐，且 `approved_at` 是 ISO 8601 + timezone。
 - 上述 `requirements.md`、`investigation.md`、`design.md` 的 `updated_at` 均已写入 ISO 8601 + timezone。
@@ -63,8 +64,9 @@ description: "Coding 任务拆解技能。Activation restricted: use only when t
 ## 拆解规则
 
 1. 每项任务只覆盖一个清晰目标，能独立完成和验证。
-2. 按依赖顺序排序：schema/config -> backend/domain -> API/adapter -> frontend/state -> tests/docs。
-3. 每项规划期任务必须写：
+2. 任务输入必须引用 `investigation.md` 的真实链路、`requirements.md` 的 acceptance criteria、`design.md` 的推荐方案/边界情况；涉及框架、SDK、协议、API 或第三方库时引用 `design.md` 的 Context7 / 外部知识依据。
+3. 按依赖顺序排序：schema/config -> backend/domain -> API/adapter -> frontend/state -> tests/docs。
+4. 每项规划期任务必须写：
    - `status`: `TODO` / `DOING` / `DONE` / `BLOCKED`
    - 输入：依赖的需求、设计、证据或文件。
    - 输出：预期改动文件或行为。
@@ -73,9 +75,9 @@ description: "Coding 任务拆解技能。Activation restricted: use only when t
    - 执行要点：关键实现顺序、复用点或注意事项。
    - 风险：可能影响的兼容性、数据、权限或性能。
    - 交付记录：规划期可以为空或写“待执行”；任务进入 `DONE` 时必须由执行阶段补齐真实记录。
-4. 不把“验证全部功能”作为单个大任务；验证也要按风险拆分。
-5. 如果发现设计不可拆或范围过大，回到 `design.md` 缩小边界。
-6. 如果用户刚刚明确批准设计但 metadata 仍是 `pending`，先把 `design.md` 的审批字段补齐，再拆任务。
+5. 不把“验证全部功能”作为单个大任务；验证也要按风险拆分。
+6. 如果发现设计不可拆、澄清问题仍阻塞或范围过大，回到 `design.md` 缩小边界。
+7. 如果用户刚刚明确批准设计但 metadata 仍是 `pending`，先把 `design.md` 的审批字段补齐，再拆任务。
 
 ## 推荐任务模板
 

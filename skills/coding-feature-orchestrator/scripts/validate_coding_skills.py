@@ -40,21 +40,27 @@ CHILD_OUTPUT_REQUIREMENTS = {
     "coding-verification-closeout": ["updated_at", "evidence_complete"],
 }
 CHILD_PREFLIGHT_REQUIREMENTS = {
+    "coding-requirement-intake": [
+        "`investigation.md stage_status: ready`",
+        "`investigation.md evidence_complete: true`",
+    ],
     "coding-repo-investigation": [
-        "`requirements.md stage_status: ready`",
-        "`requirements.md evidence_complete: true`",
+        "`investigation.md` 和 `resource/README.md` 已由 orchestrator/template 准备好",
+        "不得要求 `requirements.md stage_status: ready`",
     ],
     "coding-technical-design": [
-        "`requirements.md stage_status: ready`",
         "`investigation.md stage_status: ready`",
+        "`requirements.md stage_status: ready`",
         "`requirements.md evidence_complete: true`",
         "`investigation.md evidence_complete: true`",
+        "Brainstorming",
     ],
     "coding-task-planning": [
         "`requirements.md stage_status: ready`",
         "`investigation.md stage_status: ready`",
         "`design.md stage_status: ready`",
         "`design.md evidence_complete: true`",
+        "方案选项与取舍",
         "`design.md approval_status: approved`",
         "`approved_by`、`approved_at`、`approval_evidence`",
     ],
@@ -416,13 +422,25 @@ def write_ready_investigation(feature_dir: Path) -> None:
 | --- | --- | --- |
 | src/report/export.ts | CSV 生成与响应头模式 | 字段和权限不同，不能直接复用字段列表 |
 
-## 7. 风险与未知
+## 7. 外部调研 / Context7
+
+| 查询对象 | 来源 | 关键结论 | 适用限制 |
+| --- | --- | --- | --- |
+| CSV response header | Context7 / project docs | 继续使用 text/csv 和 attachment filename 模式 | 只适用于文件下载响应 |
+
+## 8. 需求澄清线索
+
+| 类型 | 模糊点 / 边界情况 / 未明确行为 | 已查证据 | 建议问题 |
+| --- | --- | --- | --- |
+| 边界情况 | 大数据量导出是否分页批处理 | 已查现有导出为同步响应 | 首期是否限制最大导出行数 |
+
+## 9. 风险与未知
 
 | 类型 | 内容 | 证据 | 处理方式 |
 | --- | --- | --- | --- |
 | 已证实 | 需复用权限 guard | 已查 audit service | 设计中明确权限链路 |
 
-## 8. 对设计的约束
+## 10. 对设计的约束
 
 - 必须沿用现有权限判断。
 """,
@@ -440,6 +458,97 @@ def write_ready_design(feature_dir: Path, *, approved: bool = False) -> None:
             approved_by="user" if approved else "",
             approved_at="2026-05-09T20:31:00+08:00" if approved else "",
             approval_evidence="用户确认进入任务拆解" if approved else "",
+        ),
+        """
+# Design
+
+## 1. 方案摘要
+
+- 新增 CSV 导出按钮与后端导出接口，复用审计日志查询条件。
+
+## 2. 方案选项与取舍
+
+| 方案 | 核心思路 | 优点 | 代价 / 风险 | 结论 |
+| --- | --- | --- | --- | --- |
+| A | 复用现有查询 service 增加 CSV adapter | 改动最小且复用权限 | 需补字段映射测试 | 推荐 |
+| B | 新建独立导出 service | 边界清晰 | 容易重复权限和筛选逻辑 | 不采用 |
+
+## 3. 澄清问题与边界情况
+
+| 类型 | 问题 / 边界情况 / 未明确行为 | 已查证据 | 影响范围 | 处理方式 |
+| --- | --- | --- | --- | --- |
+| 非阻塞 | 大数据量导出上限 | 现有报表导出同步返回 | 性能和超时 | 先沿用现有限制并补测试 |
+
+## 4. 外部知识依据
+
+| 来源 | 关键结论 | 适用范围 | 对方案的影响 |
+| --- | --- | --- | --- |
+| Context7 / project docs | 文件下载响应保持 text/csv 与 attachment filename | CSV endpoint | 复用现有 response helper |
+
+## 5. 影响范围
+
+| 类型 | 模块 / 文件 | 影响说明 |
+| --- | --- | --- |
+| backend | src/audit/export.ts | 新增导出逻辑 |
+
+## 6. 目标链路
+
+- UI -> API -> audit service -> CSV response。
+
+## 7. API 变更
+
+- Endpoint：新增或扩展审计日志导出 endpoint。
+- Request：复用审计日志筛选参数。
+- Response：返回 CSV 文件响应。
+- Error code：复用现有权限错误。
+- 兼容性：不改变现有列表接口。
+
+## 8. 数据变更
+
+- DDL：不涉及。
+- DML：不涉及。
+- Migration：不涉及。
+- Rollback：删除导出入口和导出 handler。
+- 幂等性：导出为只读操作。
+
+## 9. 状态、事务与并发
+
+- 事务边界：只读查询，无新增写事务。
+- 缓存刷新：不涉及。
+- Stream / event：不涉及。
+- 异步任务：不涉及。
+
+## 10. 错误处理与日志
+
+- 异常传播：复用现有 API error response。
+- 日志字段：记录导出用户、筛选条件摘要和结果。
+- PII 处理：CSV 字段沿用审计日志展示规则。
+
+## 11. 风险与回滚
+
+| 风险 | 影响 | 缓解方案 | 回滚方式 |
+| --- | --- | --- | --- |
+| 权限遗漏 | 非管理员误导出 | 复用权限 guard | 关闭导出入口 |
+
+## 12. 验证策略
+
+- 自动化验证：运行 audit export targeted tests。
+- 手工验证：管理员点击导出。
+""",
+    )
+
+
+def write_legacy_ready_design_without_brainstorming(feature_dir: Path) -> None:
+    write_doc(
+        feature_dir / "design.md",
+        stage_meta(
+            "design",
+            "ready",
+            True,
+            approval_status="pending",
+            approved_by="",
+            approved_at="",
+            approval_evidence="",
         ),
         """
 # Design
@@ -857,26 +966,40 @@ def run_inspector_scenarios(errors: list[str]) -> None:
         result = inspector.inspect_feature_state(initial)
         assert_state(
             result,
-            state="requirements_draft",
-            next_skill="coding-requirement-intake",
+            state="investigation_draft_or_incomplete",
+            next_skill="coding-repo-investigation",
             blocking=False,
             errors=errors,
             label="inspector initial template",
         )
 
+        investigated_requirement_draft = make_scenario(scenarios_root, "investigated-requirement-draft")
+        write_ready_investigation(investigated_requirement_draft)
+        result = inspector.inspect_feature_state(investigated_requirement_draft)
+        assert_state(
+            result,
+            state="requirements_draft",
+            next_skill="coding-requirement-intake",
+            blocking=False,
+            errors=errors,
+            label="inspector routes to requirement intake only after investigation is ready",
+        )
+
         non_blocking = make_scenario(scenarios_root, "non-blocking-requirement")
+        write_ready_investigation(non_blocking)
         write_ready_requirements(non_blocking, include_non_blocking_question=True)
         result = inspector.inspect_feature_state(non_blocking)
         assert_state(
             result,
-            state="investigation_draft_or_incomplete",
-            next_skill="coding-repo-investigation",
+            state="design_draft_or_incomplete",
+            next_skill="coding-technical-design",
             blocking=False,
             errors=errors,
             label="inspector non-blocking requirement question",
         )
 
         requirement_placeholder_gap = make_scenario(scenarios_root, "requirement-placeholder-gap")
+        write_ready_investigation(requirement_placeholder_gap)
         write_ready_requirements_with_placeholder_gap(requirement_placeholder_gap)
         result = inspector.inspect_feature_state(requirement_placeholder_gap)
         assert_state(
@@ -889,6 +1012,7 @@ def run_inspector_scenarios(errors: list[str]) -> None:
         )
 
         duplicate_ac = make_scenario(scenarios_root, "duplicate-ac")
+        write_ready_investigation(duplicate_ac)
         write_requirements_with_duplicate_ac(duplicate_ac)
         result = inspector.inspect_feature_state(duplicate_ac)
         assert_state(
@@ -901,6 +1025,7 @@ def run_inspector_scenarios(errors: list[str]) -> None:
         )
 
         req_metadata_inconsistent = make_scenario(scenarios_root, "requirement-metadata-inconsistent")
+        write_ready_investigation(req_metadata_inconsistent)
         write_ready_requirements(req_metadata_inconsistent)
         rewrite_frontmatter(req_metadata_inconsistent / "requirements.md", {"evidence_complete": False})
         result = inspector.inspect_feature_state(req_metadata_inconsistent)
@@ -914,6 +1039,7 @@ def run_inspector_scenarios(errors: list[str]) -> None:
         )
 
         req_invalid_status = make_scenario(scenarios_root, "requirement-invalid-status")
+        write_ready_investigation(req_invalid_status)
         write_ready_requirements(req_invalid_status)
         rewrite_frontmatter(req_invalid_status / "requirements.md", {"stage_status": "finished"})
         result = inspector.inspect_feature_state(req_invalid_status)
@@ -927,6 +1053,7 @@ def run_inspector_scenarios(errors: list[str]) -> None:
         )
 
         req_complete_status = make_scenario(scenarios_root, "requirement-complete-status")
+        write_ready_investigation(req_complete_status)
         write_ready_requirements(req_complete_status)
         rewrite_frontmatter(req_complete_status / "requirements.md", {"stage_status": "complete"})
         result = inspector.inspect_feature_state(req_complete_status)
@@ -965,6 +1092,20 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             blocking=True,
             errors=errors,
             label="inspector investigation feature_stage must match filename",
+        )
+
+        design_missing_brainstorming = make_scenario(scenarios_root, "design-missing-brainstorming")
+        write_ready_requirements(design_missing_brainstorming)
+        write_ready_investigation(design_missing_brainstorming)
+        write_legacy_ready_design_without_brainstorming(design_missing_brainstorming)
+        result = inspector.inspect_feature_state(design_missing_brainstorming)
+        assert_state(
+            result,
+            state="design_draft_or_incomplete",
+            next_skill="coding-technical-design",
+            blocking=False,
+            errors=errors,
+            label="inspector ready design must include brainstorming and clarification evidence",
         )
 
         approval_pending = make_scenario(scenarios_root, "approval-pending")
@@ -1330,6 +1471,13 @@ def main() -> int:
         fail(errors, f"{orchestrator_skill}: design approval must preserve metadata updates")
     assert_order(
         orch_text,
+        "`investigation.md` 缺失",
+        "`requirements.md` 缺失",
+        errors,
+        "repo investigation must precede requirement intake",
+    )
+    assert_order(
+        orch_text,
         "`investigation.md` 的 `stage_status` 为 `blocked`",
         "`investigation.md` 的 `stage_status` 为 `draft`",
         errors,
@@ -1375,6 +1523,8 @@ def main() -> int:
                 "只有所有 in-scope acceptance criteria 都有真实验证证据且结果为 `PASS`",
                 "辅助模板 Markdown 可解析，但不得包含 `feature_stage` 或 `stage_status`",
                 "输出规则必须说明 `updated_at` / `evidence_complete`",
+                "`coding-repo-investigation` 必须先于 `coding-requirement-intake` 完成",
+                "`coding-technical-design` 必须包含 brainstorming",
             ],
             errors,
             str(contract),
@@ -1429,6 +1579,14 @@ def main() -> int:
         ["每项规划期任务必须写", "执行要点", "风险", "任务进入 `DONE` 时必须由执行阶段补齐真实记录"],
         errors,
         "task planning required task fields",
+    )
+
+    technical_design_text = (SKILLS / "coding-technical-design" / "SKILL.md").read_text()
+    assert_contains_all(
+        technical_design_text,
+        ["Brainstorming 与澄清", "2-3 个可行技术方案", "澄清问题与边界情况", "Context7"],
+        errors,
+        "technical design brainstorming and clarification requirements",
     )
 
     verification_text = (SKILLS / "coding-verification-closeout" / "SKILL.md").read_text()

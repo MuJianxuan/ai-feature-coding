@@ -13,13 +13,12 @@
 期望行为：
 
 1. Orchestrator 创建 `.docs/feature-YYYYMMDD-export-audit-log-csv/`，复制模板。
-2. `requirements.md` 记录原始需求、in-scope / out-of-scope、可验证 acceptance criteria。
-3. `coding-requirement-intake` 完成后停下，`requirements.md stage_status: ready`、`evidence_complete: true`，并更新 `updated_at`。
-4. 用户说“继续下一阶段”后进入 `coding-repo-investigation`，写真实代码链路和数据来源；完成时 `investigation.md stage_status: ready`、`evidence_complete: true`，并更新 `updated_at`。
-5. `coding-technical-design` 写方案，`design.md stage_status: ready`、`evidence_complete: true` 且 `approval_status: pending`，然后停下等待用户批准。
-6. 用户明确批准设计后，记录 `approval_status: approved`、`approved_by`、`approved_at`、`approval_evidence`，同步更新 `updated_at`，再进入 `coding-task-planning`。
-7. `coding-task-planning` 写真实任务后，`tasks.md stage_status: ready`、`evidence_complete: true`、`task_count` 等于真实任务数量，并更新 `updated_at`；真实任务 ID 不重复。
-8. 编码阶段一次只执行一个 `TODO` / `DOING` 任务；`DONE` 任务交付记录必须包含改动文件、验证命令或证据、结果、残余风险。验证阶段必须读取 `investigation.md` 的真实调用链和数据来源，再把每条 AC 映射到命令、接口响应、数据查询或手工步骤。
+2. `coding-repo-investigation` 先读取原始需求和资源，写真实代码链路、数据来源、相似实现、外部调研 / Context7 结论和需求澄清线索；完成时 `investigation.md stage_status: ready`、`evidence_complete: true`，并更新 `updated_at`。
+3. 用户说“继续下一阶段”后进入 `coding-requirement-intake`，基于 `investigation.md` 记录 in-scope / out-of-scope、可验证 acceptance criteria 和具体澄清问题；完成后停下，`requirements.md stage_status: ready`、`evidence_complete: true`，并更新 `updated_at`。
+4. `coding-technical-design` 先做 brainstorming，列出 2-3 个方案、取舍、推荐方案、边界情况、未明确行为和必要外部知识依据，再写方案；`design.md stage_status: ready`、`evidence_complete: true` 且 `approval_status: pending`，然后停下等待用户批准。
+5. 用户明确批准设计后，记录 `approval_status: approved`、`approved_by`、`approved_at`、`approval_evidence`，同步更新 `updated_at`，再进入 `coding-task-planning`。
+6. `coding-task-planning` 写真实任务后，`tasks.md stage_status: ready`、`evidence_complete: true`、`task_count` 等于真实任务数量，并更新 `updated_at`；真实任务 ID 不重复。
+7. 编码阶段一次只执行一个 `TODO` / `DOING` 任务；`DONE` 任务交付记录必须包含改动文件、验证命令或证据、结果、残余风险。验证阶段必须读取 `investigation.md` 的真实调用链和数据来源，再把每条 AC 映射到命令、接口响应、数据查询或手工步骤。
 
 不允许行为：
 
@@ -37,11 +36,11 @@
 
 期望行为：
 
-1. 先自行查仓库：日志表 schema、已有脱敏 helper、权限配置、旧导出实现。
-2. 如果仍无法确定，`requirements.md` 写入 `BLOCKING` 待确认问题，附已查证据。
+1. 先由 `coding-repo-investigation` 自行查仓库：日志表 schema、已有脱敏 helper、权限配置、旧导出实现，并记录外部调研 / Context7 是否需要。
+2. 进入 `coding-requirement-intake` 后，如果仍无法确定，`requirements.md` 写入 `BLOCKING` 待确认问题，附已查证据。
 3. 将 `requirements.md stage_status` 标记为 `blocked`、`evidence_complete: false`，并更新 `updated_at`。
 4. 输出只问一个阻塞问题，例如“审计日志 CSV 中 user_email 是否需要脱敏？”并列出已查证据。
-5. 不进入 `coding-repo-investigation` / `coding-technical-design`。
+5. 不进入 `coding-technical-design`。
 
 不允许行为：
 

@@ -75,6 +75,21 @@ HEADER_CELLS = {
     "内容",
     "证据",
     "处理方式",
+    "查询对象",
+    "来源",
+    "关键结论",
+    "适用限制",
+    "模糊点 / 边界情况 / 未明确行为",
+    "建议问题",
+    "方案",
+    "核心思路",
+    "优点",
+    "代价 / 风险",
+    "结论",
+    "问题 / 边界情况 / 未明确行为",
+    "影响范围",
+    "适用范围",
+    "对方案的影响",
     "模块 / 文件",
     "模块/文件",
     "影响说明",
@@ -331,6 +346,8 @@ def investigation_complete(body: str) -> bool:
         and section_complete(body, "数据来源")
         and section_complete(body, "接口与协议")
         and section_complete(body, "相似实现")
+        and section_complete(body, "外部调研 / Context7")
+        and section_complete(body, "需求澄清线索")
         and section_complete(body, "风险与未知")
         and section_complete(body, "对设计的约束")
     )
@@ -339,6 +356,11 @@ def investigation_complete(body: str) -> bool:
 def design_complete(body: str) -> bool:
     return (
         section_complete(body, "方案摘要")
+        and has_real_table_row(section_text(body, "方案选项与取舍"))
+        and section_has_no_placeholder_markers(body, "方案选项与取舍")
+        and has_real_table_row(section_text(body, "澄清问题与边界情况"))
+        and section_has_no_placeholder_markers(body, "澄清问题与边界情况")
+        and section_complete(body, "外部知识依据")
         and has_real_table_row(section_text(body, "影响范围"))
         and section_has_no_placeholder_markers(body, "影响范围")
         and section_complete(body, "目标链路")
@@ -633,6 +655,38 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             evidence_items=[evidence(feature_dir, "directory not found")],
         )
 
+    inv = load_stage(feature_dir, "investigation")
+    if inv is None:
+        inv_path = feature_dir / STAGE_DOCS["investigation"]
+        return make_result(
+            feature_dir=feature_dir,
+            state="investigation_missing",
+            next_skill="coding-repo-investigation",
+            reason="investigation.md missing",
+            evidence_items=[evidence(inv_path, "missing")],
+        )
+    inv_path, inv_meta, inv_body = inv
+    inv_status = stage_status(inv_meta)
+    inv_metadata_issue = stage_metadata_issue("investigation", inv_meta)
+    if inv_metadata_issue:
+        return metadata_inconsistent_result(feature_dir, "investigation", inv_path, inv_metadata_issue)
+    if inv_status == "blocked":
+        return make_result(
+            feature_dir=feature_dir,
+            state="investigation_blocked",
+            blocking=True,
+            reason="investigation.md stage_status is blocked",
+            evidence_items=[evidence(inv_path, "stage_status: blocked")],
+        )
+    if inv_status == "draft" or not investigation_complete(inv_body):
+        return make_result(
+            feature_dir=feature_dir,
+            state="investigation_draft_or_incomplete",
+            next_skill="coding-repo-investigation",
+            reason="investigation.md is draft or lacks real call chain/data-source/external-research evidence",
+            evidence_items=[evidence(inv_path, f"stage_status: {inv_status or 'unset'}; evidence incomplete")],
+        )
+
     req = load_stage(feature_dir, "requirements")
     if req is None:
         req_path = feature_dir / STAGE_DOCS["requirements"]
@@ -640,7 +694,7 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             feature_dir=feature_dir,
             state="requirements_missing",
             next_skill="coding-requirement-intake",
-            reason="requirements.md missing",
+            reason="requirements.md missing after investigation is ready",
             evidence_items=[evidence(req_path, "missing")],
         )
     req_path, req_meta, req_body = req
@@ -653,7 +707,7 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             feature_dir=feature_dir,
             state="requirements_draft",
             next_skill="coding-requirement-intake",
-            reason="requirements.md stage_status is draft",
+            reason="requirements.md stage_status is draft after investigation is ready",
             evidence_items=[evidence(req_path, "stage_status: draft")],
         )
     if req_status == "blocked" or has_blocking_requirement(req_body):
@@ -685,38 +739,6 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
         )
     expected_ac_ids = requirement_ac_ids(req_body)
 
-    inv = load_stage(feature_dir, "investigation")
-    if inv is None:
-        inv_path = feature_dir / STAGE_DOCS["investigation"]
-        return make_result(
-            feature_dir=feature_dir,
-            state="investigation_missing",
-            next_skill="coding-repo-investigation",
-            reason="investigation.md missing",
-            evidence_items=[evidence(inv_path, "missing")],
-        )
-    inv_path, inv_meta, inv_body = inv
-    inv_status = stage_status(inv_meta)
-    inv_metadata_issue = stage_metadata_issue("investigation", inv_meta)
-    if inv_metadata_issue:
-        return metadata_inconsistent_result(feature_dir, "investigation", inv_path, inv_metadata_issue)
-    if inv_status == "blocked":
-        return make_result(
-            feature_dir=feature_dir,
-            state="investigation_blocked",
-            blocking=True,
-            reason="investigation.md stage_status is blocked",
-            evidence_items=[evidence(inv_path, "stage_status: blocked")],
-        )
-    if inv_status == "draft" or not investigation_complete(inv_body):
-        return make_result(
-            feature_dir=feature_dir,
-            state="investigation_draft_or_incomplete",
-            next_skill="coding-repo-investigation",
-            reason="investigation.md is draft or lacks real call chain/data-source evidence",
-            evidence_items=[evidence(inv_path, f"stage_status: {inv_status or 'unset'}; evidence incomplete")],
-        )
-
     design = load_stage(feature_dir, "design")
     if design is None:
         design_path = feature_dir / STAGE_DOCS["design"]
@@ -745,7 +767,7 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             feature_dir=feature_dir,
             state="design_draft_or_incomplete",
             next_skill="coding-technical-design",
-            reason="design.md is draft or lacks impact scope, target chain, rollback risk, or verification strategy",
+            reason="design.md is draft or lacks brainstorming options, clarification boundaries, impact scope, target chain, rollback risk, or verification strategy",
             evidence_items=[evidence(design_path, f"stage_status: {design_status or 'unset'}; design content incomplete")],
         )
     if design_meta.get("approval_status", "").strip().lower() != "approved":

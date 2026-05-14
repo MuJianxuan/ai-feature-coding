@@ -19,7 +19,13 @@ evidence_complete: false
 - 用户价值：UNSET
 - 成功标准：UNSET
 
-## 3. 范围
+## 3. 勘查证据引用
+
+- 仓库证据：UNSET
+- 外部调研：UNSET
+- 需求澄清线索：UNSET
+
+## 4. 范围
 
 ### In Scope
 
@@ -29,28 +35,28 @@ evidence_complete: false
 
 - UNSET
 
-## 4. 用户路径 / 业务流程
+## 5. 用户路径 / 业务流程
 
 - UNSET
 
-## 5. Acceptance Criteria
+## 6. Acceptance Criteria
 
 | ID | 验收标准 | 验证方式 | 状态 |
 | --- | --- | --- | --- |
 
-## 6. 非功能要求
+## 7. 非功能要求
 
 - 性能：UNSET
 - 安全：UNSET
 - 兼容性：UNSET
 - 可观测性：UNSET
 
-## 7. 约束与假设
+## 8. 约束与假设
 
 - 约束：UNSET
 - 假设：UNSET
 
-## 8. 待确认问题
+## 9. 待确认问题
 
 | ID | 问题 | 阻塞级别 | 已查证据 | 需要用户确认 |
 | --- | --- | --- | --- | --- |

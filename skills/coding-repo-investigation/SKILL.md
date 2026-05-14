@@ -7,7 +7,7 @@ description: "Coding 仓库证据勘察技能。Activation restricted: use only 
 
 ## 目标
 
-在写方案或改代码前，先找出真实链路。输出应能支撑后续 `design.md` 和 `tasks.md`，而不是停留在猜测。
+在需求澄清、写方案或改代码前，先找出真实链路和可借鉴模式。输出应能支撑后续 `requirements.md`、`design.md` 和 `tasks.md`，而不是停留在猜测。
 
 ## 共享契约
 
@@ -41,10 +41,8 @@ description: "Coding 仓库证据勘察技能。Activation restricted: use only 
 
 - 已收到明确的 `feature_dir`。
 - `feature_dir` 目录存在。
-- `requirements.md` 已存在，并包含当前阶段要服务的 scope / acceptance criteria。
-- `requirements.md stage_status: ready`。
-- `requirements.md evidence_complete: true`。
-- `requirements.md updated_at` 已写入 ISO 8601 + timezone。
+- `investigation.md` 和 `resource/README.md` 已由 orchestrator/template 准备好。
+- `requirements.md` 如已存在，只能作为原始需求草案和用户输入索引读取；不得要求 `requirements.md stage_status: ready` 才开始勘查。
 
 如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
 
@@ -60,11 +58,14 @@ description: "Coding 仓库证据勘察技能。Activation restricted: use only 
 ## 搜索顺序
 
 1. 先确认当前工作目录、项目结构、关键配置和技术栈。
-2. 用 `rg` / `rg --files` 找入口、接口、store、DB、测试、相似实现。
-3. 顺调用链读文件：入口 -> service/use case -> persistence/API -> event/state -> UI/consumer。
-4. 对涉及数据的需求，区分 raw source、aggregated source、cache、derived state。
-5. 对涉及协议/API 的需求，核对 request shape、response shape、stream 行为、错误处理、日志和持久化。
-6. 对涉及 UI 的需求，核对用户入口、状态来源、刷新触发、loading/error/empty state。
+2. 读取 `resource/` 和 `requirements.md` 中的原始需求草案，提取要勘查的功能意图、对象、入口和明显未知项。
+3. 用 `rg` / `rg --files` 找入口、接口、store、DB、测试、相似实现。
+4. 顺调用链读文件：入口 -> service/use case -> persistence/API -> event/state -> UI/consumer。
+5. 对涉及数据的需求，区分 raw source、aggregated source、cache、derived state。
+6. 对涉及协议/API 的需求，核对 request shape、response shape、stream 行为、错误处理、日志和持久化。
+7. 对涉及 UI 的需求，核对用户入口、状态来源、刷新触发、loading/error/empty state。
+8. 需要框架、SDK、协议、API 或第三方库当前用法时，优先用 Context7 获取官方/当前文档关键点；若不需要外部知识，必须在 `investigation.md` 写明“未触发 Context7 / 外部调研”的原因。
+9. 用调研结果反推后续需求澄清问题：哪些行为仓库已有答案，哪些必须问用户。
 
 ## 记录格式
 
@@ -74,7 +75,9 @@ description: "Coding 仓库证据勘察技能。Activation restricted: use only 
 - 真实链路：按执行顺序列出。
 - 数据来源：source of truth、派生数据、缓存、写入点、读取点。
 - 相似实现：可复用模式和不能复用的原因。
+- 外部调研 / Context7：查询对象、来源、关键结论、适用限制；未使用时写明不需要的证据。
 - 风险与未知：区分已证实、推断、未验证。
+- 需求澄清线索：所有模糊点、边界情况和未明确行为，标注是否需要用户确认。
 - 对设计的约束：必须保留的兼容性、性能、权限、事务或运行时语义。
 
 ## 禁止
@@ -85,4 +88,4 @@ description: "Coding 仓库证据勘察技能。Activation restricted: use only 
 
 ## 输出
 
-更新 `investigation.md`。如果关键链路、数据来源和已查文件证据齐备，将 frontmatter `stage_status` 标记为 `ready`、`evidence_complete: true`；如果受外部条件阻塞，将 `stage_status` 标记为 `blocked`、`evidence_complete: false` 并写明证据。每次写入 `investigation.md` 都必须同步更新 `updated_at`。输出下一步建议后停止。
+更新 `investigation.md`。如果关键链路、数据来源、已查文件、相似实现、外部调研/Context7 结论和需求澄清线索齐备，将 frontmatter `stage_status` 标记为 `ready`、`evidence_complete: true`；如果受外部条件阻塞，将 `stage_status` 标记为 `blocked`、`evidence_complete: false` 并写明证据。每次写入 `investigation.md` 都必须同步更新 `updated_at`。输出下一步建议后停止。

@@ -15,9 +15,9 @@ npx skills add MuJianxuan/ai-feature-coding
 | 阶段 | Skill | 产物 | 职责 |
 | --- | --- | --- | --- |
 | 总调度 | `coding-feature-orchestrator` | route payload | 入口判断、阶段推断、路由分发 |
-| 需求澄清 | `coding-requirement-intake` | `requirements.md` | 把输入变成可验证的 scope 和 acceptance criteria |
-| 仓库勘察 | `coding-repo-investigation` | `investigation.md` | 找真实代码链路、数据来源、接口行为 |
-| 技术设计 | `coding-technical-design` | `design.md` | 写可拆任务的技术方案 |
+| 仓库勘察与调研 | `coding-repo-investigation` | `investigation.md` | 先找真实代码链路、数据来源、相似实现和必要外部知识 |
+| 需求澄清 | `coding-requirement-intake` | `requirements.md` | 基于勘查证据把输入变成可验证的 scope 和 acceptance criteria |
+| 技术设计 | `coding-technical-design` | `design.md` | 用 brainstorming 和澄清问题产出可拆任务的技术方案 |
 | 任务拆解 | `coding-task-planning` | `tasks.md` | 拆成原子、可验证、按依赖排序的任务 |
 | 编码执行 | `coding-implementation-execution` | 代码改动 + 交付记录 | 按 tasks.md 逐项执行 |
 | 验证收口 | `coding-verification-closeout` | `verification.md` + `handoff.md` | AC 映射验证、交付总结 |
@@ -35,15 +35,15 @@ flowchart TD
     B -->|INSPECT_FEATURES| E["列出 feature 状态<br/>等待用户指定目录"]
     B -->|AD_HOC_AUDIT| H["只读审计当前流程<br/>输出阻塞项和下一步建议"]
 
-    C --> R["需求澄清<br/>coding-requirement-intake<br/>requirements.md"]
-    D --> R
+    C --> I["仓库勘察与调研<br/>coding-repo-investigation<br/>investigation.md"]
+    D --> I
     E -->|用户指定目录| D
+
+    I --> IGate{"用户确认继续<br/>evidence_complete: true"}
+    IGate --> R["需求澄清<br/>coding-requirement-intake<br/>requirements.md"]
     R --> RGate{"用户确认继续<br/>stage_status: ready"}
 
-    RGate --> I["仓库勘察<br/>coding-repo-investigation<br/>investigation.md"]
-    I --> IGate{"用户确认继续<br/>evidence_complete: true"}
-
-    IGate --> T["技术设计<br/>coding-technical-design<br/>design.md"]
+    RGate --> T["技术设计<br/>coding-technical-design<br/>design.md"]
     T --> TGate{"设计审批<br/>approval_status"}
     TGate -->|pending 或修改| T
     TGate -->|approved| P["任务拆解<br/>coding-task-planning<br/>tasks.md"]
@@ -61,7 +61,9 @@ flowchart TD
 
 - **Explicit opt-in**：普通编码/调试/设计不会自动触发工作流
 - **一次一步**：默认每次只推进一个阶段，跨阶段需用户确认
+- **先勘查再澄清**：先基于仓库和必要外部知识形成证据，再提出具体澄清问题
 - **证据驱动**：每个阶段产物必须有真实证据支撑，不允许猜测
+- **Brainstorming + 澄清**：需求澄清和技术设计都要识别模糊点、边界情况和未明确行为
 - **设计审批门禁**：design → tasks 之间有硬门禁，需用户明确批准
 - **可恢复**：中断后可通过 DOING 状态精确恢复
 
@@ -80,9 +82,9 @@ flowchart TD
 **完整推进流程：**
 
 ```
-1. 需求澄清 → 产出 requirements.md (stage_status: ready)
+1. 仓库勘察与调研 → 产出 investigation.md (stage_status: ready)
    用户确认 ↓
-2. 仓库勘察 → 产出 investigation.md (stage_status: ready)
+2. 需求澄清 → 产出 requirements.md (stage_status: ready)
    用户确认 ↓
 3. 技术设计 → 产出 design.md (stage_status: ready, approval_status: pending)
    用户批准设计 ↓
@@ -97,8 +99,8 @@ flowchart TD
 
 | 阶段转换 | 用户说 |
 | --- | --- |
-| 需求 → 勘察 | "继续下一阶段" |
-| 勘察 → 设计 | "继续下一阶段" |
+| 勘察 → 需求 | "继续下一阶段" |
+| 需求 → 设计 | "继续下一阶段" |
 | 设计 → 任务 | "批准设计，继续任务拆解" |
 | 任务 → 编码 | "开始编码" / "执行第一个任务" |
 | 编码下一项 | "继续执行下一个任务" |
@@ -139,7 +141,7 @@ flowchart TD
 ### 启动前
 
 1. **明确触发意图** — 只有确实需要完整工作流时才启动；简单 bug fix 或小改动直接做
-2. **准备需求资料** — PRD、原型图、会议纪要放到 `resource/` 目录，越完整需求澄清越快
+2. **准备需求资料** — PRD、原型图、会议纪要放到 `resource/` 目录，越完整，仓库勘查和后续澄清越快
 3. **一个 feature 一个目录** — 不要混合多个不相关需求到同一个 feature 目录
 
 ### 推进中

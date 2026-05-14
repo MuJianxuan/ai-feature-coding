@@ -7,7 +7,7 @@ description: "Coding 需求澄清技能。Activation restricted: use only when t
 
 ## 目标
 
-把用户输入变成可执行、可验证、可追踪的 `requirements.md`。不要急着写方案或代码。
+基于已经完成的 `investigation.md`，把用户输入变成可执行、可验证、可追踪的 `requirements.md`。不要急着写方案或代码。
 
 ## 共享契约
 
@@ -41,7 +41,10 @@ description: "Coding 需求澄清技能。Activation restricted: use only when t
 
 - 已收到明确的 `feature_dir`。
 - `feature_dir` 目录存在。
-- `requirements.md` 和 `resource/README.md` 已由 orchestrator/template 准备好。
+- `investigation.md`、`requirements.md` 和 `resource/README.md` 已由 orchestrator/template 准备好。
+- `investigation.md stage_status: ready`。
+- `investigation.md evidence_complete: true`。
+- `investigation.md updated_at` 已写入 ISO 8601 + timezone。
 
 如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游准备文件。
 
@@ -56,9 +59,10 @@ description: "Coding 需求澄清技能。Activation restricted: use only when t
 
 ## 工作流
 
-1. 读取当前需求目录和 `resource/README.md`，找已有业务资料、会议纪要、原型或接口草案。
-2. 从仓库中查可回答的问题，例如已有模块、相似功能、路由、数据表、枚举、权限模型。
-3. 补齐 `requirements.md`：
+1. 读取 `investigation.md`，先理解仓库勘查结论、真实调用链、数据来源、相似实现、外部调研和已知风险。
+2. 读取当前需求目录下`resource/`目录下的所有文件，找已有业务资料、会议纪要、原型或接口草案。
+3. 从仓库中查可回答的问题，例如已有模块、相似功能、路由、数据表、枚举、权限模型等；不得询问能从仓库或 `investigation.md` 得到答案的问题。
+4. 用 brainstorming 思路补齐 `requirements.md`：
    - 背景与业务目标
    - in-scope
    - out-of-scope
@@ -67,14 +71,17 @@ description: "Coding 需求澄清技能。Activation restricted: use only when t
    - 非功能要求
    - 约束与假设
    - 待确认问题
-4. 只询问仓库无法回答的问题。每次提问必须附带已查证据。
-5. 不进入技术设计，直到 acceptance criteria 可验证且范围边界稳定。
+5. 识别所有模糊之处、边界情况和未明确行为，形成具体、明确的问题；每个问题必须写清已查证据、影响的 scope/AC 和需要用户作出的选择。
+6. 只询问仓库无法回答的问题。每次提问必须附带已查证据；如果回答仍不清楚，继续澄清直到需求边界稳定。
+7. 不进入技术设计，直到 acceptance criteria 可验证且范围边界稳定。
 
 ## 质量标准
 
 - 每条验收标准都能被测试、日志、接口响应、UI 行为或数据状态验证。
 - out-of-scope 要明确，避免 AI 在实现阶段擅自扩大范围。
 - 待确认问题要区分 `BLOCKING` 和 `NON_BLOCKING`。
+- 待确认问题必须具体到行为、边界、数据口径、权限、错误处理、兼容性或验证方式，不得用“请确认需求”这类泛问替代。
+- 需求结论必须引用 `investigation.md` 的证据；如果和勘查结论冲突，记录冲突并提问，不能静默覆盖。
 - 需求资料必须在 `resource/README.md` 建索引，写清文件名、来源、更新时间和用途。
 
 ## 输出
