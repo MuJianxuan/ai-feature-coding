@@ -23,6 +23,40 @@ npx skills add MuJianxuan/ai-feature-coding
 | 验证收口 | `coding-verification-closeout` | `verification.md` + `handoff.md` | AC 映射验证、交付总结 |
 | 规范管理 | `coding-spec-management` | `.docs/spec/` | 沉淀编码规范 |
 
+### 流程线框图
+
+```mermaid
+flowchart TD
+    A["用户显式触发<br/>coding-feature-orchestrator"] --> B{"入口模式"}
+    S0["用户显式触发<br/>coding-spec-management"] --> S["规范管理<br/>.docs/spec/"]
+
+    B -->|NEW_FEATURE| C["创建 feature 目录<br/>.docs/feature-YYYYMMDD-short-name/"]
+    B -->|CONTINUE_FEATURE| D["读取阶段文档<br/>推断当前状态"]
+    B -->|INSPECT_FEATURES| E["列出 feature 状态<br/>等待用户指定目录"]
+    B -->|AD_HOC_AUDIT| H["只读审计当前流程<br/>输出阻塞项和下一步建议"]
+
+    C --> R["需求澄清<br/>coding-requirement-intake<br/>requirements.md"]
+    D --> R
+    E -->|用户指定目录| D
+    R --> RGate{"用户确认继续<br/>stage_status: ready"}
+
+    RGate --> I["仓库勘察<br/>coding-repo-investigation<br/>investigation.md"]
+    I --> IGate{"用户确认继续<br/>evidence_complete: true"}
+
+    IGate --> T["技术设计<br/>coding-technical-design<br/>design.md"]
+    T --> TGate{"设计审批<br/>approval_status"}
+    TGate -->|pending 或修改| T
+    TGate -->|approved| P["任务拆解<br/>coding-task-planning<br/>tasks.md"]
+
+    P --> PGate{"用户确认开始编码<br/>task_count: N"}
+    PGate --> X["编码执行<br/>coding-implementation-execution<br/>TODO / DOING 转为 DONE"]
+    X --> XGate{"还有 TODO / DOING?"}
+    XGate -->|继续下一项| X
+    XGate -->|全部完成| V["验证收口<br/>coding-verification-closeout<br/>verification.md + handoff.md"]
+    V --> Z["可验证交付<br/>AC 全量映射 + 残余风险"]
+    Z -. 经验沉淀 .-> S
+```
+
 ### 核心设计原则
 
 - **Explicit opt-in**：普通编码/调试/设计不会自动触发工作流
