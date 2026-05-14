@@ -17,6 +17,7 @@ SKILLS = ROOT / "skills"
 ORCHESTRATOR = SKILLS / "coding-feature-orchestrator"
 TEMPLATE = ORCHESTRATOR / "assets" / "feature-template"
 CHILD_SKILLS = [
+    "coding-feature-discovery",
     "coding-requirement-intake",
     "coding-repo-investigation",
     "coding-technical-design",
@@ -32,6 +33,7 @@ FORBIDDEN_ROUTE_SOURCE_PATTERNS = [
     "被工作流路由",
 ]
 CHILD_OUTPUT_REQUIREMENTS = {
+    "coding-feature-discovery": ["updated_at", "evidence_complete"],
     "coding-requirement-intake": ["updated_at", "evidence_complete"],
     "coding-repo-investigation": ["updated_at", "evidence_complete"],
     "coding-technical-design": ["updated_at", "evidence_complete"],
@@ -40,44 +42,69 @@ CHILD_OUTPUT_REQUIREMENTS = {
     "coding-verification-closeout": ["updated_at", "evidence_complete"],
 }
 CHILD_PREFLIGHT_REQUIREMENTS = {
+    "coding-requirement-intake": [
+        "`discovery.md stage_status: ready`",
+        "`discovery.md evidence_complete: true`",
+    ],
     "coding-repo-investigation": [
+        "`discovery.md stage_status: ready`",
         "`requirements.md stage_status: ready`",
+        "`discovery.md evidence_complete: true`",
         "`requirements.md evidence_complete: true`",
     ],
     "coding-technical-design": [
+        "`discovery.md stage_status: ready`",
         "`requirements.md stage_status: ready`",
         "`investigation.md stage_status: ready`",
+        "`discovery.md evidence_complete: true`",
         "`requirements.md evidence_complete: true`",
         "`investigation.md evidence_complete: true`",
     ],
     "coding-task-planning": [
+        "`discovery.md stage_status: ready`",
         "`requirements.md stage_status: ready`",
         "`investigation.md stage_status: ready`",
         "`design.md stage_status: ready`",
+        "`discovery.md evidence_complete: true`",
+        "`requirements.md evidence_complete: true`",
+        "`investigation.md evidence_complete: true`",
         "`design.md evidence_complete: true`",
         "`design.md approval_status: approved`",
         "`approved_by`、`approved_at`、`approval_evidence`",
     ],
     "coding-implementation-execution": [
+        "`discovery.md stage_status: ready`",
         "`requirements.md stage_status: ready`",
         "`investigation.md stage_status: ready`",
         "`design.md stage_status: ready`",
         "`tasks.md stage_status: ready`",
+        "`discovery.md evidence_complete: true`",
+        "`requirements.md evidence_complete: true`",
+        "`investigation.md evidence_complete: true`",
+        "`design.md evidence_complete: true`",
+        "`tasks.md evidence_complete: true`",
         "`design.md approval_status: approved`",
         "`task_count` 与真实任务数量一致",
         "至少存在一个真实 `TODO` 或 `DOING` 任务",
     ],
     "coding-verification-closeout": [
+        "`discovery.md stage_status: ready`",
         "`requirements.md stage_status: ready`",
         "`investigation.md stage_status: ready`",
         "`design.md stage_status: ready`",
         "`tasks.md stage_status: ready`",
+        "`discovery.md evidence_complete: true`",
+        "`requirements.md evidence_complete: true`",
+        "`investigation.md evidence_complete: true`",
+        "`design.md evidence_complete: true`",
+        "`tasks.md evidence_complete: true`",
         "`design.md approval_status: approved`",
         "`task_count` 与真实任务数量一致",
         "不存在 `TODO` 或 `DOING` 任务",
     ],
 }
 STAGE_TEMPLATE_FILES = {
+    "discovery.md": "discovery",
     "requirements.md": "requirements",
     "investigation.md": "investigation",
     "design.md": "design",
@@ -87,6 +114,7 @@ STAGE_TEMPLATE_FILES = {
 }
 VALID_STAGE_STATUS = {"draft", "ready", "blocked", "complete"}
 STAGE_ALLOWED_STATUS = {
+    "discovery": {"draft", "ready", "blocked"},
     "requirements": {"draft", "ready", "blocked"},
     "investigation": {"draft", "ready", "blocked"},
     "design": {"draft", "ready", "blocked"},
@@ -235,12 +263,65 @@ def stage_meta(stage: str, status: str, evidence_complete: bool, **extra: object
     return metadata
 
 
+def write_ready_discovery(feature_dir: Path) -> None:
+    write_doc(
+        feature_dir / "discovery.md",
+        stage_meta("discovery", "ready", True),
+        """
+# Discovery
+
+## 1. 原始需求摘要
+
+- 需求来源：测试场景。
+- 初始目标：管理员需要导出审计日志 CSV。
+- 已知约束：首期只覆盖 CSV 导出。
+
+## 2. 仓库广扫
+
+| 路径 | 关键位置 | 发现 |
+| --- | --- | --- |
+| src/audit/export.ts | exportAuditLogs | 存在可复用的审计日志查询条件 |
+
+## 3. 外部调研
+
+| 来源 | 适用范围 | 结论 |
+| --- | --- | --- |
+| 无外部依赖 | 仓库内 CSV 导出 | 不需要 Context7 或官方文档补充 |
+
+## 4. 方案方向
+
+| 方向 | 适用条件 | 风险 / 取舍 |
+| --- | --- | --- |
+| 复用现有查询链路 | 审计日志表仍是 source of truth | 改动小，需确认权限 guard |
+
+## 5. 模糊点清单
+
+| ID | 问题 | 影响范围 | 阻塞级别 | 已查证据 | 当前状态 |
+| --- | --- | --- | --- | --- | --- |
+| DQ-01 | CSV 是否只覆盖管理员导出 | scope / AC | RESOLVED | 已查权限模型 | 用户确认只覆盖管理员 |
+
+## 6. 逐问逐答记录
+
+| 问题 ID | 用户回答 | 结论 | 更新位置 |
+| --- | --- | --- | --- |
+| DQ-01 | 只覆盖管理员导出 | 权限边界清楚 | requirements.md#范围 |
+
+## 7. 进入 Requirements 的完成判定
+
+- 关键问题：影响 scope 和权限的关键问题已回答。
+- 需求边界：首期仅 CSV 导出。
+- 下一阶段输入：可以整理 in-scope、out-of-scope 和 acceptance criteria。
+""",
+    )
+
+
 def write_ready_requirements(
     feature_dir: Path,
     *,
     include_non_blocking_question: bool = False,
     include_second_ac: bool = False,
 ) -> None:
+    write_ready_discovery(feature_dir)
     non_blocking_question = (
         """
 ## 8. 待确认问题
@@ -313,6 +394,7 @@ def write_ready_requirements(
 
 
 def write_ready_requirements_with_placeholder_gap(feature_dir: Path) -> None:
+    write_ready_discovery(feature_dir)
     write_doc(
         feature_dir / "requirements.md",
         stage_meta("requirements", "ready", True),
@@ -857,11 +939,36 @@ def run_inspector_scenarios(errors: list[str]) -> None:
         result = inspector.inspect_feature_state(initial)
         assert_state(
             result,
-            state="requirements_draft",
-            next_skill="coding-requirement-intake",
+            state="discovery_draft",
+            next_skill="coding-feature-discovery",
             blocking=False,
             errors=errors,
             label="inspector initial template",
+        )
+
+        missing_discovery = make_scenario(scenarios_root, "missing-discovery")
+        (missing_discovery / "discovery.md").unlink()
+        result = inspector.inspect_feature_state(missing_discovery)
+        assert_state(
+            result,
+            state="discovery_missing",
+            next_skill="coding-feature-discovery",
+            blocking=False,
+            errors=errors,
+            label="inspector missing discovery must force new workflow",
+        )
+
+        blocked_discovery = make_scenario(scenarios_root, "blocked-discovery")
+        write_ready_discovery(blocked_discovery)
+        rewrite_frontmatter(blocked_discovery / "discovery.md", {"stage_status": "blocked", "evidence_complete": False})
+        result = inspector.inspect_feature_state(blocked_discovery)
+        assert_state(
+            result,
+            state="discovery_blocked",
+            next_skill="coding-feature-discovery",
+            blocking=True,
+            errors=errors,
+            label="inspector blocked discovery",
         )
 
         non_blocking = make_scenario(scenarios_root, "non-blocking-requirement")
@@ -1435,8 +1542,9 @@ def main() -> int:
     assert_contains_all(
         verification_text,
         [
-            "`requirements.md`、`investigation.md`、`design.md` 和 `tasks.md` 已存在",
+            "`discovery.md`、`requirements.md`、`investigation.md`、`design.md` 和 `tasks.md` 已存在",
             "读取 `investigation.md` 的真实调用链",
+            "读取 `discovery.md` 的关键问题",
             "source of truth",
             "结合 `investigation.md` 的真实链路和数据来源",
             "只有所有 in-scope acceptance criteria 都有真实验证证据且结果为 `PASS`",

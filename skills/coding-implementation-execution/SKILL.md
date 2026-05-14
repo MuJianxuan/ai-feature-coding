@@ -41,7 +41,8 @@ description: "Coding 编码执行技能。Activation restricted: use only when t
 
 - 已收到明确的 `feature_dir`。
 - `feature_dir` 目录存在。
-- `requirements.md`、`investigation.md`、`design.md`、`tasks.md` 和 `verification.md` 已存在。
+- `discovery.md`、`requirements.md`、`investigation.md`、`design.md`、`tasks.md` 和 `verification.md` 已存在。
+- `discovery.md stage_status: ready` 且 `discovery.md evidence_complete: true`。
 - `requirements.md stage_status: ready` 且 `requirements.md evidence_complete: true`。
 - `investigation.md stage_status: ready` 且 `investigation.md evidence_complete: true`。
 - `design.md stage_status: ready` 且 `design.md evidence_complete: true`。
@@ -63,7 +64,7 @@ description: "Coding 编码执行技能。Activation restricted: use only when t
 
 ## 开始前
 
-1. 读取 `requirements.md`、`investigation.md`、`design.md`、`tasks.md`、`verification.md`。
+1. 读取 `discovery.md`、`requirements.md`、`investigation.md`、`design.md`、`tasks.md`、`verification.md`。
 2. 加载项目编码规范索引：如果 `.docs/spec/INDEX.md` 存在，读取其内容，了解当前项目已有哪些编码规范文档可供参考。如果 `.docs/spec/INDEX.md` 不存在或 `.docs/spec/` 目录不存在，跳过此步骤。
 3. 如果存在真实 `DOING` 任务，优先恢复该任务；否则选择用户明确指定的任务，或第一个真实 `TODO` 任务。
 4. 将任务状态改为 `DOING`，记录开始时间和执行者为 AI。
@@ -77,6 +78,7 @@ description: "Coding 编码执行技能。Activation restricted: use only when t
 - 涉及数据时同步处理 schema、migration、读写路径、回滚草案。
 - 涉及 UI 时同步处理 loading、empty、error、refresh、权限和响应式边界。
 - 发现同类 bug 或相邻风险时，先记录在任务风险或新增任务中；只有与当前交付强相关才一并修。
+- 发现影响交付的新澄清问题时，停止执行当前任务并按 scope change / clarification 回流规则记录，不得边猜边改。
 - 执行代码修改时，如果 `.docs/spec/INDEX.md` 中有与当前任务相关的规范文档（根据任务涉及的技术栈匹配），读取并遵循该规范的原则和规约。
 
 ## 完成规则

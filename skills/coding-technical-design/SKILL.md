@@ -41,12 +41,14 @@ description: "Coding 技术设计技能。Activation restricted: use only when t
 
 - 已收到明确的 `feature_dir`。
 - `feature_dir` 目录存在。
-- `requirements.md` 和 `investigation.md` 已存在。
+- `discovery.md`、`requirements.md` 和 `investigation.md` 已存在。
+- `discovery.md stage_status: ready`。
 - `requirements.md stage_status: ready`。
 - `requirements.md evidence_complete: true`。
+- `discovery.md evidence_complete: true`。
 - `investigation.md stage_status: ready`。
 - `investigation.md evidence_complete: true`。
-- `requirements.md` 和 `investigation.md` 的 `updated_at` 均已写入 ISO 8601 + timezone。
+- `discovery.md`、`requirements.md` 和 `investigation.md` 的 `updated_at` 均已写入 ISO 8601 + timezone。
 
 如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
 
@@ -55,8 +57,9 @@ description: "Coding 技术设计技能。Activation restricted: use only when t
 - 禁止删除文件或目录，除非用户明确许可。
 - 禁止 git commit / push / checkout / branch / reset / worktree 等仓库状态变更，除非用户明确许可。
 - 禁止覆盖用户未提交改动；写入 `design.md` 前后都要检查工作区状态。
-- 设计必须基于 `requirements.md` 与 `investigation.md` 的证据，不得引入无关重构。
+- 设计必须基于 `discovery.md`、`requirements.md` 与 `investigation.md` 的证据，不得引入无关重构。
 - 发现 scope 变化时按 contract 的 `Scope change protocol` 记录并停止，不得把未确认变更直接写进方案。
+- 发现影响交付的新澄清问题时，先逐一询问用户；回答影响需求、链路或方案时回流更新上游文档后再继续。
 - 本阶段完成后必须停下，输出下一阶段建议；除非用户明确要求连续推进，不得自行调用下一阶段。
 
 ## 输入检查
@@ -64,6 +67,7 @@ description: "Coding 技术设计技能。Activation restricted: use only when t
 开始前确认：
 
 - `requirements.md` 有可验证 acceptance criteria。
+- `discovery.md` 有仓库广扫、必要外部调研、方案方向和关键问题澄清记录。
 - `investigation.md` 有真实代码链路和数据来源。
 - 阻塞问题不存在，或已被明确标为不会影响当前设计。
 
@@ -72,6 +76,7 @@ description: "Coding 技术设计技能。Activation restricted: use only when t
 `design.md` 至少包含：
 
 - 方案摘要：一句话说明核心改动。
+- 头脑风暴与取舍：基于 discovery / investigation 证据列出可行方案、不可行方案和推荐理由。
 - 影响范围：模块、文件、接口、数据表、配置、权限、任务、UI。
 - 目标链路：改动后的调用链或数据流。
 - API 变更：endpoint、request、response、错误码、兼容性。
@@ -80,6 +85,7 @@ description: "Coding 技术设计技能。Activation restricted: use only when t
 - 错误处理与日志：异常传播、可观测字段、PII 处理。
 - 风险和降级：已知风险、回滚策略、灰度或开关。
 - 验证策略：单测、集成、手工验证、数据校验、UI 验证。
+- 外部证据引用：如方案依赖第三方库、框架、OpenAI/API 或版本行为，引用 discovery / investigation 中的 Context7 或官方文档结论。
 
 ## 决策原则
 

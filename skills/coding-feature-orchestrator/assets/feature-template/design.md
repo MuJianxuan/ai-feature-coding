@@ -15,16 +15,21 @@ approval_evidence: ""
 
 - UNSET
 
-## 2. 影响范围
+## 2. 头脑风暴与取舍
+
+| 方案 | 适用条件 | 取舍结论 |
+| --- | --- | --- |
+
+## 3. 影响范围
 
 | 类型 | 模块 / 文件 | 影响说明 |
 | --- | --- | --- |
 
-## 3. 目标链路
+## 4. 目标链路
 
 - UNSET
 
-## 4. API 变更
+## 5. API 变更
 
 - Endpoint：UNSET
 - Request：UNSET
@@ -32,7 +37,7 @@ approval_evidence: ""
 - Error code：UNSET
 - 兼容性：UNSET
 
-## 5. 数据变更
+## 6. 数据变更
 
 - DDL：UNSET
 - DML：UNSET
@@ -40,28 +45,32 @@ approval_evidence: ""
 - Rollback：UNSET
 - 幂等性：UNSET
 
-## 6. 状态、事务与并发
+## 7. 状态、事务与并发
 
 - 事务边界：UNSET
 - 缓存刷新：UNSET
 - Stream / event：UNSET
 - 异步任务：UNSET
 
-## 7. 错误处理与日志
+## 8. 错误处理与日志
 
 - 异常传播：UNSET
 - 日志字段：UNSET
 - PII 处理：UNSET
 
-## 8. 风险与回滚
+## 9. 风险与回滚
 
 | 风险 | 影响 | 缓解方案 | 回滚方式 |
 | --- | --- | --- | --- |
 
-## 9. 验证策略
+## 10. 验证策略
 
 - 单元测试：UNSET
 - 集成测试：UNSET
 - 手工验证：UNSET
 - 数据校验：UNSET
 - UI 验证：UNSET
+
+## 11. 外部证据引用
+
+- UNSET

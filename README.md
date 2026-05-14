@@ -10,13 +10,14 @@ npx skills add MuJianxuan/ai-feature-coding
 
 ## 技能体系概览
 
-本仓库包含 8 个协作 skill，由 `coding-feature-orchestrator` 统一调度：
+本仓库包含 9 个协作 skill，由 `coding-feature-orchestrator` 统一调度：
 
 | 阶段 | Skill | 产物 | 职责 |
 | --- | --- | --- | --- |
 | 总调度 | `coding-feature-orchestrator` | route payload | 入口判断、阶段推断、路由分发 |
-| 需求澄清 | `coding-requirement-intake` | `requirements.md` | 把输入变成可验证的 scope 和 acceptance criteria |
-| 仓库勘察 | `coding-repo-investigation` | `investigation.md` | 找真实代码链路、数据来源、接口行为 |
+| 前置发现 | `coding-feature-discovery` | `discovery.md` | 仓库广扫、外部调研、方案方向、模糊点穷举与逐问逐答 |
+| 需求澄清 | `coding-requirement-intake` | `requirements.md` | 基于 discovery 把输入规格化为可验证的 scope 和 acceptance criteria |
+| 仓库勘察 | `coding-repo-investigation` | `investigation.md` | 基于 ready PRD 精查真实代码链路、数据来源、接口行为 |
 | 技术设计 | `coding-technical-design` | `design.md` | 写可拆任务的技术方案 |
 | 任务拆解 | `coding-task-planning` | `tasks.md` | 拆成原子、可验证、按依赖排序的任务 |
 | 编码执行 | `coding-implementation-execution` | 代码改动 + 交付记录 | 按 tasks.md 逐项执行 |
@@ -35,9 +36,12 @@ flowchart TD
     B -->|INSPECT_FEATURES| E["列出 feature 状态<br/>等待用户指定目录"]
     B -->|AD_HOC_AUDIT| H["只读审计当前流程<br/>输出阻塞项和下一步建议"]
 
-    C --> R["需求澄清<br/>coding-requirement-intake<br/>requirements.md"]
-    D --> R
+    C --> F["前置发现<br/>coding-feature-discovery<br/>discovery.md"]
+    D --> F
     E -->|用户指定目录| D
+    F --> FGate{"用户确认继续<br/>stage_status: ready"}
+
+    FGate --> R["需求澄清<br/>coding-requirement-intake<br/>requirements.md"]
     R --> RGate{"用户确认继续<br/>stage_status: ready"}
 
     RGate --> I["仓库勘察<br/>coding-repo-investigation<br/>investigation.md"]
@@ -80,23 +84,26 @@ flowchart TD
 **完整推进流程：**
 
 ```
-1. 需求澄清 → 产出 requirements.md (stage_status: ready)
+1. 前置发现 → 产出 discovery.md (stage_status: ready)
    用户确认 ↓
-2. 仓库勘察 → 产出 investigation.md (stage_status: ready)
+2. 需求澄清 → 产出 requirements.md (stage_status: ready)
    用户确认 ↓
-3. 技术设计 → 产出 design.md (stage_status: ready, approval_status: pending)
+3. 仓库勘察 → 产出 investigation.md (stage_status: ready)
+   用户确认 ↓
+4. 技术设计 → 产出 design.md (stage_status: ready, approval_status: pending)
    用户批准设计 ↓
-4. 任务拆解 → 产出 tasks.md (stage_status: ready, task_count: N)
+5. 任务拆解 → 产出 tasks.md (stage_status: ready, task_count: N)
    用户确认 ↓
-5. 编码执行 → 逐个任务执行 (TODO → DOING → DONE)
+6. 编码执行 → 逐个任务执行 (TODO → DOING → DONE)
    每个任务完成后停下，用户确认继续 ↓
-6. 验证收口 → verification.md + handoff.md (stage_status: complete)
+7. 验证收口 → verification.md + handoff.md (stage_status: complete)
 ```
 
 **推进话术：**
 
 | 阶段转换 | 用户说 |
 | --- | --- |
+| 发现 → 需求 | "继续下一阶段" |
 | 需求 → 勘察 | "继续下一阶段" |
 | 勘察 → 设计 | "继续下一阶段" |
 | 设计 → 任务 | "批准设计，继续任务拆解" |
@@ -139,7 +146,7 @@ flowchart TD
 ### 启动前
 
 1. **明确触发意图** — 只有确实需要完整工作流时才启动；简单 bug fix 或小改动直接做
-2. **准备需求资料** — PRD、原型图、会议纪要放到 `resource/` 目录，越完整需求澄清越快
+2. **准备需求资料** — PRD、原型图、会议纪要放到 `resource/` 目录，越完整 discovery 和需求澄清越快
 3. **一个 feature 一个目录** — 不要混合多个不相关需求到同一个 feature 目录
 
 ### 推进中
@@ -161,6 +168,7 @@ flowchart TD
 | 反模式 | 正确做法 |
 | --- | --- |
 | 普通 bug 排查触发工作流 | 只有显式指定 skill 才触发 |
+| 跳过 discovery 直接写 PRD | 先做仓库广扫、外部调研和关键问题逐问逐答 |
 | 设计 ready 就直接拆任务 | 等用户明确批准 |
 | 一个任务完成后自动执行下一个 | 停下等用户确认 |
 | 用"已完成"作为交付记录 | 写改动文件、验证命令、结果、残余风险 |
@@ -171,8 +179,9 @@ flowchart TD
 ```
 .docs/feature-YYYYMMDD-short-name/
 ├── README.md              # 目录说明
+├── discovery.md           # 前置发现、调研、方案方向、模糊点澄清
 ├── requirements.md        # 需求、scope、验收标准
-├── investigation.md       # 仓库证据、代码链路
+├── investigation.md       # 基于 PRD 的仓库证据、代码链路
 ├── design.md              # 技术方案、影响范围
 ├── tasks.md               # 任务清单（唯一编码驱动文件）
 ├── verification.md        # 验收映射
@@ -191,8 +200,8 @@ flowchart TD
 
 ```yaml
 ---
-feature_stage: requirements  # requirements/investigation/design/tasks/verification/handoff
-stage_status: draft          # draft/ready/blocked (前4阶段) 或 draft/blocked/complete (后2阶段)
+feature_stage: discovery     # discovery/requirements/investigation/design/tasks/verification/handoff
+stage_status: draft          # draft/ready/blocked (前5阶段) 或 draft/blocked/complete (后2阶段)
 updated_at: "2026-05-11T10:00:00+08:00"
 evidence_complete: false
 ---

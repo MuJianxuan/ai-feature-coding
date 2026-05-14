@@ -11,8 +11,9 @@ updated_at: ""
 
 ## 文件职责
 
-- `requirements.md`：业务目标、范围边界、验收标准。
-- `investigation.md`：仓库证据、真实代码链路、数据来源。
+- `discovery.md`：需求前置发现、仓库广扫、外部调研、方案方向和模糊点澄清。
+- `requirements.md`：基于 discovery 结论规格化业务目标、范围边界、验收标准。
+- `investigation.md`：基于 ready PRD 精查仓库证据、真实代码链路、数据来源。
 - `design.md`：技术方案、影响范围、接口/数据变更、风险和回滚。
 - `tasks.md`：唯一编码驱动文件，按任务状态推进。
 - `verification.md`：验收标准到验证证据的映射。

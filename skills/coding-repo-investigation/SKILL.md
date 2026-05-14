@@ -7,7 +7,7 @@ description: "Coding 仓库证据勘察技能。Activation restricted: use only 
 
 ## 目标
 
-在写方案或改代码前，先找出真实链路。输出应能支撑后续 `design.md` 和 `tasks.md`，而不是停留在猜测。
+在 `requirements.md` ready 后，基于已澄清 AC 做针对性精查，找出真实链路。输出应能支撑后续 `design.md` 和 `tasks.md`，而不是停留在猜测。
 
 ## 共享契约
 
@@ -41,9 +41,13 @@ description: "Coding 仓库证据勘察技能。Activation restricted: use only 
 
 - 已收到明确的 `feature_dir`。
 - `feature_dir` 目录存在。
+- `discovery.md` 已存在。
+- `discovery.md stage_status: ready`。
+- `discovery.md evidence_complete: true`。
 - `requirements.md` 已存在，并包含当前阶段要服务的 scope / acceptance criteria。
 - `requirements.md stage_status: ready`。
 - `requirements.md evidence_complete: true`。
+- `discovery.md updated_at` 已写入 ISO 8601 + timezone。
 - `requirements.md updated_at` 已写入 ISO 8601 + timezone。
 
 如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
@@ -59,12 +63,14 @@ description: "Coding 仓库证据勘察技能。Activation restricted: use only 
 
 ## 搜索顺序
 
-1. 先确认当前工作目录、项目结构、关键配置和技术栈。
-2. 用 `rg` / `rg --files` 找入口、接口、store、DB、测试、相似实现。
-3. 顺调用链读文件：入口 -> service/use case -> persistence/API -> event/state -> UI/consumer。
-4. 对涉及数据的需求，区分 raw source、aggregated source、cache、derived state。
-5. 对涉及协议/API 的需求，核对 request shape、response shape、stream 行为、错误处理、日志和持久化。
-6. 对涉及 UI 的需求，核对用户入口、状态来源、刷新触发、loading/error/empty state。
+1. 先读取 `discovery.md` 的仓库广扫、外部调研、方案方向和已澄清问题，确认哪些证据可复用、哪些需要按 AC 精查。
+2. 确认当前工作目录、项目结构、关键配置和技术栈。
+3. 用 `rg` / `rg --files` 找入口、接口、store、DB、测试、相似实现。
+4. 顺调用链读文件：入口 -> service/use case -> persistence/API -> event/state -> UI/consumer。
+5. 对涉及数据的需求，区分 raw source、aggregated source、cache、derived state。
+6. 对涉及协议/API 的需求，核对 request shape、response shape、stream 行为、错误处理、日志和持久化。
+7. 对涉及 UI 的需求，核对用户入口、状态来源、刷新触发、loading/error/empty state。
+8. 如果发现影响交付的新模糊点，记录到 `requirements.md` 或 `investigation.md`，逐一询问用户；回答影响前置发现或 PRD 时同步回写上游文档。
 
 ## 记录格式
 
@@ -76,12 +82,15 @@ description: "Coding 仓库证据勘察技能。Activation restricted: use only 
 - 相似实现：可复用模式和不能复用的原因。
 - 风险与未知：区分已证实、推断、未验证。
 - 对设计的约束：必须保留的兼容性、性能、权限、事务或运行时语义。
+- 澄清回流：后置精查发现的新问题、用户回答、更新的上游位置。
+- 头脑风暴说明：基于真实链路发现的可选实现路径、不可行路径和原因，供 design 阶段取舍。
 
 ## 禁止
 
 - 禁止用“可能”“应该”替代证据。
 - 禁止只看前端或只看后端就下结论。
 - 禁止发现一个症状后停止排查同类路径。
+- 禁止用 discovery 的广扫结论替代本阶段针对 acceptance criteria 的真实链路精查。
 
 ## 输出
 

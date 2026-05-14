@@ -19,6 +19,7 @@ ORCHESTRATOR_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_DIR = ORCHESTRATOR_ROOT / "assets" / "feature-template"
 
 STAGE_DOCS = {
+    "discovery": "discovery.md",
     "requirements": "requirements.md",
     "investigation": "investigation.md",
     "design": "design.md",
@@ -28,6 +29,7 @@ STAGE_DOCS = {
 }
 
 STAGE_SKILLS = {
+    "discovery": "coding-feature-discovery",
     "requirements": "coding-requirement-intake",
     "investigation": "coding-repo-investigation",
     "design": "coding-technical-design",
@@ -39,6 +41,7 @@ STAGE_SKILLS = {
 VALID_TASK_STATUSES = {"TODO", "DOING", "DONE", "BLOCKED"}
 VALID_STAGE_STATUSES = {"draft", "ready", "blocked", "complete"}
 STAGE_ALLOWED_STATUSES = {
+    "discovery": {"draft", "ready", "blocked"},
     "requirements": {"draft", "ready", "blocked"},
     "investigation": {"draft", "ready", "blocked"},
     "design": {"draft", "ready", "blocked"},
@@ -68,6 +71,7 @@ HEADER_CELLS = {
     "路径",
     "关键位置",
     "结论",
+    "发现",
     "位置",
     "可复用点",
     "限制",
@@ -96,6 +100,16 @@ HEADER_CELLS = {
     "实际",
     "文件 / 模块",
     "变更说明",
+    "来源",
+    "适用范围",
+    "方向",
+    "适用条件",
+    "风险 / 取舍",
+    "影响范围",
+    "当前状态",
+    "问题 id",
+    "用户回答",
+    "更新位置",
 }
 
 
@@ -250,8 +264,8 @@ def contains_standalone_blocking(value: str) -> bool:
     return "NON_BLOCKING" not in normalized and bool(re.search(r"\bBLOCKING\b", normalized))
 
 
-def has_blocking_requirement(body: str) -> bool:
-    questions = section_text(body, "待确认问题")
+def has_blocking_questions(body: str, heading: str) -> bool:
+    questions = section_text(body, heading)
     blocking_index: int | None = None
     for line in questions.splitlines():
         cells = table_cells(line)
@@ -271,6 +285,29 @@ def has_blocking_requirement(body: str) -> bool:
         if contains_standalone_blocking(line):
             return True
     return False
+
+
+def has_blocking_requirement(body: str) -> bool:
+    return has_blocking_questions(body, "待确认问题")
+
+
+def has_blocking_discovery_question(body: str) -> bool:
+    return has_blocking_questions(body, "模糊点清单")
+
+
+def discovery_complete(body: str) -> bool:
+    return (
+        section_complete(body, "原始需求摘要")
+        and has_real_table_row(section_text(body, "仓库广扫"))
+        and section_has_no_placeholder_markers(body, "仓库广扫")
+        and section_complete(body, "外部调研")
+        and has_real_table_row(section_text(body, "方案方向"))
+        and section_has_no_placeholder_markers(body, "方案方向")
+        and has_real_table_row(section_text(body, "模糊点清单"))
+        and not has_blocking_discovery_question(body)
+        and has_real_table_row(section_text(body, "逐问逐答记录"))
+        and section_complete(body, "进入 Requirements 的完成判定")
+    )
 
 
 def requirements_complete(body: str) -> bool:
@@ -631,6 +668,49 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             reason="feature_dir does not exist",
             blocking=True,
             evidence_items=[evidence(feature_dir, "directory not found")],
+        )
+
+    discovery = load_stage(feature_dir, "discovery")
+    if discovery is None:
+        discovery_path = feature_dir / STAGE_DOCS["discovery"]
+        return make_result(
+            feature_dir=feature_dir,
+            state="discovery_missing",
+            next_skill="coding-feature-discovery",
+            reason="discovery.md missing",
+            evidence_items=[evidence(discovery_path, "missing")],
+        )
+    discovery_path, discovery_meta, discovery_body = discovery
+    discovery_status = stage_status(discovery_meta)
+    discovery_metadata_issue = stage_metadata_issue("discovery", discovery_meta)
+    if discovery_metadata_issue:
+        return metadata_inconsistent_result(feature_dir, "discovery", discovery_path, discovery_metadata_issue)
+    if discovery_status == "draft":
+        return make_result(
+            feature_dir=feature_dir,
+            state="discovery_draft",
+            next_skill="coding-feature-discovery",
+            reason="discovery.md stage_status is draft",
+            evidence_items=[evidence(discovery_path, "stage_status: draft")],
+        )
+    if discovery_status == "blocked" or has_blocking_discovery_question(discovery_body):
+        return make_result(
+            feature_dir=feature_dir,
+            state="discovery_blocked",
+            next_skill="coding-feature-discovery",
+            blocking=True,
+            reason="discovery.md has blocking ambiguity questions",
+            evidence_items=[
+                evidence(discovery_path, f"stage_status: {discovery_status or 'unset'}; blocking ambiguity detected")
+            ],
+        )
+    if not discovery_complete(discovery_body):
+        return make_result(
+            feature_dir=feature_dir,
+            state="discovery_incomplete",
+            next_skill="coding-feature-discovery",
+            reason="discovery.md lacks required repo scan, research, options, ambiguity, Q&A, or handoff evidence",
+            evidence_items=[evidence(discovery_path, "missing real discovery sections or placeholder markers remain")],
         )
 
     req = load_stage(feature_dir, "requirements")
