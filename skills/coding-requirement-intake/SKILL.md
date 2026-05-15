@@ -69,6 +69,7 @@ description: "Coding 需求澄清技能。Activation restricted: use only when t
    - in-scope
    - out-of-scope
    - 用户路径或业务流程
+   - 业务域建模：`Domain ID`、业务能力、Actor / Role、核心 Entity、业务规则 / 边界、关联 AC
    - acceptance criteria
    - 非功能要求
    - 约束与假设
@@ -80,6 +81,7 @@ description: "Coding 需求澄清技能。Activation restricted: use only when t
 ## 质量标准
 
 - 每条验收标准都能被测试、日志、接口响应、UI 行为或数据状态验证。
+- 每条验收标准都必须绑定真实业务域；业务域必须有稳定 `Domain ID`，并能解释业务能力、Actor / Role、核心 Entity 和业务规则 / 边界。
 - out-of-scope 要明确，避免 AI 在实现阶段擅自扩大范围。
 - 待确认问题要区分 `BLOCKING` 和 `NON_BLOCKING`。
 - 凡影响 scope、acceptance criteria、用户路径、数据/API/UI 行为、风险验证或任务拆解的问题，都必须逐一澄清，不能静默假设。

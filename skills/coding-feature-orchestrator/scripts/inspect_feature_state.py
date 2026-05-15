@@ -87,6 +87,15 @@ HEADER_CELLS = {
     "任务",
     "完成判定",
     "交付记录",
+    "domain id",
+    "业务域",
+    "业务能力",
+    "actor / role",
+    "核心 entity",
+    "业务规则 / 边界",
+    "关联 ac",
+    "任务边界",
+    "cross-domain 依赖",
     "验证证据",
     "结果",
     "备注",
@@ -410,6 +419,86 @@ def duplicate_requirement_ac_ids(body: str) -> list[str]:
     return sorted(duplicates)
 
 
+def requirement_domain_ids(body: str) -> list[str]:
+    section = section_text(body, "业务域建模")
+    ids: list[str] = []
+    seen: set[str] = set()
+    domain_id_index: int | None = None
+
+    for line in section.splitlines():
+        cells = table_cells(line)
+        if not cells or is_table_separator(line):
+            continue
+        normalized_cells = [cell.strip().lower() for cell in cells]
+        if "domain id" in normalized_cells:
+            domain_id_index = normalized_cells.index("domain id")
+            continue
+        if is_header_row(line):
+            continue
+        if domain_id_index is None or len(cells) <= domain_id_index:
+            continue
+        domain_id = cells[domain_id_index].strip()
+        if is_placeholder_text(domain_id):
+            continue
+        normalized = domain_id.upper()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        ids.append(normalized)
+
+    return ids
+
+
+def requirements_domain_complete(body: str) -> bool:
+    section = section_text(body, "业务域建模")
+    return (
+        bool(requirement_domain_ids(body))
+        and has_real_table_row(section)
+        and not has_placeholder_marker(section)
+    )
+
+
+def acceptance_criteria_domain_issue(body: str, domain_ids: list[str]) -> str | None:
+    section = section_text(body, "Acceptance Criteria")
+    domain_set = set(domain_ids)
+    ac_id_index: int | None = None
+    domain_index: int | None = None
+    real_ac_count = 0
+    saw_ac_row = False
+
+    for line in section.splitlines():
+        cells = table_cells(line)
+        if not cells or is_table_separator(line):
+            continue
+        normalized_cells = [cell.strip().lower() for cell in cells]
+        if "id" in normalized_cells and "业务域" in normalized_cells:
+            ac_id_index = normalized_cells.index("id")
+            domain_index = normalized_cells.index("业务域")
+            continue
+        if is_header_row(line):
+            continue
+        if cells and cells[0].strip().upper().startswith("AC"):
+            saw_ac_row = True
+        if ac_id_index is None or domain_index is None:
+            continue
+        if len(cells) <= max(ac_id_index, domain_index):
+            continue
+
+        ac_id = cells[ac_id_index].strip().upper()
+        if is_placeholder_text(ac_id) or not ac_id.startswith("AC"):
+            continue
+        real_ac_count += 1
+        domain_id = cells[domain_index].strip().upper()
+        if is_placeholder_text(domain_id):
+            return f"{ac_id} is missing business domain"
+        if domain_id not in domain_set:
+            return f"{ac_id} references unknown business domain {domain_id}"
+
+    if (real_ac_count or saw_ac_row) and domain_index is None:
+        return "Acceptance Criteria table is missing 业务域 column"
+    return None
+
+
 def design_complete(metadata: dict[str, str], body: str) -> bool:
     context_section = section_text_any(body, ["技术上下文与架构依据", "仓库勘探"])
     target_chain_complete = (
@@ -560,7 +649,7 @@ def extract_task_field(block: str, field: str) -> str:
 def parse_tasks(body: str) -> list[dict[str, Any]]:
     matches = list(re.finditer(r"^###\s+(T\d+)\s+-\s+(.+?)\s*$", body, re.MULTILINE))
     tasks: list[dict[str, Any]] = []
-    required_fields = ["输入", "输出", "完成判定", "关联模块/文件", "执行要点", "风险"]
+    required_fields = ["业务域", "输入", "输出", "完成判定", "关联模块/文件", "执行要点", "风险"]
 
     for index, match in enumerate(matches):
         start = match.end()
@@ -595,6 +684,34 @@ def parse_tasks(body: str) -> list[dict[str, Any]]:
         )
 
     return tasks
+
+
+def task_domain_issue(tasks: list[dict[str, Any]], domain_ids: list[str], expected_ac_ids: list[str]) -> str | None:
+    domain_set = set(domain_ids)
+    ac_set = set(expected_ac_ids)
+    for task in tasks:
+        domain_value = task["fields"].get("业务域", "")
+        task_domains = {
+            item.upper()
+            for item in re.findall(r"\bD[A-Z0-9_-]*\b", domain_value, flags=re.IGNORECASE)
+        }
+        if not task_domains:
+            return f"{task['id']} is missing business domain"
+        unknown_domains = sorted(task_domains - domain_set)
+        if unknown_domains:
+            return f"{task['id']} references unknown business domain(s): {', '.join(unknown_domains)}"
+
+        input_value = task["fields"].get("输入", "")
+        task_ac_ids = {
+            item.upper()
+            for item in re.findall(r"\bAC[-_]?\d+\b", input_value, flags=re.IGNORECASE)
+        }
+        if not task_ac_ids:
+            return f"{task['id']} is missing acceptance-criteria reference"
+        unknown_ac_ids = sorted(task_ac_ids - ac_set)
+        if unknown_ac_ids:
+            return f"{task['id']} references unknown acceptance criteria: {', '.join(unknown_ac_ids)}"
+    return None
 
 
 def verification_rows(body: str) -> list[dict[str, str]]:
@@ -832,6 +949,26 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             reason="requirements.md lacks required real content or still contains placeholder markers",
             evidence_items=[evidence(req_path, "missing real requirements sections or placeholder markers remain")],
         )
+    domain_ids = requirement_domain_ids(req_body)
+    if not requirements_domain_complete(req_body):
+        return make_result(
+            feature_dir=feature_dir,
+            state="requirements_domain_incomplete",
+            next_skill="coding-requirement-intake",
+            blocking=True,
+            reason="requirements.md lacks required business-domain model",
+            evidence_items=[evidence(req_path, "missing real 业务域建模 rows or placeholder markers remain")],
+        )
+    ac_domain_issue = acceptance_criteria_domain_issue(req_body, domain_ids)
+    if ac_domain_issue:
+        return make_result(
+            feature_dir=feature_dir,
+            state="requirements_ac_domain_invalid",
+            next_skill="coding-requirement-intake",
+            blocking=True,
+            reason=ac_domain_issue,
+            evidence_items=[evidence(req_path, ac_domain_issue)],
+        )
     duplicate_ac_ids = duplicate_requirement_ac_ids(req_body)
     if duplicate_ac_ids:
         return make_result(
@@ -968,6 +1105,16 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             blocking=True,
             reason="tasks.md has duplicate real task IDs",
             evidence_items=[evidence(tasks_path, "duplicate_task_ids: " + ", ".join(duplicate_task_ids))],
+        )
+    task_domain_invalid = task_domain_issue(real_tasks, domain_ids, expected_ac_ids)
+    if task_domain_invalid:
+        return make_result(
+            feature_dir=feature_dir,
+            state="task_domain_invalid",
+            next_skill="coding-task-planning",
+            blocking=True,
+            reason=task_domain_invalid,
+            evidence_items=[evidence(tasks_path, task_domain_invalid)],
         )
     if tasks_status == "draft" or not real_tasks:
         return make_result(

@@ -64,11 +64,12 @@ description: "Coding 任务拆解技能。Activation restricted: use only when t
 
 ## 拆解规则
 
-1. 拆解前先做任务级头脑风暴：识别依赖顺序、可独立验证的垂直切片、潜在阻塞和可并行边界。
+1. 拆解前先做任务级头脑风暴：识别依赖顺序、按业务域 / acceptance criteria 切出的可独立验证垂直切片、潜在阻塞和可并行边界。
 2. 每项任务只覆盖一个清晰目标，能独立完成和验证。
-3. 按依赖顺序排序：schema/config -> backend/domain -> API/adapter -> frontend/state -> tests/docs。
+3. 先按业务域垂直切片组织，再在每个业务域内按依赖顺序排序：schema/config -> backend/domain -> API/adapter -> frontend/state -> tests/docs。
 4. 每项规划期任务必须写：
    - `status`: `TODO` / `DOING` / `DONE` / `BLOCKED`
+   - 业务域：引用 `requirements.md` 业务域建模中的 `Domain ID`；`cross-domain` 任务必须列出服务的所有业务域。
    - 输入：依赖的 discovery、requirements、design 证据或文件。
    - 输出：预期改动文件或行为。
    - 完成判定：可执行命令、接口响应、UI 行为或数据状态。
@@ -76,10 +77,11 @@ description: "Coding 任务拆解技能。Activation restricted: use only when t
    - 执行要点：关键实现顺序、复用点或注意事项。
    - 风险：可能影响的兼容性、数据、权限或性能。
    - 交付记录：规划期可以为空或写“待执行”；任务进入 `DONE` 时必须由执行阶段补齐真实记录。
-5. 不把“验证全部功能”作为单个大任务；验证也要按风险拆分。
-6. 如果发现设计不可拆或范围过大，回到 `design.md` 缩小边界。
-7. 如果用户刚刚明确批准设计但 metadata 仍是 `pending`，先把 `design.md` 的审批字段补齐，再拆任务。
-8. 如果任务依赖第三方库、框架、OpenAI/API 或版本行为，只引用 discovery / design 中已有外部证据；缺证据时回到相应阶段补证，不在任务中凭空假设。
+5. `输入` 必须引用至少一个真实 AC；不得创建没有业务域和 AC 归属的纯技术任务。
+6. 不把“验证全部功能”作为单个大任务；验证也要按业务域、AC 和风险拆分。
+7. 如果发现设计不可拆或范围过大，回到 `design.md` 缩小边界。
+8. 如果用户刚刚明确批准设计但 metadata 仍是 `pending`，先把 `design.md` 的审批字段补齐，再拆任务。
+9. 如果任务依赖第三方库、框架、OpenAI/API 或版本行为，只引用 discovery / design 中已有外部证据；缺证据时回到相应阶段补证，不在任务中凭空假设。
 
 ## 推荐任务模板
 
@@ -87,6 +89,7 @@ description: "Coding 任务拆解技能。Activation restricted: use only when t
 ### T01 - <任务名>
 
 - status: TODO
+- 业务域：
 - 输入：
 - 输出：
 - 关联模块/文件：

@@ -418,7 +418,7 @@ def write_ready_requirements(
         else ""
     )
     second_ac = (
-        "| AC-02 | 无权限用户不能导出 CSV | 使用无权限账号调用导出接口 | READY |"
+        "| AC-02 | D-AUDIT | 无权限用户不能导出 CSV | 使用无权限账号调用导出接口 | READY |"
         if include_second_ac
         else ""
     )
@@ -454,22 +454,28 @@ def write_ready_requirements(
 
 - 管理员打开审计日志页面，按当前筛选条件点击导出 CSV。
 
-## 5. Acceptance Criteria
+## 5. 业务域建模
 
-| ID | 验收标准 | 验证方式 | 状态 |
-| --- | --- | --- | --- |
-| AC-01 | 管理员可以导出 CSV | 手工点击导出并检查文件 | READY |
+| Domain ID | 业务域 | 业务能力 | Actor / Role | 核心 Entity | 业务规则 / 边界 | 关联 AC |
+| --- | --- | --- | --- | --- | --- | --- |
+| D-AUDIT | 审计日志 | 导出审计日志 CSV | 管理员 | audit_logs | 只允许管理员按当前筛选条件导出 CSV | AC-01{", AC-02" if include_second_ac else ""} |
+
+## 6. Acceptance Criteria
+
+| ID | 业务域 | 验收标准 | 验证方式 | 状态 |
+| --- | --- | --- | --- | --- |
+| AC-01 | D-AUDIT | 管理员可以导出 CSV | 手工点击导出并检查文件 | READY |
 {second_ac}
 {non_blocking_question}
 
-## 6. 非功能要求
+## 7. 非功能要求
 
 - 性能：导出请求沿用现有分页查询条件，不新增全表扫描。
 - 安全：复用管理员权限校验。
 - 兼容性：不改变现有审计日志列表接口。
 - 可观测性：记录导出请求结果。
 
-## 7. 约束与假设
+## 8. 约束与假设
 
 - 约束：首期只覆盖 CSV，不覆盖 PDF。
 - 假设：现有审计日志表是 source of truth。
@@ -508,17 +514,23 @@ def write_ready_requirements_with_placeholder_gap(feature_dir: Path) -> None:
 
 - 管理员打开审计日志页面并点击导出。
 
-## 5. Acceptance Criteria
+## 5. 业务域建模
 
-| ID | 验收标准 | 验证方式 | 状态 |
-| --- | --- | --- | --- |
-| AC-01 | 管理员可以导出 CSV | 手工点击导出并检查文件 | READY |
+| Domain ID | 业务域 | 业务能力 | Actor / Role | 核心 Entity | 业务规则 / 边界 | 关联 AC |
+| --- | --- | --- | --- | --- | --- | --- |
+| D-AUDIT | 审计日志 | 导出审计日志 CSV | 管理员 | audit_logs | 只允许管理员导出 | AC-01 |
 
-## 6. 非功能要求
+## 6. Acceptance Criteria
+
+| ID | 业务域 | 验收标准 | 验证方式 | 状态 |
+| --- | --- | --- | --- | --- |
+| AC-01 | D-AUDIT | 管理员可以导出 CSV | 手工点击导出并检查文件 | READY |
+
+## 7. 非功能要求
 
 - 安全：复用管理员权限校验。
 
-## 7. 约束与假设
+## 8. 约束与假设
 
 - 约束：首期只覆盖 CSV。
 """,
@@ -530,15 +542,41 @@ def write_requirements_with_duplicate_ac(feature_dir: Path) -> None:
     path = feature_dir / "requirements.md"
     path.write_text(
         path.read_text().replace(
-            "| AC-01 | 管理员可以导出 CSV | 手工点击导出并检查文件 | READY |",
+            "| AC-01 | D-AUDIT | 管理员可以导出 CSV | 手工点击导出并检查文件 | READY |",
             "\n".join(
                 [
-                    "| AC-01 | 管理员可以导出 CSV | 手工点击导出并检查文件 | READY |",
-                    "| AC-01 | 导出结果包含当前筛选条件 | 检查 CSV 内容 | READY |",
+                    "| AC-01 | D-AUDIT | 管理员可以导出 CSV | 手工点击导出并检查文件 | READY |",
+                    "| AC-01 | D-AUDIT | 导出结果包含当前筛选条件 | 检查 CSV 内容 | READY |",
                 ]
             ),
         )
     )
+
+
+def write_requirements_without_domain_model(feature_dir: Path) -> None:
+    write_ready_requirements(feature_dir)
+    path = feature_dir / "requirements.md"
+    text = path.read_text()
+    start = text.index("## 5. 业务域建模")
+    end = text.index("## 6. Acceptance Criteria")
+    text = text[:start] + text[end:].replace("## 6. Acceptance Criteria", "## 5. Acceptance Criteria", 1)
+    path.write_text(text)
+
+
+def write_requirements_with_unknown_ac_domain(feature_dir: Path) -> None:
+    write_ready_requirements(feature_dir)
+    path = feature_dir / "requirements.md"
+    path.write_text(path.read_text().replace("| AC-01 | D-AUDIT |", "| AC-01 | D-MISSING |"))
+
+
+def write_requirements_with_old_ac_table(feature_dir: Path) -> None:
+    write_ready_requirements(feature_dir)
+    path = feature_dir / "requirements.md"
+    text = path.read_text()
+    text = text.replace("| ID | 业务域 | 验收标准 | 验证方式 | 状态 |", "| ID | 验收标准 | 验证方式 | 状态 |")
+    text = text.replace("| --- | --- | --- | --- | --- |", "| --- | --- | --- | --- |", 1)
+    text = text.replace("| AC-01 | D-AUDIT | 管理员可以导出 CSV | 手工点击导出并检查文件 | READY |", "| AC-01 | 管理员可以导出 CSV | 手工点击导出并检查文件 | READY |")
+    path.write_text(text)
 
 
 def write_ready_design(feature_dir: Path, *, approved: bool = False) -> None:
@@ -678,20 +716,26 @@ def write_ready_empty_project_requirements(feature_dir: Path) -> None:
 
 - 开发者安装依赖，启动开发服务，浏览器打开本地地址看到任务看板首屏。
 
-## 5. Acceptance Criteria
+## 5. 业务域建模
 
-| ID | 验收标准 | 验证方式 | 状态 |
-| --- | --- | --- | --- |
-| AC-01 | 项目可以本地启动并展示任务看板首屏 | 运行 dev server 并访问首屏 | READY |
+| Domain ID | 业务域 | 业务能力 | Actor / Role | 核心 Entity | 业务规则 / 边界 | 关联 AC |
+| --- | --- | --- | --- | --- | --- | --- |
+| D-BOARD | 任务看板 | 本地展示任务看板首屏 | 开发者 | mock_tasks | 首轮只覆盖本地 mock 数据和首屏展示 | AC-01 |
 
-## 6. 非功能要求
+## 6. Acceptance Criteria
+
+| ID | 业务域 | 验收标准 | 验证方式 | 状态 |
+| --- | --- | --- | --- | --- |
+| AC-01 | D-BOARD | 项目可以本地启动并展示任务看板首屏 | 运行 dev server 并访问首屏 | READY |
+
+## 7. 非功能要求
 
 - 性能：首屏本地开发加载无明显阻塞。
 - 安全：不处理敏感信息。
 - 兼容性：使用当前稳定 Node 前端工具链。
 - 可观测性：启动失败时保留命令输出。
 
-## 7. 约束与假设
+## 8. 约束与假设
 
 - 约束：首轮只做本地运行。
 - 假设：用户接受 Vite + React + TypeScript。
@@ -814,11 +858,18 @@ def write_tasks(feature_dir: Path, *, status: str, delivery_record: str | None =
         f"""
 # Tasks
 
-## 2. 任务清单
+## 2. 业务域垂直切片
+
+| Domain ID | 业务域 | 关联 AC | 任务边界 | Cross-domain 依赖 |
+| --- | --- | --- | --- | --- |
+| D-AUDIT | 审计日志 | AC-01 | 导出 API 和 UI 入口 | 无 |
+
+## 3. 任务清单
 
 ### T01 - 实现审计日志导出
 
 - status: {status}
+- 业务域：D-AUDIT
 - 输入：requirements.md#AC-01，design.md#目标链路
 - 输出：导出 API 和 UI 入口
 - 关联模块/文件：src/audit/export.ts, src/pages/Audit.tsx
@@ -837,11 +888,18 @@ def write_multiline_task(feature_dir: Path) -> None:
         """
 # Tasks
 
-## 2. 任务清单
+## 2. 业务域垂直切片
+
+| Domain ID | 业务域 | 关联 AC | 任务边界 | Cross-domain 依赖 |
+| --- | --- | --- | --- | --- |
+| D-AUDIT | 审计日志 | AC-01 | 导出 API 和 UI 入口 | 无 |
+
+## 3. 任务清单
 
 ### T01 - 实现审计日志导出
 
 - status: TODO
+- 业务域：D-AUDIT
 - 输入：
   - requirements.md#AC-01
   - design.md#目标链路
@@ -871,11 +929,18 @@ def write_task_missing_required_field(feature_dir: Path) -> None:
         """
 # Tasks
 
-## 2. 任务清单
+## 2. 业务域垂直切片
+
+| Domain ID | 业务域 | 关联 AC | 任务边界 | Cross-domain 依赖 |
+| --- | --- | --- | --- | --- |
+| D-AUDIT | 审计日志 | AC-01 | 导出 API 和 UI 入口 | 无 |
+
+## 3. 任务清单
 
 ### T01 - 实现审计日志导出
 
 - status: TODO
+- 业务域：D-AUDIT
 - 输入：requirements.md#AC-01，design.md#目标链路
 - 输出：导出 API 和 UI 入口
 - 关联模块/文件：src/audit/export.ts, src/pages/Audit.tsx
@@ -885,6 +950,24 @@ def write_task_missing_required_field(feature_dir: Path) -> None:
     )
 
 
+def write_task_with_unknown_domain(feature_dir: Path) -> None:
+    write_tasks(feature_dir, status="TODO")
+    path = feature_dir / "tasks.md"
+    path.write_text(path.read_text().replace("- 业务域：D-AUDIT", "- 业务域：D-MISSING"))
+
+
+def write_task_without_domain_field(feature_dir: Path) -> None:
+    write_tasks(feature_dir, status="TODO")
+    path = feature_dir / "tasks.md"
+    path.write_text(path.read_text().replace("- 业务域：D-AUDIT\n", ""))
+
+
+def write_task_without_ac_reference(feature_dir: Path) -> None:
+    write_tasks(feature_dir, status="TODO")
+    path = feature_dir / "tasks.md"
+    path.write_text(path.read_text().replace("- 输入：requirements.md#AC-01，design.md#目标链路", "- 输入：design.md#目标链路"))
+
+
 def write_duplicate_task_ids(feature_dir: Path) -> None:
     write_doc(
         feature_dir / "tasks.md",
@@ -892,11 +975,18 @@ def write_duplicate_task_ids(feature_dir: Path) -> None:
         """
 # Tasks
 
-## 2. 任务清单
+## 2. 业务域垂直切片
+
+| Domain ID | 业务域 | 关联 AC | 任务边界 | Cross-domain 依赖 |
+| --- | --- | --- | --- | --- |
+| D-AUDIT | 审计日志 | AC-01 | 导出 API 和 UI 入口 | 无 |
+
+## 3. 任务清单
 
 ### T01 - 实现审计日志导出接口
 
 - status: TODO
+- 业务域：D-AUDIT
 - 输入：requirements.md#AC-01
 - 输出：导出 API
 - 关联模块/文件：src/audit/export.ts
@@ -908,7 +998,8 @@ def write_duplicate_task_ids(feature_dir: Path) -> None:
 ### T01 - 接入审计日志导出按钮
 
 - status: TODO
-- 输入：design.md#目标链路
+- 业务域：D-AUDIT
+- 输入：requirements.md#AC-01，design.md#目标链路
 - 输出：导出按钮
 - 关联模块/文件：src/pages/Audit.tsx
 - 执行要点：复用现有 toast 模式
@@ -926,11 +1017,18 @@ def write_multiple_doing_tasks(feature_dir: Path) -> None:
         """
 # Tasks
 
-## 2. 任务清单
+## 2. 业务域垂直切片
+
+| Domain ID | 业务域 | 关联 AC | 任务边界 | Cross-domain 依赖 |
+| --- | --- | --- | --- | --- |
+| D-AUDIT | 审计日志 | AC-01 | 导出 API 和 UI 入口 | 无 |
+
+## 3. 任务清单
 
 ### T01 - 实现审计日志导出接口
 
 - status: DOING
+- 业务域：D-AUDIT
 - 输入：requirements.md#AC-01
 - 输出：导出 API
 - 关联模块/文件：src/audit/export.ts
@@ -942,7 +1040,8 @@ def write_multiple_doing_tasks(feature_dir: Path) -> None:
 ### T02 - 接入审计日志导出按钮
 
 - status: DOING
-- 输入：design.md#目标链路
+- 业务域：D-AUDIT
+- 输入：requirements.md#AC-01，design.md#目标链路
 - 输出：导出按钮
 - 关联模块/文件：src/pages/Audit.tsx
 - 执行要点：复用现有 toast 模式
@@ -1253,6 +1352,42 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             label="inspector duplicate acceptance criteria IDs must block",
         )
 
+        missing_domain_model = make_scenario(scenarios_root, "missing-domain-model")
+        write_requirements_without_domain_model(missing_domain_model)
+        result = inspector.inspect_feature_state(missing_domain_model)
+        assert_state(
+            result,
+            state="requirements_domain_incomplete",
+            next_skill="coding-requirement-intake",
+            blocking=True,
+            errors=errors,
+            label="inspector ready requirements must include business domain model",
+        )
+
+        unknown_ac_domain = make_scenario(scenarios_root, "unknown-ac-domain")
+        write_requirements_with_unknown_ac_domain(unknown_ac_domain)
+        result = inspector.inspect_feature_state(unknown_ac_domain)
+        assert_state(
+            result,
+            state="requirements_ac_domain_invalid",
+            next_skill="coding-requirement-intake",
+            blocking=True,
+            errors=errors,
+            label="inspector acceptance criteria must reference known business domain",
+        )
+
+        old_ac_table = make_scenario(scenarios_root, "old-ac-table")
+        write_requirements_with_old_ac_table(old_ac_table)
+        result = inspector.inspect_feature_state(old_ac_table)
+        assert_state(
+            result,
+            state="requirements_ac_domain_invalid",
+            next_skill="coding-requirement-intake",
+            blocking=True,
+            errors=errors,
+            label="inspector acceptance criteria table must include business-domain column",
+        )
+
         req_metadata_inconsistent = make_scenario(scenarios_root, "requirement-metadata-inconsistent")
         write_ready_requirements(req_metadata_inconsistent)
         rewrite_frontmatter(req_metadata_inconsistent / "requirements.md", {"evidence_complete": False})
@@ -1428,6 +1563,48 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             blocking=True,
             errors=errors,
             label="inspector tasks.md must include task_count",
+        )
+
+        task_unknown_domain = make_scenario(scenarios_root, "task-unknown-domain")
+        write_ready_requirements(task_unknown_domain)
+        write_ready_design(task_unknown_domain, approved=True)
+        write_task_with_unknown_domain(task_unknown_domain)
+        result = inspector.inspect_feature_state(task_unknown_domain)
+        assert_state(
+            result,
+            state="task_domain_invalid",
+            next_skill="coding-task-planning",
+            blocking=True,
+            errors=errors,
+            label="inspector tasks must reference known business domain",
+        )
+
+        task_without_domain = make_scenario(scenarios_root, "task-without-domain")
+        write_ready_requirements(task_without_domain)
+        write_ready_design(task_without_domain, approved=True)
+        write_task_without_domain_field(task_without_domain)
+        result = inspector.inspect_feature_state(task_without_domain)
+        assert_state(
+            result,
+            state="task_count_mismatch",
+            next_skill="coding-task-planning",
+            blocking=True,
+            errors=errors,
+            label="inspector tasks must include business domain field",
+        )
+
+        task_without_ac = make_scenario(scenarios_root, "task-without-ac")
+        write_ready_requirements(task_without_ac)
+        write_ready_design(task_without_ac, approved=True)
+        write_task_without_ac_reference(task_without_ac)
+        result = inspector.inspect_feature_state(task_without_ac)
+        assert_state(
+            result,
+            state="task_domain_invalid",
+            next_skill="coding-task-planning",
+            blocking=True,
+            errors=errors,
+            label="inspector tasks must reference acceptance criteria",
         )
 
         done_delivery_incomplete = make_scenario(scenarios_root, "done-delivery-incomplete")
@@ -1721,6 +1898,8 @@ def main() -> int:
                 "`updated_at`",
                 "`evidence_complete: true`",
                 "`task_count` 必须等于真实任务数量",
+                "Business domain contract",
+                "每个真实任务必须写 `业务域：<Domain ID>`",
                 "只有所有 in-scope acceptance criteria 都有真实验证证据且结果为 `PASS`",
                 "辅助模板 Markdown 可解析，但不得包含 `feature_stage` 或 `stage_status`",
                 "输出规则必须说明 `updated_at` / `evidence_complete`",
@@ -1775,7 +1954,7 @@ def main() -> int:
     task_planning_text = (SKILLS / "coding-task-planning" / "SKILL.md").read_text()
     assert_contains_all(
         task_planning_text,
-        ["每项规划期任务必须写", "执行要点", "风险", "任务进入 `DONE` 时必须由执行阶段补齐真实记录"],
+        ["每项规划期任务必须写", "业务域", "执行要点", "风险", "任务进入 `DONE` 时必须由执行阶段补齐真实记录"],
         errors,
         "task planning required task fields",
     )
@@ -1857,6 +2036,20 @@ def main() -> int:
     tasks_metadata = parse_frontmatter(TEMPLATE / "tasks.md", errors)
     if tasks_metadata.get("evidence_complete") != "false":
         fail(errors, "template tasks.md should include evidence_complete: false")
+
+    requirements_text = (TEMPLATE / "requirements.md").read_text()
+    assert_contains_all(
+        requirements_text,
+        ["## 5. 业务域建模", "| Domain ID | 业务域 |", "| ID | 业务域 | 验收标准 |"],
+        errors,
+        "template requirements business-domain structure",
+    )
+    assert_contains_all(
+        tasks_text,
+        ["## 3. 业务域垂直切片", "| Domain ID | 业务域 | 关联 AC |", "| ID | 业务域 | 任务 |"],
+        errors,
+        "template tasks business-domain structure",
+    )
 
     design_metadata = parse_frontmatter(TEMPLATE / "design.md", errors)
     for field in ["approval_status", "approved_by", "approved_at", "approval_evidence"]:
