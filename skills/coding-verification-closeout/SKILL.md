@@ -41,11 +41,10 @@ description: "Coding 验证收口技能。Activation restricted: use only when t
 
 - 已收到明确的 `feature_dir`。
 - `feature_dir` 目录存在。
-- `discovery.md`、`requirements.md`、`investigation.md`、`design.md` 和 `tasks.md` 已存在。
+- `discovery.md`、`requirements.md`、`design.md` 和 `tasks.md` 已存在。
 - `verification.md` 和 `handoff.md` 已由 orchestrator/template 准备好。
 - `discovery.md stage_status: ready` 且 `discovery.md evidence_complete: true`。
 - `requirements.md stage_status: ready` 且 `requirements.md evidence_complete: true`。
-- `investigation.md stage_status: ready` 且 `investigation.md evidence_complete: true`。
 - `design.md stage_status: ready` 且 `design.md evidence_complete: true`。
 - `design.md approval_status: approved`，且 `approved_by`、`approved_at`、`approval_evidence` 已补齐。
 - `tasks.md stage_status: ready` 且 `tasks.md evidence_complete: true`。
@@ -67,9 +66,9 @@ description: "Coding 验证收口技能。Activation restricted: use only when t
 
 1. 读取 `discovery.md` 的关键问题、方案方向和外部调研结论，确认验收没有遗漏早期澄清出的边界。
 2. 读取 `requirements.md` 的 acceptance criteria。
-3. 读取 `investigation.md` 的真实调用链、数据来源、相似实现、风险与未知，确认验证覆盖 source of truth 而不是只验证派生表现。
+3. 读取 `design.md` 的仓库勘探、真实调用链、数据来源、相似实现、风险与未知，确认验证覆盖 source of truth 而不是只验证派生表现。
 4. 读取 `tasks.md`，确认所有 in-scope 任务为 `DONE` 或有明确 `BLOCKED` 说明。
-5. 按 `design.md` 的验证策略，并结合 `investigation.md` 的真实链路和数据来源，执行 targeted checks。
+5. 按 `design.md` 的验证策略，并结合 `design.md` 的真实链路和数据来源，执行 targeted checks。
 6. 对每条验收标准记录证据：命令、日志、截图路径、接口响应摘要、数据查询或手工步骤。
 7. 检查相关同类路径是否需要回归。
 8. 汇总无法验证的项目和原因。

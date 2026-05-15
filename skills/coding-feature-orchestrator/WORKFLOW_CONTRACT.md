@@ -50,13 +50,13 @@ stage_evidence:
 
 ## 3. Document metadata contract
 
-每个 feature 阶段文档必须包含 YAML frontmatter。阶段文档只包括：`discovery.md`、`requirements.md`、`investigation.md`、`design.md`、`tasks.md`、`verification.md`、`handoff.md`。
+每个 feature 阶段文档必须包含 YAML frontmatter。阶段文档只包括：`discovery.md`、`requirements.md`、`design.md`、`tasks.md`、`verification.md`、`handoff.md`。
 
 通用字段：
 
 ```yaml
-feature_stage: discovery # discovery / requirements / investigation / design / tasks / verification / handoff
-stage_status: draft # 按阶段限制：discovery/requirements/investigation/design/tasks 使用 draft/ready/blocked；verification/handoff 使用 draft/blocked/complete
+feature_stage: discovery # discovery / requirements / design / tasks / verification / handoff
+stage_status: draft # 按阶段限制：discovery/requirements/design/tasks 使用 draft/ready/blocked；verification/handoff 使用 draft/blocked/complete
 updated_at: "2026-05-09T00:00:00+08:00"
 evidence_complete: false
 ```
@@ -95,20 +95,18 @@ approval_evidence: ""
 | --- | --- |
 | `discovery.md` | `draft` / `ready` / `blocked` |
 | `requirements.md` | `draft` / `ready` / `blocked` |
-| `investigation.md` | `draft` / `ready` / `blocked` |
 | `design.md` | `draft` / `ready` / `blocked` |
 | `tasks.md` | `draft` / `ready` / `blocked` |
 | `verification.md` | `draft` / `blocked` / `complete` |
 | `handoff.md` | `draft` / `blocked` / `complete` |
 
-`complete` 只允许用于验证和交付收口阶段；`requirements`、`investigation`、`design`、`tasks` 完成后应标记为 `ready`，不能标记为 `complete`。`verification.md` 和 `handoff.md` 不使用 `ready`，未收口时保持 `draft` 或 `blocked`。
+`complete` 只允许用于验证和交付收口阶段；`requirements`、`design`、`tasks` 完成后应标记为 `ready`，不能标记为 `complete`。`verification.md` 和 `handoff.md` 不使用 `ready`，未收口时保持 `draft` 或 `blocked`。
 
 阶段完成时必须更新 metadata：
 
 - `coding-feature-discovery`：仓库广扫、必要外部调研、方案方向、模糊点清单和关键问题逐问逐答完成时，把 `discovery.md` 标记为 `ready`。
 - `coding-requirement-intake`：在 `discovery.md stage_status: ready` 后规格化 PRD；无阻塞且 acceptance criteria 可验证时，把 `requirements.md` 标记为 `ready`。
-- `coding-repo-investigation`：在 `requirements.md stage_status: ready` 后按 acceptance criteria 做后置精查；真实链路、数据来源、已查文件齐备时，把 `investigation.md` 标记为 `ready`。
-- `coding-technical-design`：方案可拆任务时，把 `design.md` 标记为 `ready`，并保持 `approval_status: pending`；依赖业务决策时标记为 `blocked`。
+- `coding-technical-design`：在 `requirements.md stage_status: ready` 后按 acceptance criteria 做仓库勘探、澄清未明确点并设计方案；真实链路、数据来源、已查文件、方案比较和验证策略齐备且方案可拆任务时，把 `design.md` 标记为 `ready`，并保持 `approval_status: pending`；依赖业务决策时标记为 `blocked`。
 - `coding-task-planning`：只在 `design.md stage_status: ready` 且 `approval_status: approved` 后拆任务；如果当前用户请求明确批准设计，必须先补齐审批字段再拆任务。真实任务写入后，把 `tasks.md` 标记为 `ready` 并更新 `task_count`。
 - `coding-verification-closeout`：只有所有 in-scope acceptance criteria 都有真实验证证据且结果为 `PASS` 时，才把 `verification.md` 标记为 `complete`、`evidence_complete: true`；存在 `FAIL`、`BLOCKED` 或未覆盖项时，保持或更新为 `draft/blocked`、`evidence_complete: false` 并写清证据。交付摘要、变更范围、配置 / SQL / 部署事项、复核入口、验证结论和残余风险齐备后，才把 `handoff.md` 标记为 `complete`；无相关配置、SQL、部署或数据修复时也必须显式写“无”。
 
@@ -153,11 +151,10 @@ approval_evidence: ""
 阶段 skill 在 `direct_explicit` 或 `routed_invocation` 下都必须执行相同的 upstream metadata gate：
 
 - `coding-requirement-intake`：要求 `discovery.md stage_status: ready` 且 `discovery.md evidence_complete: true`。
-- `coding-repo-investigation`：要求 `discovery.md`、`requirements.md` 均为 `stage_status: ready` 且 `evidence_complete: true`。
-- `coding-technical-design`：要求 `discovery.md`、`requirements.md`、`investigation.md` 均为 `stage_status: ready` 且 `evidence_complete: true`。
-- `coding-task-planning`：要求 `discovery.md`、`requirements.md`、`investigation.md`、`design.md` 均为 `stage_status: ready` 且 `evidence_complete: true`；同时要求 `design.md approval_status: approved`，并补齐 `approved_by`、`approved_at`、`approval_evidence`。
-- `coding-implementation-execution`：要求 `discovery.md`、`requirements.md`、`investigation.md`、`design.md`、`tasks.md` 均为 `stage_status: ready` 且 `evidence_complete: true`；要求 `design.md approval_status: approved`；要求 `tasks.md task_count` 与真实任务数量一致，且至少存在一个真实 `TODO` 或 `DOING` 任务。
-- `coding-verification-closeout`：要求 `discovery.md`、`requirements.md`、`investigation.md`、`design.md`、`tasks.md` 均为 `stage_status: ready` 且 `evidence_complete: true`；要求 `design.md approval_status: approved`；要求 `tasks.md task_count` 与真实任务数量一致，且不存在 `TODO` 或 `DOING` 任务。
+- `coding-technical-design`：要求 `discovery.md`、`requirements.md` 均为 `stage_status: ready` 且 `evidence_complete: true`。
+- `coding-task-planning`：要求 `discovery.md`、`requirements.md`、`design.md` 均为 `stage_status: ready` 且 `evidence_complete: true`；同时要求 `design.md approval_status: approved`，并补齐 `approved_by`、`approved_at`、`approval_evidence`。
+- `coding-implementation-execution`：要求 `discovery.md`、`requirements.md`、`design.md`、`tasks.md` 均为 `stage_status: ready` 且 `evidence_complete: true`；要求 `design.md approval_status: approved`；要求 `tasks.md task_count` 与真实任务数量一致，且至少存在一个真实 `TODO` 或 `DOING` 任务。
+- `coding-verification-closeout`：要求 `discovery.md`、`requirements.md`、`design.md`、`tasks.md` 均为 `stage_status: ready` 且 `evidence_complete: true`；要求 `design.md approval_status: approved`；要求 `tasks.md task_count` 与真实任务数量一致，且不存在 `TODO` 或 `DOING` 任务。
 
 任一 gate 不满足时，停止并报告具体文档、字段和值；不要临时补造上游阶段内容，不要自行改状态以通过 gate。
 
@@ -222,7 +219,7 @@ approval_evidence: ""
 
 1. 先记录 `scope_change_candidate`：触发原因、证据、影响的 acceptance criteria、涉及文件、风险。
 2. 如果该变更不是当前任务完成判定的必要条件，停止并请求用户确认，不直接修改代码或任务。
-3. 用户确认后，按影响范围回流更新 `discovery.md`、`requirements.md`、`investigation.md`、`design.md` 和 `tasks.md`。
+3. 用户确认后，按影响范围回流更新 `discovery.md`、`requirements.md`、`design.md` 和 `tasks.md`。
 4. 禁止通过在 `tasks.md` 临时新增任务来绕过 requirements / design 的 scope 边界。
 
 ## 12. Clarification, brainstorming, and research protocol
@@ -240,8 +237,8 @@ approval_evidence: ""
 
 1. 先记录问题、证据、影响范围和阻塞级别。
 2. 逐一询问用户，不得做静默假设。
-3. 用户回答后按影响范围回流更新 `discovery.md`、`requirements.md`、`investigation.md` 或 `design.md`。
-4. 外部调研证据集中写入 `discovery.md` 或 `investigation.md`；`design.md` / `tasks.md` 只引用关键结论和来源。
+3. 用户回答后按影响范围回流更新 `discovery.md`、`requirements.md` 或 `design.md`。
+4. 外部调研证据集中写入 `discovery.md` 或 `design.md`；`tasks.md` 只引用关键结论和来源。
 
 ## 13. Resume protocol
 
@@ -265,7 +262,7 @@ approval_evidence: ""
 - 辅助模板 Markdown 可解析，但不得包含 `feature_stage` 或 `stage_status`。
 - `design.md` 包含设计审批字段，`tasks.md` 包含 `task_count`。
 - 各阶段 skill 的输出规则必须说明 `updated_at` / `evidence_complete` 的更新方式；`coding-task-planning` 必须说明 `task_count` 更新为真实任务数量。
-- `coding-verification-closeout` 的 preflight 和验证顺序必须读取 `investigation.md`，避免只验证 `design.md` / `tasks.md` 的纸面链路。
+- `coding-verification-closeout` 的 preflight 和验证顺序必须读取 `design.md` 的仓库勘探、真实链路和 source of truth，避免只验证 `tasks.md` 的纸面链路。
 - 模板不包含会被误判为真实任务或阻塞项的默认行。
 - Orchestrator 的 route payload 字段和子 skill preflight 一致。
 - Orchestrator 的 blocked 阶段判断顺序不会被 draft/content 判断抢先命中。

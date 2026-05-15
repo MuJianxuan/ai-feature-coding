@@ -19,7 +19,6 @@ TEMPLATE = ORCHESTRATOR / "assets" / "feature-template"
 CHILD_SKILLS = [
     "coding-feature-discovery",
     "coding-requirement-intake",
-    "coding-repo-investigation",
     "coding-technical-design",
     "coding-task-planning",
     "coding-implementation-execution",
@@ -35,7 +34,6 @@ FORBIDDEN_ROUTE_SOURCE_PATTERNS = [
 CHILD_OUTPUT_REQUIREMENTS = {
     "coding-feature-discovery": ["updated_at", "evidence_complete"],
     "coding-requirement-intake": ["updated_at", "evidence_complete"],
-    "coding-repo-investigation": ["updated_at", "evidence_complete"],
     "coding-technical-design": ["updated_at", "evidence_complete"],
     "coding-task-planning": ["updated_at", "evidence_complete", "task_count", "真实任务数量"],
     "coding-implementation-execution": ["updated_at", "evidence_complete", "task_count"],
@@ -46,28 +44,18 @@ CHILD_PREFLIGHT_REQUIREMENTS = {
         "`discovery.md stage_status: ready`",
         "`discovery.md evidence_complete: true`",
     ],
-    "coding-repo-investigation": [
-        "`discovery.md stage_status: ready`",
-        "`requirements.md stage_status: ready`",
-        "`discovery.md evidence_complete: true`",
-        "`requirements.md evidence_complete: true`",
-    ],
     "coding-technical-design": [
         "`discovery.md stage_status: ready`",
         "`requirements.md stage_status: ready`",
-        "`investigation.md stage_status: ready`",
         "`discovery.md evidence_complete: true`",
         "`requirements.md evidence_complete: true`",
-        "`investigation.md evidence_complete: true`",
     ],
     "coding-task-planning": [
         "`discovery.md stage_status: ready`",
         "`requirements.md stage_status: ready`",
-        "`investigation.md stage_status: ready`",
         "`design.md stage_status: ready`",
         "`discovery.md evidence_complete: true`",
         "`requirements.md evidence_complete: true`",
-        "`investigation.md evidence_complete: true`",
         "`design.md evidence_complete: true`",
         "`design.md approval_status: approved`",
         "`approved_by`、`approved_at`、`approval_evidence`",
@@ -75,12 +63,10 @@ CHILD_PREFLIGHT_REQUIREMENTS = {
     "coding-implementation-execution": [
         "`discovery.md stage_status: ready`",
         "`requirements.md stage_status: ready`",
-        "`investigation.md stage_status: ready`",
         "`design.md stage_status: ready`",
         "`tasks.md stage_status: ready`",
         "`discovery.md evidence_complete: true`",
         "`requirements.md evidence_complete: true`",
-        "`investigation.md evidence_complete: true`",
         "`design.md evidence_complete: true`",
         "`tasks.md evidence_complete: true`",
         "`design.md approval_status: approved`",
@@ -90,12 +76,10 @@ CHILD_PREFLIGHT_REQUIREMENTS = {
     "coding-verification-closeout": [
         "`discovery.md stage_status: ready`",
         "`requirements.md stage_status: ready`",
-        "`investigation.md stage_status: ready`",
         "`design.md stage_status: ready`",
         "`tasks.md stage_status: ready`",
         "`discovery.md evidence_complete: true`",
         "`requirements.md evidence_complete: true`",
-        "`investigation.md evidence_complete: true`",
         "`design.md evidence_complete: true`",
         "`tasks.md evidence_complete: true`",
         "`design.md approval_status: approved`",
@@ -106,7 +90,6 @@ CHILD_PREFLIGHT_REQUIREMENTS = {
 STAGE_TEMPLATE_FILES = {
     "discovery.md": "discovery",
     "requirements.md": "requirements",
-    "investigation.md": "investigation",
     "design.md": "design",
     "tasks.md": "tasks",
     "verification.md": "verification",
@@ -116,7 +99,6 @@ VALID_STAGE_STATUS = {"draft", "ready", "blocked", "complete"}
 STAGE_ALLOWED_STATUS = {
     "discovery": {"draft", "ready", "blocked"},
     "requirements": {"draft", "ready", "blocked"},
-    "investigation": {"draft", "ready", "blocked"},
     "design": {"draft", "ready", "blocked"},
     "tasks": {"draft", "ready", "blocked"},
     "verification": {"draft", "blocked", "complete"},
@@ -457,60 +439,6 @@ def write_requirements_with_duplicate_ac(feature_dir: Path) -> None:
     )
 
 
-def write_ready_investigation(feature_dir: Path) -> None:
-    write_doc(
-        feature_dir / "investigation.md",
-        stage_meta("investigation", "ready", True),
-        """
-# Investigation
-
-## 1. 结论摘要
-
-- 导出入口应复用现有审计日志查询链路。
-
-## 2. 已查文件
-
-| 路径 | 关键位置 | 结论 |
-| --- | --- | --- |
-| src/audit/export.ts | exportAuditLogs | 可复用查询条件 |
-
-## 3. 真实调用链 / 数据流
-
-- UI export button -> API client -> audit service -> audit_logs table。
-
-## 4. 数据来源
-
-- Source of truth：audit_logs 表。
-- 写入点：审计事件写入器。
-- 读取点：审计日志查询 service。
-
-## 5. 接口与协议
-
-- Request shape：复用现有审计日志查询参数。
-- Response shape：返回 text/csv 下载响应。
-- Stream / event 行为：不涉及 stream。
-- 错误处理：复用现有权限错误。
-- logging / persistence：记录导出请求日志。
-
-## 6. 相似实现
-
-| 位置 | 可复用点 | 限制 |
-| --- | --- | --- |
-| src/report/export.ts | CSV 生成与响应头模式 | 字段和权限不同，不能直接复用字段列表 |
-
-## 7. 风险与未知
-
-| 类型 | 内容 | 证据 | 处理方式 |
-| --- | --- | --- | --- |
-| 已证实 | 需复用权限 guard | 已查 audit service | 设计中明确权限链路 |
-
-## 8. 对设计的约束
-
-- 必须沿用现有权限判断。
-""",
-    )
-
-
 def write_ready_design(feature_dir: Path, *, approved: bool = False) -> None:
     write_doc(
         feature_dir / "design.md",
@@ -530,25 +458,49 @@ def write_ready_design(feature_dir: Path, *, approved: bool = False) -> None:
 
 - 新增 CSV 导出按钮与后端导出接口，复用审计日志查询条件。
 
-## 2. 影响范围
+## 2. 仓库勘探
+
+| 路径 | 关键位置 | 结论 |
+| --- | --- | --- |
+| src/audit/export.ts | exportAuditLogs | 可复用查询条件 |
+
+## 3. 真实链路与数据来源
+
+- 当前链路：UI export button -> API client -> audit service -> audit_logs table。
+- Source of truth：audit_logs 表。
+- 写入点：审计事件写入器。
+- 读取点：审计日志查询 service。
+- 相似实现：src/report/export.ts 可复用 CSV 生成与响应头模式，但字段和权限不同。
+
+## 4. 澄清问题
+
+- 无 blocking 问题；首期只覆盖 CSV 已由 requirements.md 固定。
+
+## 5. 方案比较
+
+| 方案 | 适用条件 | 取舍结论 |
+| --- | --- | --- |
+| 最小变更 | 复用现有查询 service 和权限 guard | 推荐，风险低且满足当前 AC |
+
+## 6. 影响范围
 
 | 类型 | 模块 / 文件 | 影响说明 |
 | --- | --- | --- |
 | backend | src/audit/export.ts | 新增导出逻辑 |
 
-## 3. 目标链路
+## 7. 目标链路
 
 - UI -> API -> audit service -> CSV response。
 
-## 4. API 变更
+## 8. API 变更
 
 - Endpoint：新增或扩展审计日志导出 endpoint。
 - Request：复用审计日志筛选参数。
 - Response：返回 CSV 文件响应。
 - Error code：复用现有权限错误。
-- 兼容性：不改变现有列表接口。
+- 兼容性：新增导出能力，不改变现有列表接口。
 
-## 5. 数据变更
+## 9. 数据变更
 
 - DDL：不涉及。
 - DML：不涉及。
@@ -556,26 +508,26 @@ def write_ready_design(feature_dir: Path, *, approved: bool = False) -> None:
 - Rollback：删除导出入口和导出 handler。
 - 幂等性：导出为只读操作。
 
-## 6. 状态、事务与并发
+## 10. 状态、事务与并发
 
 - 事务边界：只读查询，无新增写事务。
 - 缓存刷新：不涉及。
 - Stream / event：不涉及。
 - 异步任务：不涉及。
 
-## 7. 错误处理与日志
+## 11. 错误处理与日志
 
 - 异常传播：复用现有 API error response。
 - 日志字段：记录导出用户、筛选条件摘要和结果。
 - PII 处理：CSV 字段沿用审计日志展示规则。
 
-## 8. 风险与回滚
+## 12. 风险与回滚
 
 | 风险 | 影响 | 缓解方案 | 回滚方式 |
 | --- | --- | --- | --- |
 | 权限遗漏 | 非管理员误导出 | 复用权限 guard | 关闭导出入口 |
 
-## 9. 验证策略
+## 13. 验证策略
 
 - 自动化验证：运行 audit export targeted tests。
 - 手工验证：管理员点击导出。
@@ -976,8 +928,8 @@ def run_inspector_scenarios(errors: list[str]) -> None:
         result = inspector.inspect_feature_state(non_blocking)
         assert_state(
             result,
-            state="investigation_draft_or_incomplete",
-            next_skill="coding-repo-investigation",
+            state="design_draft_or_incomplete",
+            next_skill="coding-technical-design",
             blocking=False,
             errors=errors,
             label="inspector non-blocking requirement question",
@@ -1046,37 +998,8 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             label="inspector requirement stage_status complete must be rejected",
         )
 
-        inv_metadata_inconsistent = make_scenario(scenarios_root, "investigation-metadata-inconsistent")
-        write_ready_requirements(inv_metadata_inconsistent)
-        write_ready_investigation(inv_metadata_inconsistent)
-        rewrite_frontmatter(inv_metadata_inconsistent / "investigation.md", {"updated_at": ""})
-        result = inspector.inspect_feature_state(inv_metadata_inconsistent)
-        assert_state(
-            result,
-            state="investigation_metadata_inconsistent",
-            next_skill="coding-repo-investigation",
-            blocking=True,
-            errors=errors,
-            label="inspector ready investigation must have updated_at",
-        )
-
-        inv_stage_mismatch = make_scenario(scenarios_root, "investigation-stage-mismatch")
-        write_ready_requirements(inv_stage_mismatch)
-        write_ready_investigation(inv_stage_mismatch)
-        rewrite_frontmatter(inv_stage_mismatch / "investigation.md", {"feature_stage": "design"})
-        result = inspector.inspect_feature_state(inv_stage_mismatch)
-        assert_state(
-            result,
-            state="investigation_metadata_inconsistent",
-            next_skill="coding-repo-investigation",
-            blocking=True,
-            errors=errors,
-            label="inspector investigation feature_stage must match filename",
-        )
-
         approval_pending = make_scenario(scenarios_root, "approval-pending")
         write_ready_requirements(approval_pending)
-        write_ready_investigation(approval_pending)
         write_ready_design(approval_pending, approved=False)
         result = inspector.inspect_feature_state(approval_pending)
         assert_state(
@@ -1090,7 +1013,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         approval_incomplete = make_scenario(scenarios_root, "approval-incomplete")
         write_ready_requirements(approval_incomplete)
-        write_ready_investigation(approval_incomplete)
         write_ready_design(approval_incomplete, approved=True)
         rewrite_frontmatter(
             approval_incomplete / "design.md",
@@ -1108,7 +1030,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         task_planning = make_scenario(scenarios_root, "task-planning")
         write_ready_requirements(task_planning)
-        write_ready_investigation(task_planning)
         write_ready_design(task_planning, approved=True)
         result = inspector.inspect_feature_state(task_planning)
         assert_state(
@@ -1122,7 +1043,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         task_missing_field = make_scenario(scenarios_root, "task-missing-required-field")
         write_ready_requirements(task_missing_field)
-        write_ready_investigation(task_missing_field)
         write_ready_design(task_missing_field, approved=True)
         write_task_missing_required_field(task_missing_field)
         result = inspector.inspect_feature_state(task_missing_field)
@@ -1137,7 +1057,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         multiline_task = make_scenario(scenarios_root, "multiline-task")
         write_ready_requirements(multiline_task)
-        write_ready_investigation(multiline_task)
         write_ready_design(multiline_task, approved=True)
         write_multiline_task(multiline_task)
         result = inspector.inspect_feature_state(multiline_task)
@@ -1152,7 +1071,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         task_count_missing = make_scenario(scenarios_root, "task-count-missing")
         write_ready_requirements(task_count_missing)
-        write_ready_investigation(task_count_missing)
         write_ready_design(task_count_missing, approved=True)
         write_tasks(task_count_missing, status="TODO")
         rewrite_frontmatter(task_count_missing / "tasks.md", remove={"task_count"})
@@ -1168,7 +1086,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         done_delivery_incomplete = make_scenario(scenarios_root, "done-delivery-incomplete")
         write_ready_requirements(done_delivery_incomplete)
-        write_ready_investigation(done_delivery_incomplete)
         write_ready_design(done_delivery_incomplete, approved=True)
         write_tasks(done_delivery_incomplete, status="DONE", delivery_record="待执行")
         result = inspector.inspect_feature_state(done_delivery_incomplete)
@@ -1183,7 +1100,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         weak_delivery_record = make_scenario(scenarios_root, "weak-delivery-record")
         write_ready_requirements(weak_delivery_record)
-        write_ready_investigation(weak_delivery_record)
         write_ready_design(weak_delivery_record, approved=True)
         write_tasks(weak_delivery_record, status="DONE", delivery_record="已完成")
         result = inspector.inspect_feature_state(weak_delivery_record)
@@ -1198,7 +1114,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         duplicate_task_ids = make_scenario(scenarios_root, "duplicate-task-ids")
         write_ready_requirements(duplicate_task_ids)
-        write_ready_investigation(duplicate_task_ids)
         write_ready_design(duplicate_task_ids, approved=True)
         write_duplicate_task_ids(duplicate_task_ids)
         result = inspector.inspect_feature_state(duplicate_task_ids)
@@ -1213,7 +1128,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         multiple_doing = make_scenario(scenarios_root, "multiple-doing")
         write_ready_requirements(multiple_doing)
-        write_ready_investigation(multiple_doing)
         write_ready_design(multiple_doing, approved=True)
         write_multiple_doing_tasks(multiple_doing)
         result = inspector.inspect_feature_state(multiple_doing)
@@ -1228,7 +1142,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         doing = make_scenario(scenarios_root, "doing-task")
         write_ready_requirements(doing)
-        write_ready_investigation(doing)
         write_ready_design(doing, approved=True)
         write_tasks(doing, status="DOING")
         result = inspector.inspect_feature_state(doing)
@@ -1243,7 +1156,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         verification = make_scenario(scenarios_root, "verification")
         write_ready_requirements(verification)
-        write_ready_investigation(verification)
         write_ready_design(verification, approved=True)
         write_tasks(verification, status="DONE")
         result = inspector.inspect_feature_state(verification)
@@ -1258,7 +1170,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         verification_missing_ac = make_scenario(scenarios_root, "verification-missing-ac")
         write_ready_requirements(verification_missing_ac, include_second_ac=True)
-        write_ready_investigation(verification_missing_ac)
         write_ready_design(verification_missing_ac, approved=True)
         write_tasks(verification_missing_ac, status="DONE")
         write_complete_verification(verification_missing_ac)
@@ -1277,7 +1188,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         failed_verification = make_scenario(scenarios_root, "failed-verification")
         write_ready_requirements(failed_verification)
-        write_ready_investigation(failed_verification)
         write_ready_design(failed_verification, approved=True)
         write_tasks(failed_verification, status="DONE")
         write_failed_complete_verification(failed_verification)
@@ -1293,7 +1203,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         verification_metadata_inconsistent = make_scenario(scenarios_root, "verification-metadata-inconsistent")
         write_ready_requirements(verification_metadata_inconsistent)
-        write_ready_investigation(verification_metadata_inconsistent)
         write_ready_design(verification_metadata_inconsistent, approved=True)
         write_tasks(verification_metadata_inconsistent, status="DONE")
         write_complete_verification(verification_metadata_inconsistent)
@@ -1310,7 +1219,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         verification_ready_status = make_scenario(scenarios_root, "verification-ready-status")
         write_ready_requirements(verification_ready_status)
-        write_ready_investigation(verification_ready_status)
         write_ready_design(verification_ready_status, approved=True)
         write_tasks(verification_ready_status, status="DONE")
         rewrite_frontmatter(
@@ -1333,7 +1241,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         empty_handoff = make_scenario(scenarios_root, "empty-handoff")
         write_ready_requirements(empty_handoff)
-        write_ready_investigation(empty_handoff)
         write_ready_design(empty_handoff, approved=True)
         write_tasks(empty_handoff, status="DONE")
         write_complete_verification(empty_handoff)
@@ -1350,7 +1257,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         handoff_without_ops = make_scenario(scenarios_root, "handoff-without-ops")
         write_ready_requirements(handoff_without_ops)
-        write_ready_investigation(handoff_without_ops)
         write_ready_design(handoff_without_ops, approved=True)
         write_tasks(handoff_without_ops, status="DONE")
         write_complete_verification(handoff_without_ops)
@@ -1367,7 +1273,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         handoff_unlabeled_ops = make_scenario(scenarios_root, "handoff-unlabeled-ops")
         write_ready_requirements(handoff_unlabeled_ops)
-        write_ready_investigation(handoff_unlabeled_ops)
         write_ready_design(handoff_unlabeled_ops, approved=True)
         write_tasks(handoff_unlabeled_ops, status="DONE")
         write_complete_verification(handoff_unlabeled_ops)
@@ -1384,7 +1289,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         handoff_metadata_inconsistent = make_scenario(scenarios_root, "handoff-metadata-inconsistent")
         write_ready_requirements(handoff_metadata_inconsistent)
-        write_ready_investigation(handoff_metadata_inconsistent)
         write_ready_design(handoff_metadata_inconsistent, approved=True)
         write_tasks(handoff_metadata_inconsistent, status="DONE")
         write_complete_verification(handoff_metadata_inconsistent)
@@ -1402,7 +1306,6 @@ def run_inspector_scenarios(errors: list[str]) -> None:
 
         complete = make_scenario(scenarios_root, "complete")
         write_ready_requirements(complete)
-        write_ready_investigation(complete)
         write_ready_design(complete, approved=True)
         write_tasks(complete, status="DONE")
         write_complete_verification(complete)
@@ -1435,13 +1338,6 @@ def main() -> int:
         fail(errors, f"{orchestrator_skill}: orchestrator must reject passive routing from other skills")
     if "`updated_at` 并保持 `evidence_complete: true`" not in orch_text:
         fail(errors, f"{orchestrator_skill}: design approval must preserve metadata updates")
-    assert_order(
-        orch_text,
-        "`investigation.md` 的 `stage_status` 为 `blocked`",
-        "`investigation.md` 的 `stage_status` 为 `draft`",
-        errors,
-        "investigation stage inference",
-    )
     assert_order(
         orch_text,
         "`design.md` 的 `stage_status` 为 `blocked`",
@@ -1542,22 +1438,26 @@ def main() -> int:
     assert_contains_all(
         verification_text,
         [
-            "`discovery.md`、`requirements.md`、`investigation.md`、`design.md` 和 `tasks.md` 已存在",
-            "读取 `investigation.md` 的真实调用链",
+            "`discovery.md`、`requirements.md`、`design.md` 和 `tasks.md` 已存在",
+            "读取 `design.md` 的仓库勘探",
             "读取 `discovery.md` 的关键问题",
             "source of truth",
-            "结合 `investigation.md` 的真实链路和数据来源",
+            "结合 `design.md` 的真实链路和数据来源",
             "只有所有 in-scope acceptance criteria 都有真实验证证据且结果为 `PASS`",
             "存在 `FAIL`、`BLOCKED`、未覆盖项或无法解释的验证缺口",
         ],
         errors,
-        "verification closeout investigation dependency",
+        "verification closeout design evidence dependency",
     )
 
     required_template_dirs = [TEMPLATE / "resource", TEMPLATE / "sql"]
     for directory in required_template_dirs:
         if not directory.is_dir():
             fail(errors, f"{directory}: missing template directory")
+    if (TEMPLATE / "investigation.md").exists():
+        fail(errors, "template must not include investigation.md")
+    if "investigation.md" in STAGE_TEMPLATE_FILES:
+        fail(errors, "formal stage template list must not include investigation.md")
     for sql_name in ["DDL.sql", "DML.sql", "ROLLBACK.sql"]:
         if not (TEMPLATE / "sql" / sql_name).is_file():
             fail(errors, f"{TEMPLATE / 'sql' / sql_name}: missing SQL draft file")
@@ -1628,9 +1528,9 @@ def main() -> int:
                 "`evidence_complete: false`",
                 "`updated_at`",
                 "`task_count` 等于真实任务数量",
-                "必须读取 `investigation.md`",
+                "必须读取 `design.md` 的仓库勘探",
                 "source of truth",
-                "未读取 `investigation.md` 就把验证结论写成 complete",
+                "未读取 `design.md` 的仓库勘探就把验证结论写成 complete",
                 "执行要点：",
                 "风险：",
             ],

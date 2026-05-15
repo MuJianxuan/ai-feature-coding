@@ -7,7 +7,7 @@ description: "Coding 技术设计技能。Activation restricted: use only when t
 
 ## 目标
 
-基于 `requirements.md` 和 `investigation.md` 产出能直接拆任务的技术方案。设计必须解释为什么这样改，以及如何验证它真的满足需求。
+基于 `discovery.md` 和 `requirements.md` 做详细仓库勘探、澄清未明确点，并产出能直接拆任务的 `design.md`。设计必须解释为什么这样改，以及如何验证它真的满足需求。
 
 ## 共享契约
 
@@ -41,14 +41,12 @@ description: "Coding 技术设计技能。Activation restricted: use only when t
 
 - 已收到明确的 `feature_dir`。
 - `feature_dir` 目录存在。
-- `discovery.md`、`requirements.md` 和 `investigation.md` 已存在。
+- `discovery.md` 和 `requirements.md` 已存在。
 - `discovery.md stage_status: ready`。
 - `requirements.md stage_status: ready`。
 - `requirements.md evidence_complete: true`。
 - `discovery.md evidence_complete: true`。
-- `investigation.md stage_status: ready`。
-- `investigation.md evidence_complete: true`。
-- `discovery.md`、`requirements.md` 和 `investigation.md` 的 `updated_at` 均已写入 ISO 8601 + timezone。
+- `discovery.md` 和 `requirements.md` 的 `updated_at` 均已写入 ISO 8601 + timezone。
 
 如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
 
@@ -57,7 +55,7 @@ description: "Coding 技术设计技能。Activation restricted: use only when t
 - 禁止删除文件或目录，除非用户明确许可。
 - 禁止 git commit / push / checkout / branch / reset / worktree 等仓库状态变更，除非用户明确许可。
 - 禁止覆盖用户未提交改动；写入 `design.md` 前后都要检查工作区状态。
-- 设计必须基于 `discovery.md`、`requirements.md` 与 `investigation.md` 的证据，不得引入无关重构。
+- 设计必须基于 `discovery.md`、`requirements.md` 和本阶段新完成的仓库勘探证据，不得引入无关重构。
 - 发现 scope 变化时按 contract 的 `Scope change protocol` 记录并停止，不得把未确认变更直接写进方案。
 - 发现影响交付的新澄清问题时，先逐一询问用户；回答影响需求、链路或方案时回流更新上游文档后再继续。
 - 本阶段完成后必须停下，输出下一阶段建议；除非用户明确要求连续推进，不得自行调用下一阶段。
@@ -68,15 +66,69 @@ description: "Coding 技术设计技能。Activation restricted: use only when t
 
 - `requirements.md` 有可验证 acceptance criteria。
 - `discovery.md` 有仓库广扫、必要外部调研、方案方向和关键问题澄清记录。
-- `investigation.md` 有真实代码链路和数据来源。
 - 阻塞问题不存在，或已被明确标为不会影响当前设计。
+
+## 阶段 2：代码库探索
+
+目标：从高层次和低层次理解相关现有代码和模式，并把证据直接写入 `design.md` 的仓库勘探章节，不再生成 `investigation.md`。
+
+操作：
+
+1. 读取 `discovery.md` 的仓库广扫、外部调研、方案方向和已澄清问题，确认哪些证据可复用、哪些需要按 AC 精查。
+2. 确认当前工作目录、项目结构、关键配置和技术栈。
+3. 用 `rg` / `rg --files` 找入口、接口、store、DB、测试、相似实现。
+4. 顺调用链读文件：入口 -> service/use case -> persistence/API -> event/state -> UI/consumer。
+5. 对涉及数据的需求，区分 raw source、aggregated source、cache、derived state。
+6. 对涉及协议/API 的需求，核对 request shape、response shape、stream 行为、错误处理、日志和持久化。
+7. 对涉及 UI 的需求，核对用户入口、状态来源、刷新触发、loading/error/empty state。
+8. 复杂功能、大仓库或跨层改动时，条件性并行启动 2-3 个代码探索代理；小改动可本地完成。每个代理必须聚焦不同方面，例如类似功能、高层架构、数据/API 链路、UI/测试模式，并返回 5-10 个关键文件阅读列表。代理返回后，主 agent 必须亲自阅读代理识别的关键文件再下结论。
+
+`design.md` 的仓库勘探部分必须记录：
+
+- 已查文件：路径 + 关键行/函数 + 结论。
+- 真实链路：按执行顺序列出。
+- 数据来源：source of truth、派生数据、缓存、写入点、读取点。
+- 接口与协议：request shape、response shape、stream/event、错误处理、logging/persistence。
+- 相似实现：可复用模式和不能复用的原因。
+- 风险与未知：区分已证实、推断、未验证。
+- 对设计的约束：必须保留的兼容性、性能、权限、事务或运行时语义。
+
+## 阶段 3：澄清性问题
+
+目标：在架构设计前填补空白并解决所有模糊之处。这个阶段不能跳过。
+
+操作：
+
+1. 回顾代码库发现和 `requirements.md`。
+2. 识别未明确方面：边界情况、错误处理、集成点、范围边界、设计偏好、向后兼容性、性能需求、数据/API/UI 行为、测试验收口径。
+3. 以清晰列表向用户呈现所有影响设计或验收的问题，并附上已查证据。
+4. 在进入架构设计前等待用户回答；如果用户表示“你认为最佳方案即可”，先给出推荐方案和理由，并获取明确确认。
+5. 用户回答后按影响范围回流更新 `requirements.md` 或 `design.md`，再继续设计。
+
+如果仍有 blocking 问题，在 `design.md` 顶部标记 `DESIGN_BLOCKED`，并将 frontmatter `stage_status: blocked`、`evidence_complete: false`、`approval_status: blocked`。
+
+## 阶段 4：架构设计
+
+目标：设计具有不同权衡的多种实现方案，并形成明确推荐。
+
+操作：
+
+1. 复杂功能、大仓库或高风险改动时，条件性并行启动 2-3 个架构代理，分别聚焦：
+   - 最小变更：改动最小、复用最多。
+   - 清晰架构：可维护性、边界和抽象更优。
+   - 实用平衡：速度 + 质量。
+2. 评估所有方案，并结合任务类型、紧急性、复杂性和团队背景形成主张。
+3. 在 `design.md` 中呈现每个方案的简要总结、权衡比较、推荐理由和具体实现差异。
+4. 用户未批准前只输出 `approval_status: pending`，不得进入任务拆解。
 
 ## 设计内容
 
 `design.md` 至少包含：
 
 - 方案摘要：一句话说明核心改动。
-- 头脑风暴与取舍：基于 discovery / investigation 证据列出可行方案、不可行方案和推荐理由。
+- 仓库勘探：已查文件、真实链路、数据来源、相似实现、风险未知、设计约束。
+- 澄清问题：勘探后发现的问题、用户回答、更新位置；没有 blocking 问题时也要显式写明。
+- 方案比较：基于 discovery / repo evidence 列出可行方案、不可行方案和推荐理由。
 - 影响范围：模块、文件、接口、数据表、配置、权限、任务、UI。
 - 目标链路：改动后的调用链或数据流。
 - API 变更：endpoint、request、response、错误码、兼容性。
@@ -85,7 +137,7 @@ description: "Coding 技术设计技能。Activation restricted: use only when t
 - 错误处理与日志：异常传播、可观测字段、PII 处理。
 - 风险和降级：已知风险、回滚策略、灰度或开关。
 - 验证策略：单测、集成、手工验证、数据校验、UI 验证。
-- 外部证据引用：如方案依赖第三方库、框架、OpenAI/API 或版本行为，引用 discovery / investigation 中的 Context7 或官方文档结论。
+- 外部证据引用：如方案依赖第三方库、框架、OpenAI/API 或版本行为，引用 discovery 或本阶段仓库勘探中的 Context7 / 官方文档结论。
 
 ## 决策原则
 

@@ -41,15 +41,14 @@ description: "Coding 任务拆解技能。Activation restricted: use only when t
 
 - 已收到明确的 `feature_dir`。
 - `feature_dir` 目录存在。
-- `discovery.md`、`requirements.md`、`investigation.md` 和 `design.md` 已存在。
+- `discovery.md`、`requirements.md` 和 `design.md` 已存在。
 - `discovery.md stage_status: ready` 且 `discovery.md evidence_complete: true`。
 - `requirements.md stage_status: ready` 且 `requirements.md evidence_complete: true`。
-- `investigation.md stage_status: ready` 且 `investigation.md evidence_complete: true`。
 - `design.md` 的 `stage_status: ready`。
 - `design.md stage_status: ready` 且 `design.md evidence_complete: true`。
 - `design.md approval_status: approved`；如果 metadata 仍是 `pending` 但当前用户请求明确批准设计或明确要求进入任务拆解，先补齐审批字段；否则停止并报告等待设计审批。
 - `approved_by`、`approved_at`、`approval_evidence` 已补齐，且 `approved_at` 是 ISO 8601 + timezone。
-- 上述 `discovery.md`、`requirements.md`、`investigation.md`、`design.md` 的 `updated_at` 均已写入 ISO 8601 + timezone。
+- 上述 `discovery.md`、`requirements.md`、`design.md` 的 `updated_at` 均已写入 ISO 8601 + timezone。
 
 如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
 
@@ -69,7 +68,7 @@ description: "Coding 任务拆解技能。Activation restricted: use only when t
 3. 按依赖顺序排序：schema/config -> backend/domain -> API/adapter -> frontend/state -> tests/docs。
 4. 每项规划期任务必须写：
    - `status`: `TODO` / `DOING` / `DONE` / `BLOCKED`
-   - 输入：依赖的 discovery、requirements、investigation、design 证据或文件。
+   - 输入：依赖的 discovery、requirements、design 证据或文件。
    - 输出：预期改动文件或行为。
    - 完成判定：可执行命令、接口响应、UI 行为或数据状态。
    - 关联模块/文件：尽量列路径或搜索关键词。
@@ -79,7 +78,7 @@ description: "Coding 任务拆解技能。Activation restricted: use only when t
 5. 不把“验证全部功能”作为单个大任务；验证也要按风险拆分。
 6. 如果发现设计不可拆或范围过大，回到 `design.md` 缩小边界。
 7. 如果用户刚刚明确批准设计但 metadata 仍是 `pending`，先把 `design.md` 的审批字段补齐，再拆任务。
-8. 如果任务依赖第三方库、框架、OpenAI/API 或版本行为，只引用 discovery / investigation 中已有外部证据；缺证据时回到相应阶段补证，不在任务中凭空假设。
+8. 如果任务依赖第三方库、框架、OpenAI/API 或版本行为，只引用 discovery / design 中已有外部证据；缺证据时回到相应阶段补证，不在任务中凭空假设。
 
 ## 推荐任务模板
 

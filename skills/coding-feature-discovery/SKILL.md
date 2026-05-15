@@ -71,7 +71,7 @@ description: "Coding 需求前置发现技能。Activation restricted: use only 
 - `discovery.md` 必须列出全部已识别模糊点；不能只记录当前问题。
 - `BLOCKING` 问题未清空时，`stage_status` 必须是 `blocked` 或 `draft`，`evidence_complete: false`。
 - `ready` 只表示 discovery 证据足以进入 PRD 规格化，不表示最终技术方案已批准。
-- 外部证据集中记录在 discovery / investigation；后续 design / tasks 只引用关键结论和来源。
+- 外部证据集中记录在 discovery；后续 design / tasks 只引用关键结论和来源。
 
 ## 输出
 

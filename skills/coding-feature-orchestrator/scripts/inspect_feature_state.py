@@ -21,7 +21,6 @@ TEMPLATE_DIR = ORCHESTRATOR_ROOT / "assets" / "feature-template"
 STAGE_DOCS = {
     "discovery": "discovery.md",
     "requirements": "requirements.md",
-    "investigation": "investigation.md",
     "design": "design.md",
     "tasks": "tasks.md",
     "verification": "verification.md",
@@ -31,7 +30,6 @@ STAGE_DOCS = {
 STAGE_SKILLS = {
     "discovery": "coding-feature-discovery",
     "requirements": "coding-requirement-intake",
-    "investigation": "coding-repo-investigation",
     "design": "coding-technical-design",
     "tasks": "coding-task-planning",
     "verification": "coding-verification-closeout",
@@ -43,7 +41,6 @@ VALID_STAGE_STATUSES = {"draft", "ready", "blocked", "complete"}
 STAGE_ALLOWED_STATUSES = {
     "discovery": {"draft", "ready", "blocked"},
     "requirements": {"draft", "ready", "blocked"},
-    "investigation": {"draft", "ready", "blocked"},
     "design": {"draft", "ready", "blocked"},
     "tasks": {"draft", "ready", "blocked"},
     "verification": {"draft", "blocked", "complete"},
@@ -104,6 +101,7 @@ HEADER_CELLS = {
     "适用范围",
     "方向",
     "适用条件",
+    "具体实现差异",
     "风险 / 取舍",
     "影响范围",
     "当前状态",
@@ -361,21 +359,15 @@ def duplicate_requirement_ac_ids(body: str) -> list[str]:
     return sorted(duplicates)
 
 
-def investigation_complete(body: str) -> bool:
-    return (
-        has_real_table_row(section_text(body, "已查文件"))
-        and section_complete(body, "真实调用链 / 数据流")
-        and section_complete(body, "数据来源")
-        and section_complete(body, "接口与协议")
-        and section_complete(body, "相似实现")
-        and section_complete(body, "风险与未知")
-        and section_complete(body, "对设计的约束")
-    )
-
-
 def design_complete(body: str) -> bool:
     return (
         section_complete(body, "方案摘要")
+        and has_real_table_row(section_text(body, "仓库勘探"))
+        and section_has_no_placeholder_markers(body, "仓库勘探")
+        and section_complete(body, "真实链路与数据来源")
+        and section_complete(body, "澄清问题")
+        and has_real_table_row(section_text(body, "方案比较"))
+        and section_has_no_placeholder_markers(body, "方案比较")
         and has_real_table_row(section_text(body, "影响范围"))
         and section_has_no_placeholder_markers(body, "影响范围")
         and section_complete(body, "目标链路")
@@ -765,38 +757,6 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
         )
     expected_ac_ids = requirement_ac_ids(req_body)
 
-    inv = load_stage(feature_dir, "investigation")
-    if inv is None:
-        inv_path = feature_dir / STAGE_DOCS["investigation"]
-        return make_result(
-            feature_dir=feature_dir,
-            state="investigation_missing",
-            next_skill="coding-repo-investigation",
-            reason="investigation.md missing",
-            evidence_items=[evidence(inv_path, "missing")],
-        )
-    inv_path, inv_meta, inv_body = inv
-    inv_status = stage_status(inv_meta)
-    inv_metadata_issue = stage_metadata_issue("investigation", inv_meta)
-    if inv_metadata_issue:
-        return metadata_inconsistent_result(feature_dir, "investigation", inv_path, inv_metadata_issue)
-    if inv_status == "blocked":
-        return make_result(
-            feature_dir=feature_dir,
-            state="investigation_blocked",
-            blocking=True,
-            reason="investigation.md stage_status is blocked",
-            evidence_items=[evidence(inv_path, "stage_status: blocked")],
-        )
-    if inv_status == "draft" or not investigation_complete(inv_body):
-        return make_result(
-            feature_dir=feature_dir,
-            state="investigation_draft_or_incomplete",
-            next_skill="coding-repo-investigation",
-            reason="investigation.md is draft or lacks real call chain/data-source evidence",
-            evidence_items=[evidence(inv_path, f"stage_status: {inv_status or 'unset'}; evidence incomplete")],
-        )
-
     design = load_stage(feature_dir, "design")
     if design is None:
         design_path = feature_dir / STAGE_DOCS["design"]
@@ -825,7 +785,7 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             feature_dir=feature_dir,
             state="design_draft_or_incomplete",
             next_skill="coding-technical-design",
-            reason="design.md is draft or lacks impact scope, target chain, rollback risk, or verification strategy",
+            reason="design.md is draft or lacks repo investigation, target chain, rollback risk, or verification strategy",
             evidence_items=[evidence(design_path, f"stage_status: {design_status or 'unset'}; design content incomplete")],
         )
     if design_meta.get("approval_status", "").strip().lower() != "approved":

@@ -41,10 +41,9 @@ description: "Coding 编码执行技能。Activation restricted: use only when t
 
 - 已收到明确的 `feature_dir`。
 - `feature_dir` 目录存在。
-- `discovery.md`、`requirements.md`、`investigation.md`、`design.md`、`tasks.md` 和 `verification.md` 已存在。
+- `discovery.md`、`requirements.md`、`design.md`、`tasks.md` 和 `verification.md` 已存在。
 - `discovery.md stage_status: ready` 且 `discovery.md evidence_complete: true`。
 - `requirements.md stage_status: ready` 且 `requirements.md evidence_complete: true`。
-- `investigation.md stage_status: ready` 且 `investigation.md evidence_complete: true`。
 - `design.md stage_status: ready` 且 `design.md evidence_complete: true`。
 - `design.md approval_status: approved`，且 `approved_by`、`approved_at`、`approval_evidence` 已补齐。
 - `tasks.md stage_status: ready` 且 `tasks.md evidence_complete: true`。
@@ -64,7 +63,7 @@ description: "Coding 编码执行技能。Activation restricted: use only when t
 
 ## 开始前
 
-1. 读取 `discovery.md`、`requirements.md`、`investigation.md`、`design.md`、`tasks.md`、`verification.md`。
+1. 读取 `discovery.md`、`requirements.md`、`design.md`、`tasks.md`、`verification.md`。
 2. 加载项目编码规范索引：如果 `.docs/spec/INDEX.md` 存在，读取其内容，了解当前项目已有哪些编码规范文档可供参考。如果 `.docs/spec/INDEX.md` 不存在或 `.docs/spec/` 目录不存在，跳过此步骤。
 3. 如果存在真实 `DOING` 任务，优先恢复该任务；否则选择用户明确指定的任务，或第一个真实 `TODO` 任务。
 4. 将任务状态改为 `DOING`，记录开始时间和执行者为 AI。
