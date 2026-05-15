@@ -47,6 +47,7 @@ description: "Coding 编码执行技能。Activation restricted: use only when t
 - `design.md stage_status: ready` 且 `design.md evidence_complete: true`。
 - `design.md approval_status: approved`，且 `approved_by`、`approved_at`、`approval_evidence` 已补齐。
 - `tasks.md stage_status: ready` 且 `tasks.md evidence_complete: true`。
+- `discovery.md`、`requirements.md`、`design.md`、`tasks.md` 的 `project_context` 均为 `existing_project` 或 `empty_project`，且相互一致。
 - `task_count` 与真实任务数量一致。
 - 至少存在一个真实 `TODO` 或 `DOING` 任务。
 

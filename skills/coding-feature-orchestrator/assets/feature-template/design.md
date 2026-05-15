@@ -3,6 +3,8 @@ feature_stage: design
 stage_status: draft
 updated_at: ""
 evidence_complete: false
+project_context: unknown
+project_context_evidence: ""
 approval_status: pending
 approved_by: ""
 approved_at: ""
@@ -20,12 +22,12 @@ approval_evidence: ""
 | 方案 | 适用条件 | 取舍结论 |
 | --- | --- | --- |
 
-## 3. 仓库勘探
+## 3. 技术上下文与架构依据
 
-| 路径 | 关键位置 | 结论 |
-| --- | --- | --- |
+| 类型 | 来源 / 路径 | 关键位置 / 版本 | 结论 |
+| --- | --- | --- | --- |
 
-## 4. 真实链路与数据来源
+## 4. 目标链路与数据来源
 
 - 当前调用链 / 数据流：UNSET
 - Source of truth：UNSET

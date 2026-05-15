@@ -32,9 +32,9 @@ FORBIDDEN_ROUTE_SOURCE_PATTERNS = [
     "被工作流路由",
 ]
 CHILD_OUTPUT_REQUIREMENTS = {
-    "coding-feature-discovery": ["updated_at", "evidence_complete"],
+    "coding-feature-discovery": ["updated_at", "evidence_complete", "project_context", "project_context_evidence"],
     "coding-requirement-intake": ["updated_at", "evidence_complete"],
-    "coding-technical-design": ["updated_at", "evidence_complete"],
+    "coding-technical-design": ["updated_at", "evidence_complete", "project_context", "project_context_evidence"],
     "coding-task-planning": ["updated_at", "evidence_complete", "task_count", "真实任务数量"],
     "coding-implementation-execution": ["updated_at", "evidence_complete", "task_count"],
     "coding-verification-closeout": ["updated_at", "evidence_complete"],
@@ -43,12 +43,14 @@ CHILD_PREFLIGHT_REQUIREMENTS = {
     "coding-requirement-intake": [
         "`discovery.md stage_status: ready`",
         "`discovery.md evidence_complete: true`",
+        "`discovery.md project_context` 是 `existing_project` 或 `empty_project`",
     ],
     "coding-technical-design": [
         "`discovery.md stage_status: ready`",
         "`requirements.md stage_status: ready`",
         "`discovery.md evidence_complete: true`",
         "`requirements.md evidence_complete: true`",
+        "`discovery.md project_context` 是 `existing_project` 或 `empty_project`",
     ],
     "coding-task-planning": [
         "`discovery.md stage_status: ready`",
@@ -59,6 +61,7 @@ CHILD_PREFLIGHT_REQUIREMENTS = {
         "`design.md evidence_complete: true`",
         "`design.md approval_status: approved`",
         "`approved_by`、`approved_at`、`approval_evidence`",
+        "`project_context` 均为 `existing_project` 或 `empty_project`，且相互一致",
     ],
     "coding-implementation-execution": [
         "`discovery.md stage_status: ready`",
@@ -72,6 +75,7 @@ CHILD_PREFLIGHT_REQUIREMENTS = {
         "`design.md approval_status: approved`",
         "`task_count` 与真实任务数量一致",
         "至少存在一个真实 `TODO` 或 `DOING` 任务",
+        "`project_context` 均为 `existing_project` 或 `empty_project`，且相互一致",
     ],
     "coding-verification-closeout": [
         "`discovery.md stage_status: ready`",
@@ -85,6 +89,7 @@ CHILD_PREFLIGHT_REQUIREMENTS = {
         "`design.md approval_status: approved`",
         "`task_count` 与真实任务数量一致",
         "不存在 `TODO` 或 `DOING` 任务",
+        "`project_context` 均为 `existing_project` 或 `empty_project`，且相互一致",
     ],
 }
 STAGE_TEMPLATE_FILES = {
@@ -104,6 +109,7 @@ STAGE_ALLOWED_STATUS = {
     "verification": {"draft", "blocked", "complete"},
     "handoff": {"draft", "blocked", "complete"},
 }
+VALID_PROJECT_CONTEXTS = {"unknown", "existing_project", "empty_project"}
 ISO_WITH_TZ = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$")
 BAD_TEMPLATE_PATTERNS = [
     "BLOCKING / NON_BLOCKING",
@@ -179,6 +185,28 @@ def assert_not_contains_any(text: str, forbidden_values: list[str], errors: list
             fail(errors, f"{label}: contains forbidden route-source wording {forbidden!r}")
 
 
+def assert_markdown_table_shapes(text: str, errors: list[str], label: str) -> None:
+    previous_header_cells: list[str] | None = None
+    previous_header_line = ""
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            previous_header_cells = None
+            previous_header_line = ""
+            continue
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+        if re.fullmatch(r"\|\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?", stripped):
+            if previous_header_cells is not None and len(cells) != len(previous_header_cells):
+                fail(
+                    errors,
+                    f"{label}:{line_number}: table separator has {len(cells)} columns, "
+                    f"header has {len(previous_header_cells)} columns: {previous_header_line!r}",
+                )
+        else:
+            previous_header_cells = cells
+            previous_header_line = stripped
+
+
 def write_doc(path: Path, frontmatter: dict[str, object], body: str) -> None:
     lines = ["---"]
     for key, value in frontmatter.items():
@@ -234,13 +262,26 @@ def rewrite_frontmatter(path: Path, updates: dict[str, object] | None = None, re
     path.write_text("---\n" + "\n".join(lines) + text[end:])
 
 
-def stage_meta(stage: str, status: str, evidence_complete: bool, **extra: object) -> dict[str, object]:
+def stage_meta(
+    stage: str,
+    status: str,
+    evidence_complete: bool,
+    *,
+    project_context: str = "existing_project",
+    project_context_evidence: str = "测试场景探测到已有项目结构与源码入口",
+    **extra: object,
+) -> dict[str, object]:
     metadata: dict[str, object] = {
         "feature_stage": stage,
         "stage_status": status,
         "updated_at": "2026-05-09T20:30:00+08:00",
         "evidence_complete": evidence_complete,
+        "project_context": project_context,
+        "project_context_evidence": project_context_evidence,
     }
+    if status == "draft" and not evidence_complete:
+        metadata["project_context"] = extra.pop("project_context", project_context)
+        metadata["project_context_evidence"] = extra.pop("project_context_evidence", project_context_evidence)
     metadata.update(extra)
     return metadata
 
@@ -258,11 +299,11 @@ def write_ready_discovery(feature_dir: Path) -> None:
 - 初始目标：管理员需要导出审计日志 CSV。
 - 已知约束：首期只覆盖 CSV 导出。
 
-## 2. 仓库广扫
+## 2. 项目上下文调研
 
-| 路径 | 关键位置 | 发现 |
-| --- | --- | --- |
-| src/audit/export.ts | exportAuditLogs | 存在可复用的审计日志查询条件 |
+| 类型 | 来源 / 路径 | 关键位置 / 版本 | 发现 |
+| --- | --- | --- | --- |
+| existing_project | src/audit/export.ts | exportAuditLogs | 存在可复用的审计日志查询条件 |
 
 ## 3. 外部调研
 
@@ -292,7 +333,68 @@ def write_ready_discovery(feature_dir: Path) -> None:
 
 - 关键问题：影响 scope 和权限的关键问题已回答。
 - 需求边界：首期仅 CSV 导出。
+- 项目上下文：existing_project，测试场景探测到已有项目结构与源码入口。
 - 下一阶段输入：可以整理 in-scope、out-of-scope 和 acceptance criteria。
+""",
+    )
+
+
+def write_ready_empty_project_discovery(feature_dir: Path) -> None:
+    write_doc(
+        feature_dir / "discovery.md",
+        stage_meta(
+            "discovery",
+            "ready",
+            True,
+            project_context="empty_project",
+            project_context_evidence="用户明确要求从 0 创建项目，当前目录无 manifest、src 或测试入口",
+        ),
+        """
+# Discovery
+
+## 1. 原始需求摘要
+
+- 需求来源：测试场景。
+- 初始目标：从 0 创建一个任务看板 Web 应用。
+- 已知约束：首轮交付可运行项目骨架和首屏。
+
+## 2. 项目上下文调研
+
+| 类型 | 来源 / 路径 | 关键位置 / 版本 | 发现 |
+| --- | --- | --- | --- |
+| empty_project | 官方 Vite 文档 | create vite latest | 可使用官方脚手架初始化 React + TypeScript 项目 |
+| empty_project | 仓库探测 | 无 package.json / src / tests | 当前目录未发现既有应用代码 |
+
+## 3. 外部调研
+
+| 来源 | 适用范围 | 结论 |
+| --- | --- | --- |
+| Vite 官方文档 | React + TypeScript scaffold | 使用官方 create vite 流程 |
+
+## 4. 方案方向
+
+| 方向 | 适用条件 | 风险 / 取舍 |
+| --- | --- | --- |
+| Vite + React + TypeScript | 首轮目标是轻量 Web 应用 | 初始化快，需补测试和 lint 策略 |
+
+## 5. 模糊点清单
+
+| ID | 问题 | 影响范围 | 阻塞级别 | 已查证据 | 当前状态 |
+| --- | --- | --- | --- | --- | --- |
+| DQ-01 | 首轮是否只需要本地运行 | scope / AC | RESOLVED | 已查无部署目标 | 用户确认只需本地可运行 |
+
+## 6. 逐问逐答记录
+
+| 问题 ID | 用户回答 | 结论 | 更新位置 |
+| --- | --- | --- | --- |
+| DQ-01 | 只需本地可运行 | 交付聚焦 scaffold + 首屏 | requirements.md#范围 |
+
+## 7. 进入 Requirements 的完成判定
+
+- 关键问题：首轮运行目标已明确。
+- 需求边界：只覆盖项目骨架和首屏。
+- 项目上下文：empty_project，用户明确从 0 创建且仓库无既有应用入口。
+- 下一阶段输入：可以整理 scaffold、启动、测试和首屏 AC。
 """,
     )
 
@@ -458,13 +560,13 @@ def write_ready_design(feature_dir: Path, *, approved: bool = False) -> None:
 
 - 新增 CSV 导出按钮与后端导出接口，复用审计日志查询条件。
 
-## 2. 仓库勘探
+## 2. 技术上下文与架构依据
 
-| 路径 | 关键位置 | 结论 |
-| --- | --- | --- |
-| src/audit/export.ts | exportAuditLogs | 可复用查询条件 |
+| 类型 | 来源 / 路径 | 关键位置 / 版本 | 结论 |
+| --- | --- | --- | --- |
+| existing_project | src/audit/export.ts | exportAuditLogs | 可复用查询条件 |
 
-## 3. 真实链路与数据来源
+## 3. 目标链路与数据来源
 
 - 当前链路：UI export button -> API client -> audit service -> audit_logs table。
 - Source of truth：audit_logs 表。
@@ -531,6 +633,170 @@ def write_ready_design(feature_dir: Path, *, approved: bool = False) -> None:
 
 - 自动化验证：运行 audit export targeted tests。
 - 手工验证：管理员点击导出。
+""",
+    )
+
+
+def write_ready_empty_project_requirements(feature_dir: Path) -> None:
+    write_ready_empty_project_discovery(feature_dir)
+    write_doc(
+        feature_dir / "requirements.md",
+        stage_meta(
+            "requirements",
+            "ready",
+            True,
+            project_context="empty_project",
+            project_context_evidence="继承 discovery：用户明确从 0 创建且仓库无既有应用入口",
+        ),
+        """
+# Requirements
+
+## 1. 背景
+
+- 需求来源：测试场景
+- 业务背景：需要从 0 创建任务看板 Web 应用。
+- 当前问题：当前目录没有可运行应用骨架。
+
+## 2. 目标
+
+- 业务目标：建立可运行、可测试、可继续迭代的项目骨架。
+- 用户价值：后续功能可以在统一工程基础上迭代。
+- 成功标准：项目可启动并展示任务看板首屏。
+
+## 3. 范围
+
+### In Scope
+
+- 使用官方脚手架创建 React + TypeScript 项目骨架。
+- 提供首屏任务看板。
+
+### Out of Scope
+
+- 不接入后端和持久化。
+
+## 4. 用户路径 / 业务流程
+
+- 开发者安装依赖，启动开发服务，浏览器打开本地地址看到任务看板首屏。
+
+## 5. Acceptance Criteria
+
+| ID | 验收标准 | 验证方式 | 状态 |
+| --- | --- | --- | --- |
+| AC-01 | 项目可以本地启动并展示任务看板首屏 | 运行 dev server 并访问首屏 | READY |
+
+## 6. 非功能要求
+
+- 性能：首屏本地开发加载无明显阻塞。
+- 安全：不处理敏感信息。
+- 兼容性：使用当前稳定 Node 前端工具链。
+- 可观测性：启动失败时保留命令输出。
+
+## 7. 约束与假设
+
+- 约束：首轮只做本地运行。
+- 假设：用户接受 Vite + React + TypeScript。
+""",
+    )
+
+
+def write_ready_empty_project_design(feature_dir: Path, *, approved: bool = False) -> None:
+    write_doc(
+        feature_dir / "design.md",
+        stage_meta(
+            "design",
+            "ready",
+            True,
+            project_context="empty_project",
+            project_context_evidence="继承 discovery：用户明确从 0 创建且仓库无既有应用入口",
+            approval_status="approved" if approved else "pending",
+            approved_by="user" if approved else "",
+            approved_at="2026-05-09T20:31:00+08:00" if approved else "",
+            approval_evidence="用户确认进入任务拆解" if approved else "",
+        ),
+        """
+# Design
+
+## 1. 方案摘要
+
+- 使用官方 Vite React TypeScript 脚手架初始化项目，并实现首个任务看板页面。
+
+## 2. 技术上下文与架构依据
+
+| 类型 | 来源 / 路径 | 关键位置 / 版本 | 结论 |
+| --- | --- | --- | --- |
+| empty_project | Vite 官方文档 | create vite latest | 使用官方脚手架初始化工程 |
+| empty_project | 仓库探测 | 无 package.json / src / tests | 无既有代码链路需要迁移 |
+
+## 3. 目标链路与数据来源
+
+- 当前链路：无既有链路。
+- Source of truth：首轮使用前端内置 mock tasks。
+- 写入点：首轮不持久化写入。
+- 读取点：任务看板页面读取本地 mock 数据。
+- 缓存 / 聚合 / 派生状态：不涉及。
+- 接口与协议：首轮无后端 API。
+- 相似实现：无既有实现，参考官方脚手架结构。
+- 对设计的约束：必须保留官方脚手架可升级性。
+
+## 4. 澄清问题
+
+- 无 blocking 问题；首轮只要求本地运行。
+
+## 5. 方案比较
+
+| 方案 | 适用条件 | 取舍结论 |
+| --- | --- | --- |
+| Vite + React + TypeScript | 轻量 Web 应用骨架 | 推荐，官方脚手架成熟且启动快 |
+
+## 6. 影响范围
+
+| 类型 | 模块 / 文件 | 影响说明 |
+| --- | --- | --- |
+| bootstrap | package.json, src/ | 新建项目骨架和首屏 |
+
+## 7. 目标链路
+
+- dev command -> Vite dev server -> React app -> Task board page。
+
+## 8. API 变更
+
+- Endpoint：不涉及。
+- Request：不涉及。
+- Response：不涉及。
+- Error code：不涉及。
+- 兼容性：无既有 API 兼容负担。
+
+## 9. 数据变更
+
+- DDL：不涉及。
+- DML：不涉及。
+- Migration：不涉及。
+- Rollback：删除本次 scaffold 产物。
+- 幂等性：脚手架命令不应重复覆盖用户改动。
+
+## 10. 状态、事务与并发
+
+- 事务边界：不涉及。
+- 缓存刷新：不涉及。
+- Stream / event：不涉及。
+- 异步任务：不涉及。
+
+## 11. 错误处理与日志
+
+- 异常传播：启动失败保留命令输出。
+- 日志字段：不涉及应用日志。
+- PII 处理：不涉及。
+
+## 12. 风险与回滚
+
+| 风险 | 影响 | 缓解方案 | 回滚方式 |
+| --- | --- | --- | --- |
+| 脚手架版本变化 | 文件结构变化 | 记录官方命令和版本 | 删除 scaffold 产物后重建 |
+
+## 13. 验证策略
+
+- 自动化验证：运行测试命令或 typecheck。
+- 手工验证：启动 dev server 并访问首屏。
 """,
     )
 
@@ -923,6 +1189,34 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             label="inspector blocked discovery",
         )
 
+        unknown_ready_discovery = make_scenario(scenarios_root, "unknown-ready-discovery")
+        write_ready_discovery(unknown_ready_discovery)
+        rewrite_frontmatter(
+            unknown_ready_discovery / "discovery.md",
+            {"project_context": "unknown", "project_context_evidence": ""},
+        )
+        result = inspector.inspect_feature_state(unknown_ready_discovery)
+        assert_state(
+            result,
+            state="discovery_metadata_inconsistent",
+            next_skill="coding-feature-discovery",
+            blocking=True,
+            errors=errors,
+            label="inspector ready discovery must resolve project_context",
+        )
+
+        empty_project_discovery = make_scenario(scenarios_root, "empty-project-discovery")
+        write_ready_empty_project_discovery(empty_project_discovery)
+        result = inspector.inspect_feature_state(empty_project_discovery)
+        assert_state(
+            result,
+            state="requirements_draft",
+            next_skill="coding-requirement-intake",
+            blocking=False,
+            errors=errors,
+            label="inspector empty-project discovery can advance without repo scan",
+        )
+
         non_blocking = make_scenario(scenarios_root, "non-blocking-requirement")
         write_ready_requirements(non_blocking, include_non_blocking_question=True)
         result = inspector.inspect_feature_state(non_blocking)
@@ -998,6 +1292,25 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             label="inspector requirement stage_status complete must be rejected",
         )
 
+        req_context_mismatch = make_scenario(scenarios_root, "requirement-context-mismatch")
+        write_ready_requirements(req_context_mismatch)
+        rewrite_frontmatter(
+            req_context_mismatch / "requirements.md",
+            {
+                "project_context": "empty_project",
+                "project_context_evidence": "错误继承了 empty_project",
+            },
+        )
+        result = inspector.inspect_feature_state(req_context_mismatch)
+        assert_state(
+            result,
+            state="requirements_metadata_inconsistent",
+            next_skill="coding-requirement-intake",
+            blocking=True,
+            errors=errors,
+            label="inspector requirements project_context must match discovery",
+        )
+
         approval_pending = make_scenario(scenarios_root, "approval-pending")
         write_ready_requirements(approval_pending)
         write_ready_design(approval_pending, approved=False)
@@ -1026,6 +1339,39 @@ def run_inspector_scenarios(errors: list[str]) -> None:
             blocking=True,
             errors=errors,
             label="inspector approved design must include approval evidence fields",
+        )
+
+        design_context_mismatch = make_scenario(scenarios_root, "design-context-mismatch")
+        write_ready_requirements(design_context_mismatch)
+        write_ready_design(design_context_mismatch, approved=False)
+        rewrite_frontmatter(
+            design_context_mismatch / "design.md",
+            {
+                "project_context": "empty_project",
+                "project_context_evidence": "错误继承了 empty_project",
+            },
+        )
+        result = inspector.inspect_feature_state(design_context_mismatch)
+        assert_state(
+            result,
+            state="design_metadata_inconsistent",
+            next_skill="coding-technical-design",
+            blocking=True,
+            errors=errors,
+            label="inspector design project_context must match discovery",
+        )
+
+        empty_project_approval_pending = make_scenario(scenarios_root, "empty-project-approval-pending")
+        write_ready_empty_project_requirements(empty_project_approval_pending)
+        write_ready_empty_project_design(empty_project_approval_pending, approved=False)
+        result = inspector.inspect_feature_state(empty_project_approval_pending)
+        assert_state(
+            result,
+            state="waiting_design_approval",
+            next_skill="coding-task-planning",
+            blocking=True,
+            errors=errors,
+            label="inspector empty-project design can be ready without existing repo chain",
         )
 
         task_planning = make_scenario(scenarios_root, "task-planning")
@@ -1439,10 +1785,10 @@ def main() -> int:
         verification_text,
         [
             "`discovery.md`、`requirements.md`、`design.md` 和 `tasks.md` 已存在",
-            "读取 `design.md` 的仓库勘探",
+            "读取 `design.md` 的技术上下文与架构依据",
             "读取 `discovery.md` 的关键问题",
             "source of truth",
-            "结合 `design.md` 的真实链路和数据来源",
+            "结合 `design.md` 的目标链路和数据来源",
             "只有所有 in-scope acceptance criteria 都有真实验证证据且结果为 `PASS`",
             "存在 `FAIL`、`BLOCKED`、未覆盖项或无法解释的验证缺口",
         ],
@@ -1465,6 +1811,7 @@ def main() -> int:
     for md_path in sorted(TEMPLATE.rglob("*.md")):
         text = md_path.read_text()
         metadata = parse_frontmatter(md_path, errors)
+        assert_markdown_table_shapes(text, errors, str(md_path))
         for pattern in BAD_TEMPLATE_PATTERNS:
             if pattern in text:
                 fail(errors, f"{md_path}: contains misleading placeholder pattern {pattern!r}")
@@ -1475,6 +1822,11 @@ def main() -> int:
             for required in ["feature_stage", "stage_status", "updated_at", "evidence_complete"]:
                 if required not in metadata:
                     fail(errors, f"{md_path}: missing stage metadata {required}")
+            for required in ["project_context", "project_context_evidence"]:
+                if required not in metadata:
+                    fail(errors, f"{md_path}: missing project context metadata {required}")
+            if metadata.get("project_context") not in VALID_PROJECT_CONTEXTS:
+                fail(errors, f"{md_path}: invalid project_context {metadata.get('project_context')!r}")
             if metadata.get("stage_status") not in VALID_STAGE_STATUS:
                 fail(errors, f"{md_path}: invalid stage_status {metadata.get('stage_status')!r}")
             elif metadata.get("stage_status") not in STAGE_ALLOWED_STATUS[expected_stage]:
@@ -1528,9 +1880,9 @@ def main() -> int:
                 "`evidence_complete: false`",
                 "`updated_at`",
                 "`task_count` 等于真实任务数量",
-                "必须读取 `design.md` 的仓库勘探",
+                "必须读取 `design.md` 的技术上下文与架构依据",
                 "source of truth",
-                "未读取 `design.md` 的仓库勘探就把验证结论写成 complete",
+                "未读取 `design.md` 的技术上下文与架构依据就把验证结论写成 complete",
                 "执行要点：",
                 "风险：",
             ],

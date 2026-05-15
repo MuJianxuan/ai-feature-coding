@@ -7,7 +7,7 @@ description: "Coding 技术设计技能。Activation restricted: use only when t
 
 ## 目标
 
-基于 `discovery.md` 和 `requirements.md` 做详细仓库勘探、澄清未明确点，并产出能直接拆任务的 `design.md`。设计必须解释为什么这样改，以及如何验证它真的满足需求。
+基于 `discovery.md` 和 `requirements.md` 做详细技术设计。`existing_project` 做仓库勘探和真实链路核对；`empty_project` 做 bootstrap architecture、脚手架依据和首个可运行目标设计。产出能直接拆任务的 `design.md`。设计必须解释为什么这样改，以及如何验证它真的满足需求。
 
 ## 共享契约
 
@@ -46,6 +46,7 @@ description: "Coding 技术设计技能。Activation restricted: use only when t
 - `requirements.md stage_status: ready`。
 - `requirements.md evidence_complete: true`。
 - `discovery.md evidence_complete: true`。
+- `discovery.md project_context` 是 `existing_project` 或 `empty_project`，且 `project_context_evidence` 已写明。
 - `discovery.md` 和 `requirements.md` 的 `updated_at` 均已写入 ISO 8601 + timezone。
 
 如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
@@ -55,7 +56,7 @@ description: "Coding 技术设计技能。Activation restricted: use only when t
 - 禁止删除文件或目录，除非用户明确许可。
 - 禁止 git commit / push / checkout / branch / reset / worktree 等仓库状态变更，除非用户明确许可。
 - 禁止覆盖用户未提交改动；写入 `design.md` 前后都要检查工作区状态。
-- 设计必须基于 `discovery.md`、`requirements.md` 和本阶段新完成的仓库勘探证据，不得引入无关重构。
+- 设计必须基于 `discovery.md`、`requirements.md` 和本阶段新完成的技术上下文证据，不得引入无关重构。
 - 发现 scope 变化时按 contract 的 `Scope change protocol` 记录并停止，不得把未确认变更直接写进方案。
 - 发现影响交付的新澄清问题时，先逐一询问用户；回答影响需求、链路或方案时回流更新上游文档后再继续。
 - 本阶段完成后必须停下，输出下一阶段建议；除非用户明确要求连续推进，不得自行调用下一阶段。
@@ -65,29 +66,28 @@ description: "Coding 技术设计技能。Activation restricted: use only when t
 开始前确认：
 
 - `requirements.md` 有可验证 acceptance criteria。
-- `discovery.md` 有仓库广扫、必要外部调研、方案方向和关键问题澄清记录。
+- `discovery.md` 有项目上下文调研、必要外部调研、方案方向和关键问题澄清记录。
 - 阻塞问题不存在，或已被明确标为不会影响当前设计。
 
 ## 阶段 2：代码库探索
 
-目标：从高层次和低层次理解相关现有代码和模式，并把证据直接写入 `design.md` 的仓库勘探章节，不再生成 `investigation.md`。
+目标：从高层次和低层次理解当前项目上下文，并把证据直接写入 `design.md` 的“技术上下文与架构依据”章节，不再生成 `investigation.md`。
 
 操作：
 
-1. 读取 `discovery.md` 的仓库广扫、外部调研、方案方向和已澄清问题，确认哪些证据可复用、哪些需要按 AC 精查。
-2. 确认当前工作目录、项目结构、关键配置和技术栈。
-3. 用 `rg` / `rg --files` 找入口、接口、store、DB、测试、相似实现。
-4. 顺调用链读文件：入口 -> service/use case -> persistence/API -> event/state -> UI/consumer。
-5. 对涉及数据的需求，区分 raw source、aggregated source、cache、derived state。
-6. 对涉及协议/API 的需求，核对 request shape、response shape、stream 行为、错误处理、日志和持久化。
-7. 对涉及 UI 的需求，核对用户入口、状态来源、刷新触发、loading/error/empty state。
-8. 复杂功能、大仓库或跨层改动时，条件性并行启动 2-3 个代码探索代理；小改动可本地完成。每个代理必须聚焦不同方面，例如类似功能、高层架构、数据/API 链路、UI/测试模式，并返回 5-10 个关键文件阅读列表。代理返回后，主 agent 必须亲自阅读代理识别的关键文件再下结论。
+1. 读取 `discovery.md` 的项目上下文调研、外部调研、方案方向和已澄清问题，确认哪些证据可复用、哪些需要按 AC 精查。
+2. `existing_project`：确认当前工作目录、项目结构、关键配置和技术栈；用 `rg` / `rg --files` 找入口、接口、store、DB、测试、相似实现；顺调用链读文件。
+3. `empty_project`：确认官方脚手架命令、初始化目录结构、基础依赖、配置/env、测试框架、lint/format、启动命令和首个可运行目标。
+4. 对涉及数据的需求，区分 raw source、aggregated source、cache、derived state；空项目则定义 planned source of truth、初始 schema/config 和未来迁移边界。
+5. 对涉及协议/API 的需求，核对 request shape、response shape、stream 行为、错误处理、日志和持久化；空项目则定义首版接口/事件形态和兼容预期。
+6. 对涉及 UI 的需求，核对用户入口、状态来源、刷新触发、loading/error/empty state；空项目则定义首屏/首路径和基础状态模型。
+7. 复杂功能、大仓库或跨层改动时，条件性并行启动 2-3 个代码探索代理；小改动可本地完成。每个代理必须聚焦不同方面，例如类似功能、高层架构、数据/API 链路、UI/测试模式，并返回 5-10 个关键文件阅读列表。代理返回后，主 agent 必须亲自阅读代理识别的关键文件再下结论。
 
-`design.md` 的仓库勘探部分必须记录：
+`design.md` 的技术上下文与架构依据部分必须记录：
 
-- 已查文件：路径 + 关键行/函数 + 结论。
-- 真实链路：按执行顺序列出。
-- 数据来源：source of truth、派生数据、缓存、写入点、读取点。
+- `existing_project` 已查文件：路径 + 关键行/函数 + 结论；`empty_project` 已查官方资料：来源 + 版本/命令 + 结论。
+- 目标链路：已有项目按执行顺序列出真实链路；空项目列出 bootstrap 后的首个可运行链路。
+- 数据来源：source of truth、派生数据、缓存、写入点、读取点；空项目列 planned source of truth。
 - 接口与协议：request shape、response shape、stream/event、错误处理、logging/persistence。
 - 相似实现：可复用模式和不能复用的原因。
 - 风险与未知：区分已证实、推断、未验证。
@@ -126,7 +126,7 @@ description: "Coding 技术设计技能。Activation restricted: use only when t
 `design.md` 至少包含：
 
 - 方案摘要：一句话说明核心改动。
-- 仓库勘探：已查文件、真实链路、数据来源、相似实现、风险未知、设计约束。
+- 技术上下文与架构依据：已查文件或官方脚手架资料、目标链路、数据来源、相似实现或参考架构、风险未知、设计约束。
 - 澄清问题：勘探后发现的问题、用户回答、更新位置；没有 blocking 问题时也要显式写明。
 - 方案比较：基于 discovery / repo evidence 列出可行方案、不可行方案和推荐理由。
 - 影响范围：模块、文件、接口、数据表、配置、权限、任务、UI。
@@ -137,7 +137,7 @@ description: "Coding 技术设计技能。Activation restricted: use only when t
 - 错误处理与日志：异常传播、可观测字段、PII 处理。
 - 风险和降级：已知风险、回滚策略、灰度或开关。
 - 验证策略：单测、集成、手工验证、数据校验、UI 验证。
-- 外部证据引用：如方案依赖第三方库、框架、OpenAI/API 或版本行为，引用 discovery 或本阶段仓库勘探中的 Context7 / 官方文档结论。
+- 外部证据引用：如方案依赖第三方库、框架、OpenAI/API 或版本行为，引用 discovery 或本阶段技术上下文调研中的 Context7 / 官方文档结论。
 
 ## 决策原则
 
@@ -148,4 +148,4 @@ description: "Coding 技术设计技能。Activation restricted: use only when t
 
 ## 输出
 
-更新 `design.md`。如果方案仍依赖未确认业务决策，在文档顶部标记 `DESIGN_BLOCKED`，并将 frontmatter `stage_status` 标记为 `blocked`、`evidence_complete: false`、`approval_status` 标记为 `blocked`；如果设计可直接拆任务，将 `stage_status` 标记为 `ready`、`evidence_complete: true`，但保持 `approval_status: pending`，等待用户明确批准后才能进入 `coding-task-planning`。每次写入 `design.md` 都必须同步更新 `updated_at`。输出下一步建议后停止。
+更新 `design.md`。如果方案仍依赖未确认业务决策，在文档顶部标记 `DESIGN_BLOCKED`，并将 frontmatter `stage_status` 标记为 `blocked`、`evidence_complete: false`、`approval_status` 标记为 `blocked`；如果设计可直接拆任务，将 `stage_status` 标记为 `ready`、`evidence_complete: true`，但保持 `approval_status: pending`，等待用户明确批准后才能进入 `coding-task-planning`。每次写入 `design.md` 都必须同步更新 `updated_at`，并保持 `project_context` / `project_context_evidence` 与 discovery 一致。输出下一步建议后停止。

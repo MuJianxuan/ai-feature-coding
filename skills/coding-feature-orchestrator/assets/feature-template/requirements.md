@@ -3,6 +3,8 @@ feature_stage: requirements
 stage_status: draft
 updated_at: ""
 evidence_complete: false
+project_context: unknown
+project_context_evidence: ""
 ---
 
 # Requirements

@@ -15,9 +15,9 @@ npx skills add MuJianxuan/ai-feature-coding
 | 阶段 | Skill | 产物 | 职责 |
 | --- | --- | --- | --- |
 | 总调度 | `coding-feature-orchestrator` | route payload | 入口判断、阶段推断、路由分发 |
-| 前置发现 | `coding-feature-discovery` | `discovery.md` | 仓库广扫、外部调研、方案方向、模糊点穷举与逐问逐答 |
+| 前置发现 | `coding-feature-discovery` | `discovery.md` | 项目上下文调研、外部调研、方案方向、模糊点穷举与逐问逐答 |
 | 需求澄清 | `coding-requirement-intake` | `requirements.md` | 基于 discovery 把输入规格化为可验证的 scope 和 acceptance criteria |
-| 技术设计 | `coding-technical-design` | `design.md` | 精查真实代码链路、澄清未明确点，并写可拆任务的技术方案 |
+| 技术设计 | `coding-technical-design` | `design.md` | 按 project context 精查真实代码链路或 bootstrap architecture，并写可拆任务的技术方案 |
 | 任务拆解 | `coding-task-planning` | `tasks.md` | 拆成原子、可验证、按依赖排序的任务 |
 | 编码执行 | `coding-implementation-execution` | 代码改动 + 交付记录 | 按 tasks.md 逐项执行 |
 | 验证收口 | `coding-verification-closeout` | `verification.md` + `handoff.md` | AC 映射验证、交付总结 |
@@ -43,7 +43,7 @@ flowchart TD
     FGate --> R["需求澄清<br/>coding-requirement-intake<br/>requirements.md"]
     R --> RGate{"用户确认继续<br/>stage_status: ready"}
 
-    RGate --> T["技术设计<br/>coding-technical-design<br/>design.md<br/>仓库勘探 + 澄清 + 方案"]
+    RGate --> T["技术设计<br/>coding-technical-design<br/>design.md<br/>技术上下文 + 澄清 + 方案"]
     T --> TGate{"设计审批<br/>approval_status"}
     TGate -->|pending 或修改| T
     TGate -->|approved| P["任务拆解<br/>coding-task-planning<br/>tasks.md"]
@@ -84,7 +84,7 @@ flowchart TD
    用户确认 ↓
 2. 需求澄清 → 产出 requirements.md (stage_status: ready)
    用户确认 ↓
-3. 技术设计 → 在 design.md 中完成仓库勘探、澄清问题和方案设计 (stage_status: ready, approval_status: pending)
+3. 技术设计 → 在 design.md 中完成技术上下文与架构依据、澄清问题和方案设计 (stage_status: ready, approval_status: pending)
    用户批准设计 ↓
 4. 任务拆解 → 产出 tasks.md (stage_status: ready, task_count: N)
    用户确认 ↓
@@ -161,20 +161,20 @@ flowchart TD
 | 反模式 | 正确做法 |
 | --- | --- |
 | 普通 bug 排查触发工作流 | 只有显式指定 skill 才触发 |
-| 跳过 discovery 直接写 PRD | 先做仓库广扫、外部调研和关键问题逐问逐答 |
+| 跳过 discovery 直接写 PRD | 先按 project_context 做项目上下文调研、外部调研和关键问题逐问逐答 |
 | 设计 ready 就直接拆任务 | 等用户明确批准 |
 | 一个任务完成后自动执行下一个 | 停下等用户确认 |
 | 用"已完成"作为交付记录 | 写改动文件、验证命令、结果、残余风险 |
-| 验证只看 tasks.md | 必须结合 design.md 的仓库勘探、真实链路和 source of truth |
+| 验证只看 tasks.md | 必须结合 design.md 的技术上下文与架构依据、目标链路和 source of truth |
 
 ## Feature 目录结构
 
 ```
 .docs/feature-YYYYMMDD-short-name/
 ├── README.md              # 目录说明
-├── discovery.md           # 前置发现、调研、方案方向、模糊点澄清
+├── discovery.md           # 前置发现、项目上下文调研、方案方向、模糊点澄清
 ├── requirements.md        # 需求、scope、验收标准
-├── design.md              # 仓库勘探、技术方案、影响范围
+├── design.md              # 技术上下文与架构依据、技术方案、影响范围
 ├── tasks.md               # 任务清单（唯一编码驱动文件）
 ├── verification.md        # 验收映射
 ├── handoff.md             # 交付总结
@@ -196,6 +196,8 @@ feature_stage: discovery     # discovery/requirements/design/tasks/verification/
 stage_status: draft          # draft/ready/blocked (前4阶段) 或 draft/blocked/complete (后2阶段)
 updated_at: "2026-05-11T10:00:00+08:00"
 evidence_complete: false
+project_context: unknown  # unknown/existing_project/empty_project
+project_context_evidence: ""
 ---
 ```
 

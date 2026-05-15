@@ -46,6 +46,7 @@ description: "Coding 任务拆解技能。Activation restricted: use only when t
 - `requirements.md stage_status: ready` 且 `requirements.md evidence_complete: true`。
 - `design.md` 的 `stage_status: ready`。
 - `design.md stage_status: ready` 且 `design.md evidence_complete: true`。
+- `discovery.md`、`requirements.md`、`design.md` 的 `project_context` 均为 `existing_project` 或 `empty_project`，且相互一致。
 - `design.md approval_status: approved`；如果 metadata 仍是 `pending` 但当前用户请求明确批准设计或明确要求进入任务拆解，先补齐审批字段；否则停止并报告等待设计审批。
 - `approved_by`、`approved_at`、`approval_evidence` 已补齐，且 `approved_at` 是 ISO 8601 + timezone。
 - 上述 `discovery.md`、`requirements.md`、`design.md` 的 `updated_at` 均已写入 ISO 8601 + timezone。

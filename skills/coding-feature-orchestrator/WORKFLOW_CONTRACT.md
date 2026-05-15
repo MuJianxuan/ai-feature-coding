@@ -59,6 +59,8 @@ feature_stage: discovery # discovery / requirements / design / tasks / verificat
 stage_status: draft # 按阶段限制：discovery/requirements/design/tasks 使用 draft/ready/blocked；verification/handoff 使用 draft/blocked/complete
 updated_at: "2026-05-09T00:00:00+08:00"
 evidence_complete: false
+project_context: unknown # unknown / existing_project / empty_project
+project_context_evidence: ""
 ```
 
 `updated_at` 在模板中可以为空字符串；一旦任何阶段写入或更新文档，必须使用 ISO 8601 + timezone，例如 `2026-05-09T20:30:00+08:00`。
@@ -70,6 +72,8 @@ evidence_complete: false
 - `stage_status: draft` 或 `stage_status: blocked` 时，`evidence_complete` 必须保持或更新为 `false`，并在正文写明缺口、阻塞证据或待确认条件。
 - `tasks.md` 的 `task_count` 必须等于真实任务数量；每次新增、拆分、删除或因批准后的 scope 变更调整真实任务时都必须同步更新。
 - 同一次操作触碰多个阶段文档时，每个被修改的阶段文档都必须各自更新 metadata。
+- `project_context` 必须在 discovery 阶段确定，并在后续阶段文档中保持一致；`stage_status: ready` 或 `complete` 前不能仍为 `unknown`。
+- `project_context_evidence` 必须记录判定依据，例如用户明确说明、仓库探测结果、manifest/src/test 缺失证据或已有项目入口证据。
 
 `design.md` 额外包含设计审批字段：
 
@@ -104,9 +108,9 @@ approval_evidence: ""
 
 阶段完成时必须更新 metadata：
 
-- `coding-feature-discovery`：仓库广扫、必要外部调研、方案方向、模糊点清单和关键问题逐问逐答完成时，把 `discovery.md` 标记为 `ready`。
+- `coding-feature-discovery`：按 `project_context` 完成项目上下文调研、必要外部调研、方案方向、模糊点清单和关键问题逐问逐答完成时，把 `discovery.md` 标记为 `ready`。
 - `coding-requirement-intake`：在 `discovery.md stage_status: ready` 后规格化 PRD；无阻塞且 acceptance criteria 可验证时，把 `requirements.md` 标记为 `ready`。
-- `coding-technical-design`：在 `requirements.md stage_status: ready` 后按 acceptance criteria 做仓库勘探、澄清未明确点并设计方案；真实链路、数据来源、已查文件、方案比较和验证策略齐备且方案可拆任务时，把 `design.md` 标记为 `ready`，并保持 `approval_status: pending`；依赖业务决策时标记为 `blocked`。
+- `coding-technical-design`：在 `requirements.md stage_status: ready` 后按 acceptance criteria 做技术上下文与架构依据调研、澄清未明确点并设计方案；`existing_project` 要求真实链路、数据来源和已查文件，`empty_project` 要求 bootstrap architecture、脚手架依据和首个可运行目标；方案比较和验证策略齐备且方案可拆任务时，把 `design.md` 标记为 `ready`，并保持 `approval_status: pending`；依赖业务决策时标记为 `blocked`。
 - `coding-task-planning`：只在 `design.md stage_status: ready` 且 `approval_status: approved` 后拆任务；如果当前用户请求明确批准设计，必须先补齐审批字段再拆任务。真实任务写入后，把 `tasks.md` 标记为 `ready` 并更新 `task_count`。
 - `coding-verification-closeout`：只有所有 in-scope acceptance criteria 都有真实验证证据且结果为 `PASS` 时，才把 `verification.md` 标记为 `complete`、`evidence_complete: true`；存在 `FAIL`、`BLOCKED` 或未覆盖项时，保持或更新为 `draft/blocked`、`evidence_complete: false` 并写清证据。交付摘要、变更范围、配置 / SQL / 部署事项、复核入口、验证结论和残余风险齐备后，才把 `handoff.md` 标记为 `complete`；无相关配置、SQL、部署或数据修复时也必须显式写“无”。
 
@@ -122,6 +126,21 @@ approval_evidence: ""
 - `approval_status: pending` 不是设计批准。
 
 阶段推断不能只 grep 某个词。必须结合 metadata、表格真实行、任务条目和证据内容判断。
+
+## 4.1 Project context contract
+
+Coding Feature Workflow 同时支持已有项目功能迭代和从 0 创建项目，但必须显式记录项目上下文：
+
+- `existing_project`：仓库中存在可调研的项目结构、manifest、源码入口、测试或业务链路。Discovery 必须做仓库广扫；Design 必须记录仓库勘探、真实链路、数据来源、相似实现和 source of truth。
+- `empty_project`：当前需求是新建项目 / 空项目 / 从 0 scaffold。Discovery 不强制仓库广扫，改为记录技术栈候选、官方脚手架、基础依赖、项目结构、测试框架、lint/format、启动命令、打包或部署约束等调研证据。Design 不强制既有代码链路，改为记录 bootstrap architecture、目录结构、初始化命令、核心模块边界、配置/env、测试策略和首个可运行目标。
+- `unknown`：只允许存在于 draft 阶段。进入 ready/complete 前必须由用户确认或仓库证据确定为 `existing_project` 或 `empty_project`。
+
+判定规则：
+
+1. 用户明确说“空项目 / 从 0 创建 / 新建项目 / scaffold project”时，可以标记 `empty_project`，但如果仓库已有明显 manifest、源码入口或历史 feature 目录，必须先报告冲突证据并确认。
+2. 自动探测只能作为建议：缺少 manifest、源码入口、测试和业务代码时建议 `empty_project`；存在这些证据时建议 `existing_project`。
+3. 自动探测不能静默覆盖用户意图；冲突时停止并只问一个确认问题。
+4. 后续阶段发现上下文判定错误时，按 scope change / clarification 回流更新相关阶段文档。
 
 可执行状态检查器：
 
@@ -226,7 +245,7 @@ approval_evidence: ""
 
 `discovery.md` 是需求前置发现阶段：
 
-1. 先做仓库广扫，再按需使用 Context7 或官方文档验证第三方库、框架、OpenAI/API、版本行为或不确定实现。
+1. 先确定 `project_context`；`existing_project` 先做仓库广扫，`empty_project` 先做官方脚手架、技术栈和架构调研；再按需使用 Context7 或官方文档验证第三方库、框架、OpenAI/API、版本行为或不确定实现。
 2. 以头脑风暴方式列出 2-3 个方案方向、适用条件、风险和取舍，但不得写成最终 design。
 3. 列出全部已识别模糊点、边界情况和未明确行为。
 4. 凡影响 scope、acceptance criteria、用户路径、数据/API/UI 行为、风险验证或任务拆解的问题，都必须标为 `BLOCKING` 并逐一询问。
@@ -262,7 +281,7 @@ approval_evidence: ""
 - 辅助模板 Markdown 可解析，但不得包含 `feature_stage` 或 `stage_status`。
 - `design.md` 包含设计审批字段，`tasks.md` 包含 `task_count`。
 - 各阶段 skill 的输出规则必须说明 `updated_at` / `evidence_complete` 的更新方式；`coding-task-planning` 必须说明 `task_count` 更新为真实任务数量。
-- `coding-verification-closeout` 的 preflight 和验证顺序必须读取 `design.md` 的仓库勘探、真实链路和 source of truth，避免只验证 `tasks.md` 的纸面链路。
+- `coding-verification-closeout` 的 preflight 和验证顺序必须读取 `design.md` 的技术上下文与架构依据、目标链路和 source of truth，避免只验证 `tasks.md` 的纸面链路。
 - 模板不包含会被误判为真实任务或阻塞项的默认行。
 - Orchestrator 的 route payload 字段和子 skill preflight 一致。
 - Orchestrator 的 blocked 阶段判断顺序不会被 draft/content 判断抢先命中。

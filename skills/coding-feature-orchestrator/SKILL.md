@@ -32,6 +32,7 @@ description: "use only when the user explicitly names `coding-feature-orchestrat
 - activation contract：显式触发与被动路由边界。
 - route contract：阶段 skill 必须收到的路由字段。
 - document metadata：阶段文档 frontmatter 与 `stage_status` 语义。
+- project context：`existing_project` / `empty_project` 分支与判定证据。
 - gate policy：默认一次只推进一个阶段。
 - safety policy：禁止破坏性操作和仓库状态变更。
 - design approval / scope change / service startup：设计审批、scope 变更和启动服务前检查。
@@ -55,8 +56,9 @@ description: "use only when the user explicitly names `coding-feature-orchestrat
 2. 创建目录：`.docs/feature-YYYYMMDD-short-name/`。
 3. 从 `assets/feature-template/` 复制完整模板到新目录。
 4. 将用户提供的原始需求资料保存或索引到 `resource/`；如果资料已是仓库文件，只在 `resource/README.md` 记录路径、来源、更新时间和用途。
-5. 更新 `discovery.md` 的原始需求摘要、初始已知约束和待调研方向。
-6. 路由到 `coding-feature-discovery`。
+5. 探测项目上下文：用户明确“空项目 / 从 0 创建 / 新建项目 / scaffold project”时建议 `empty_project`；仓库存在 manifest、源码入口、测试或业务链路时建议 `existing_project`；冲突时先报告证据并确认。
+6. 更新 `discovery.md` 的原始需求摘要、初始已知约束、`project_context` / `project_context_evidence` 和待调研方向。
+7. 路由到 `coding-feature-discovery`。
 
 ### CONTINUE_FEATURE
 
@@ -143,13 +145,13 @@ SKILL_ROOT/
 
 1. `discovery.md` 缺失，或 `stage_status` 为 `draft`：路由到 `coding-feature-discovery`。
 2. `discovery.md` 的 `stage_status` 为 `blocked`，或存在真实阻塞模糊点：继续 `coding-feature-discovery`，逐一澄清关键问题。
-3. `discovery.md` 缺少仓库广扫、外部调研、方案方向、模糊点清单或逐问逐答记录：路由到 `coding-feature-discovery`。
+3. `discovery.md` 缺少项目上下文调研、外部调研、方案方向、模糊点清单或逐问逐答记录，或 `project_context` 仍是 `unknown`：路由到 `coding-feature-discovery`。
 4. `requirements.md` 缺失，或 `stage_status` 为 `draft`：路由到 `coding-requirement-intake`。
 5. `requirements.md` 的 `stage_status` 为 `blocked`，或存在真实阻塞问题：继续 `coding-requirement-intake`，不要进入后置勘察。
 6. `requirements.md` 缺少真实 in-scope / out-of-scope / acceptance criteria：路由到 `coding-requirement-intake`。
 7. `design.md` 缺失：路由到 `coding-technical-design`。
 8. `design.md` 的 `stage_status` 为 `blocked`，或标记 `DESIGN_BLOCKED`：停止并报告设计阻塞证据，不进入任务拆解。
-9. `design.md` 的 `stage_status` 为 `draft`，或没有仓库勘探、真实链路与数据来源、方案比较、影响范围、目标链路、风险回滚、验证策略：路由到 `coding-technical-design`。
+9. `design.md` 的 `stage_status` 为 `draft`，或没有技术上下文与架构依据、目标链路与数据来源、方案比较、影响范围、目标链路、风险回滚、验证策略：路由到 `coding-technical-design`。
 10. `design.md` 的 `stage_status` 为 `ready`，但 `approval_status` 不是 `approved`，且当前用户请求没有明确批准设计或要求进入任务拆解：停止并提示等待设计审批。
 11. 当前用户请求明确批准设计或要求进入任务拆解时，先在 `design.md` 记录 `approval_status: approved`、`approved_by`、`approved_at`、`approval_evidence`，同步更新 `updated_at` 并保持 `evidence_complete: true`，再继续判断。
 12. `tasks.md` 缺失：路由到 `coding-task-planning`。
@@ -167,9 +169,9 @@ SKILL_ROOT/
 
 ## 阶段路由
 
-- `coding-feature-discovery`：需求前置发现、仓库广扫、外部调研、方案方向和关键问题逐问逐答。
+- `coding-feature-discovery`：需求前置发现、项目上下文调研、外部调研、方案方向和关键问题逐问逐答。
 - `coding-requirement-intake`：基于 discovery 规格化需求、scope、acceptance criteria、资料索引。
-- `coding-technical-design`：基于 ready PRD 精查真实代码链路、澄清未明确点，并写技术方案、影响范围、API/DB 变更、风险、回滚和验证策略。
+- `coding-technical-design`：基于 ready PRD 和 `project_context` 精查真实代码链路或 bootstrap architecture，澄清未明确点，并写技术方案、影响范围、API/DB 变更、风险、回滚和验证策略。
 - `coding-task-planning`：把方案拆成可执行、可验证、按依赖排序的 `tasks.md`。
 - `coding-implementation-execution`：按 `tasks.md` 执行代码修改并维护任务状态。
 - `coding-verification-closeout`：验收映射、回归检查、交付总结和残余风险收口。

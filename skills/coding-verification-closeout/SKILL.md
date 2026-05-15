@@ -48,6 +48,7 @@ description: "Coding 验证收口技能。Activation restricted: use only when t
 - `design.md stage_status: ready` 且 `design.md evidence_complete: true`。
 - `design.md approval_status: approved`，且 `approved_by`、`approved_at`、`approval_evidence` 已补齐。
 - `tasks.md stage_status: ready` 且 `tasks.md evidence_complete: true`。
+- `discovery.md`、`requirements.md`、`design.md`、`tasks.md` 的 `project_context` 均为 `existing_project` 或 `empty_project`，且相互一致。
 - `task_count` 与真实任务数量一致。
 - 不存在 `TODO` 或 `DOING` 任务；仍有未执行任务时回到 `coding-implementation-execution`。
 
@@ -66,9 +67,9 @@ description: "Coding 验证收口技能。Activation restricted: use only when t
 
 1. 读取 `discovery.md` 的关键问题、方案方向和外部调研结论，确认验收没有遗漏早期澄清出的边界。
 2. 读取 `requirements.md` 的 acceptance criteria。
-3. 读取 `design.md` 的仓库勘探、真实调用链、数据来源、相似实现、风险与未知，确认验证覆盖 source of truth 而不是只验证派生表现。
+3. 读取 `design.md` 的技术上下文与架构依据、目标链路、数据来源、相似实现或参考架构、风险与未知；`existing_project` 确认验证覆盖 source of truth 而不是只验证派生表现，`empty_project` 确认验证覆盖脚手架产物、启动命令、测试命令、目录结构、配置样例和首个用户路径。
 4. 读取 `tasks.md`，确认所有 in-scope 任务为 `DONE` 或有明确 `BLOCKED` 说明。
-5. 按 `design.md` 的验证策略，并结合 `design.md` 的真实链路和数据来源，执行 targeted checks。
+5. 按 `design.md` 的验证策略，并结合 `design.md` 的目标链路和数据来源，执行 targeted checks。
 6. 对每条验收标准记录证据：命令、日志、截图路径、接口响应摘要、数据查询或手工步骤。
 7. 检查相关同类路径是否需要回归。
 8. 汇总无法验证的项目和原因。

@@ -44,6 +44,7 @@ description: "Coding 需求澄清技能。Activation restricted: use only when t
 - `discovery.md` 已存在。
 - `discovery.md stage_status: ready`。
 - `discovery.md evidence_complete: true`。
+- `discovery.md project_context` 是 `existing_project` 或 `empty_project`，且 `project_context_evidence` 已写明。
 - `discovery.md updated_at` 已写入 ISO 8601 + timezone。
 - `requirements.md` 和 `resource/README.md` 已由 orchestrator/template 准备好。
 
@@ -61,7 +62,7 @@ description: "Coding 需求澄清技能。Activation restricted: use only when t
 ## 工作流
 
 1. 读取当前需求目录、`discovery.md` 和 `resource/README.md`，找已有业务资料、会议纪要、原型或接口草案。
-2. 基于 discovery 的仓库广扫、外部调研、方案方向和逐问逐答记录整理 PRD；不要重复提出已回答的问题。
+2. 基于 discovery 的项目上下文调研、外部调研、方案方向和逐问逐答记录整理 PRD；不要重复提出已回答的问题。
 3. 从仓库中查可回答的问题，例如已有模块、相似功能、路由、数据表、枚举、权限模型。
 4. 补齐 `requirements.md`：
    - 背景与业务目标
@@ -72,7 +73,7 @@ description: "Coding 需求澄清技能。Activation restricted: use only when t
    - 非功能要求
    - 约束与假设
    - 待确认问题
-5. 如果发现 discovery 漏掉的关键模糊点，先记录完整清单，再逐一提问；回答影响前置发现时同步回写 `discovery.md`。
+5. 如果发现 discovery 漏掉的关键模糊点或 `project_context` 判定错误，先记录完整清单，再逐一提问；回答影响前置发现时同步回写 `discovery.md`。
 6. 只询问仓库无法回答的问题。每次提问必须附带已查证据。
 7. 不进入后置仓库精查或技术设计，直到 acceptance criteria 可验证且范围边界稳定。
 

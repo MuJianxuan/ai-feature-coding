@@ -3,6 +3,8 @@ feature_stage: discovery
 stage_status: draft
 updated_at: ""
 evidence_complete: false
+project_context: unknown
+project_context_evidence: ""
 ---
 
 # Discovery
@@ -13,10 +15,10 @@ evidence_complete: false
 - 初始目标：UNSET
 - 已知约束：UNSET
 
-## 2. 仓库广扫
+## 2. 项目上下文调研
 
-| 路径 | 关键位置 | 发现 |
-| --- | --- | --- |
+| 类型 | 来源 / 路径 | 关键位置 / 版本 | 发现 |
+| --- | --- | --- | --- |
 
 ## 3. 外部调研
 
@@ -42,4 +44,5 @@ evidence_complete: false
 
 - 关键问题：UNSET
 - 需求边界：UNSET
+- 项目上下文：UNSET
 - 下一阶段输入：UNSET

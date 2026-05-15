@@ -38,6 +38,7 @@ STAGE_SKILLS = {
 
 VALID_TASK_STATUSES = {"TODO", "DOING", "DONE", "BLOCKED"}
 VALID_STAGE_STATUSES = {"draft", "ready", "blocked", "complete"}
+VALID_PROJECT_CONTEXTS = {"unknown", "existing_project", "empty_project"}
 STAGE_ALLOWED_STATUSES = {
     "discovery": {"draft", "ready", "blocked"},
     "requirements": {"draft", "ready", "blocked"},
@@ -108,6 +109,9 @@ HEADER_CELLS = {
     "问题 id",
     "用户回答",
     "更新位置",
+    "版本",
+    "来源 / 路径",
+    "关键位置 / 版本",
 }
 
 
@@ -226,6 +230,23 @@ def section_text(body: str, heading: str) -> str:
     return tail[: next_heading.start()]
 
 
+def section_text_any(body: str, headings: list[str]) -> str:
+    for heading in headings:
+        section = section_text(body, heading)
+        if section.strip():
+            return section
+    return ""
+
+
+def section_has_real_content_any(body: str, headings: list[str]) -> bool:
+    section = section_text_any(body, headings)
+    return any(is_real_line(line) for line in section.splitlines())
+
+
+def section_has_no_placeholder_markers_any(body: str, headings: list[str]) -> bool:
+    return not has_placeholder_marker(section_text_any(body, headings))
+
+
 def section_has_real_content(body: str, heading: str) -> bool:
     return any(is_real_line(line) for line in section_text(body, heading).splitlines())
 
@@ -293,11 +314,41 @@ def has_blocking_discovery_question(body: str) -> bool:
     return has_blocking_questions(body, "模糊点清单")
 
 
-def discovery_complete(body: str) -> bool:
+def project_context(metadata: dict[str, str]) -> str:
+    return metadata.get("project_context", "unknown").strip().lower() or "unknown"
+
+
+def project_context_issue(metadata: dict[str, str], status: str) -> str | None:
+    context = project_context(metadata)
+    if context not in VALID_PROJECT_CONTEXTS:
+        return f"project_context is invalid: {context}; allowed: empty_project, existing_project, unknown"
+    if status in {"ready", "complete"}:
+        if context == "unknown":
+            return "project_context must be existing_project or empty_project before ready/complete"
+        if is_placeholder_text(metadata.get("project_context_evidence", "")):
+            return "project_context_evidence must explain how project_context was determined"
+    return None
+
+
+def context_label(metadata: dict[str, str]) -> str:
+    context = project_context(metadata)
+    if context == "empty_project":
+        return "empty project"
+    if context == "existing_project":
+        return "existing project"
+    return "unknown project context"
+
+
+def discovery_complete(metadata: dict[str, str], body: str) -> bool:
+    context_section = section_text_any(body, ["项目上下文调研", "仓库广扫"])
+    context_ok = (
+        has_real_table_row(context_section)
+        and not has_placeholder_marker(context_section)
+    )
     return (
         section_complete(body, "原始需求摘要")
-        and has_real_table_row(section_text(body, "仓库广扫"))
-        and section_has_no_placeholder_markers(body, "仓库广扫")
+        and project_context(metadata) in {"existing_project", "empty_project"}
+        and context_ok
         and section_complete(body, "外部调研")
         and has_real_table_row(section_text(body, "方案方向"))
         and section_has_no_placeholder_markers(body, "方案方向")
@@ -359,12 +410,18 @@ def duplicate_requirement_ac_ids(body: str) -> list[str]:
     return sorted(duplicates)
 
 
-def design_complete(body: str) -> bool:
+def design_complete(metadata: dict[str, str], body: str) -> bool:
+    context_section = section_text_any(body, ["技术上下文与架构依据", "仓库勘探"])
+    target_chain_complete = (
+        section_complete(body, "目标链路与数据来源")
+        or section_complete(body, "真实链路与数据来源")
+    )
     return (
         section_complete(body, "方案摘要")
-        and has_real_table_row(section_text(body, "仓库勘探"))
-        and section_has_no_placeholder_markers(body, "仓库勘探")
-        and section_complete(body, "真实链路与数据来源")
+        and project_context(metadata) in {"existing_project", "empty_project"}
+        and has_real_table_row(context_section)
+        and not has_placeholder_marker(context_section)
+        and target_chain_complete
         and section_complete(body, "澄清问题")
         and has_real_table_row(section_text(body, "方案比较"))
         and section_has_no_placeholder_markers(body, "方案比较")
@@ -427,6 +484,10 @@ def stage_metadata_issue(stage: str, metadata: dict[str, str]) -> str | None:
     elif status == "draft":
         if evidence_value == "true":
             return f"{stage} stage_status is draft but evidence_complete is true"
+
+    context_issue = project_context_issue(metadata, status)
+    if context_issue:
+        return f"{stage} {context_issue}"
 
     return None
 
@@ -642,6 +703,21 @@ def metadata_inconsistent_result(feature_dir: Path, stage: str, path: Path, issu
     )
 
 
+def project_context_mismatch_result(
+    feature_dir: Path,
+    *,
+    stage: str,
+    path: Path,
+    discovery_context: str,
+    stage_context: str,
+) -> dict[str, Any]:
+    issue = (
+        f"{stage} project_context is {stage_context}, "
+        f"but discovery project_context is {discovery_context}"
+    )
+    return metadata_inconsistent_result(feature_dir, stage, path, issue)
+
+
 def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
     feature_dir = feature_dir.resolve()
     if feature_dir == TEMPLATE_DIR.resolve():
@@ -696,12 +772,15 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
                 evidence(discovery_path, f"stage_status: {discovery_status or 'unset'}; blocking ambiguity detected")
             ],
         )
-    if not discovery_complete(discovery_body):
+    if not discovery_complete(discovery_meta, discovery_body):
         return make_result(
             feature_dir=feature_dir,
             state="discovery_incomplete",
             next_skill="coding-feature-discovery",
-            reason="discovery.md lacks required repo scan, research, options, ambiguity, Q&A, or handoff evidence",
+            reason=(
+                "discovery.md lacks required project-context research, external research, "
+                "options, ambiguity, Q&A, or handoff evidence"
+            ),
             evidence_items=[evidence(discovery_path, "missing real discovery sections or placeholder markers remain")],
         )
 
@@ -736,6 +815,14 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             blocking=True,
             reason="requirements.md has blocking requirement questions",
             evidence_items=[evidence(req_path, f"stage_status: {req_status or 'unset'}; blocking question detected")],
+        )
+    if project_context(req_meta) != project_context(discovery_meta):
+        return project_context_mismatch_result(
+            feature_dir,
+            stage="requirements",
+            path=req_path,
+            discovery_context=project_context(discovery_meta),
+            stage_context=project_context(req_meta),
         )
     if not requirements_complete(req_body):
         return make_result(
@@ -780,13 +867,24 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             reason="design.md is blocked",
             evidence_items=[evidence(design_path, f"stage_status: {design_status or 'unset'}; DESIGN_BLOCKED marker checked")],
         )
-    if design_status == "draft" or not design_complete(design_body):
+    if design_status == "draft" or not design_complete(design_meta, design_body):
         return make_result(
             feature_dir=feature_dir,
             state="design_draft_or_incomplete",
             next_skill="coding-technical-design",
-            reason="design.md is draft or lacks repo investigation, target chain, rollback risk, or verification strategy",
+            reason=(
+                "design.md is draft or lacks project-context architecture evidence, "
+                "target chain, rollback risk, or verification strategy"
+            ),
             evidence_items=[evidence(design_path, f"stage_status: {design_status or 'unset'}; design content incomplete")],
+        )
+    if project_context(design_meta) != project_context(discovery_meta):
+        return project_context_mismatch_result(
+            feature_dir,
+            stage="design",
+            path=design_path,
+            discovery_context=project_context(discovery_meta),
+            stage_context=project_context(design_meta),
         )
     if design_meta.get("approval_status", "").strip().lower() != "approved":
         return make_result(
@@ -878,6 +976,14 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             next_skill="coding-task-planning",
             reason="tasks.md is draft or has no real tasks",
             evidence_items=[evidence(tasks_path, f"stage_status: {tasks_status or 'unset'}; real_tasks: {len(real_tasks)}")],
+        )
+    if project_context(tasks_meta) != project_context(discovery_meta):
+        return project_context_mismatch_result(
+            feature_dir,
+            stage="tasks",
+            path=tasks_path,
+            discovery_context=project_context(discovery_meta),
+            stage_context=project_context(tasks_meta),
         )
     blocked_tasks = [task for task in real_tasks if task["status"] == "BLOCKED"]
     if blocked_tasks:
@@ -975,6 +1081,14 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
             ],
             diagnostics=verification_diagnostics,
         )
+    if project_context(verification_meta) != project_context(discovery_meta):
+        return project_context_mismatch_result(
+            feature_dir,
+            stage="verification",
+            path=verification_path,
+            discovery_context=project_context(discovery_meta),
+            stage_context=project_context(verification_meta),
+        )
 
     handoff = load_stage(feature_dir, "handoff")
     if handoff is None:
@@ -1002,6 +1116,14 @@ def inspect_feature_state(feature_dir: Path) -> dict[str, Any]:
                     f"stage_status: {stage_status(handoff_meta) or 'unset'}; evidence_complete: {handoff_meta.get('evidence_complete', 'unset')}",
                 )
             ],
+        )
+    if project_context(handoff_meta) != project_context(discovery_meta):
+        return project_context_mismatch_result(
+            feature_dir,
+            stage="handoff",
+            path=handoff_path,
+            discovery_context=project_context(discovery_meta),
+            stage_context=project_context(handoff_meta),
         )
 
     return make_result(
