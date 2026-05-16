@@ -186,6 +186,33 @@ SKILL_ROOT/
 
 没有上述显式路由信息时，阶段 skill 必须拒绝以“被动触发”身份启动。
 
+## 可选协作者
+
+以下 agent skill 独立于 Coding Feature Workflow，可单独使用。在工作流执行过程中，orchestrator 可按场景建议引入它们作为协作者，但不是强制环节，用户可忽略建议。
+
+### agent-product-manager
+
+适用场景：
+
+- discovery 阶段：用户给的是模糊产品想法、缺乏结构化产品思考，需要 PM 视角梳理业务目标、用户画像、竞品分析或功能优先级。
+- requirements 阶段：`requirements.md` 初稿完成后，需要 PRD 质量评审、验收标准完整性检查或优先级排序建议。
+- 用户主动要求产品策略咨询、留存分析、增长诊断时。
+
+### agent-solution-architect
+
+适用场景：
+
+- discovery 阶段：`empty_project` 需要技术栈选型、架构方向探索，或已有项目面临重大架构决策。
+- design 阶段：复杂系统设计需要多方案架构评审、性能优化建议、技术选型决策矩阵。
+- 用户主动要求架构评审、技术选型对比或系统优化建议时。
+
+### 协作规则
+
+- 不需要 route payload、`activation_source` 或 `feature_dir`；它们不受 Coding Feature Workflow 的 activation contract 约束。
+- 不改变阶段推断、gate policy 或停止点规则；协作者的产出作为当前阶段 skill 的输入参考，不替代阶段文档。
+- orchestrator 只建议，不强制；用户未采纳时正常继续当前阶段。
+- 协作者产出的关键结论应被当前阶段 skill 吸收到对应阶段文档中（`discovery.md`、`requirements.md` 或 `design.md`），并标注来源。
+
 ## 路由执行机制
 
 本 skill 说“路由到阶段 skill”时，不是只写一句建议，而是必须按当前运行环境选择可执行方式：
