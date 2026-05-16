@@ -64,7 +64,7 @@ description: "Coding 任务拆解技能。Activation restricted: use only when t
 
 ## 拆解规则
 
-1. 拆解前先做任务级头脑风暴：识别依赖顺序、按业务域 / acceptance criteria 切出的可独立验证垂直切片、潜在阻塞和可并行边界。
+1. 拆解前先做任务级头脑风暴：识别依赖顺序、按业务域 / acceptance criteria 切出的可独立验证垂直切片、潜在阻塞和可并行边界。分析任务间依赖关系，标注 `depends_on` 以支持并行执行。
 2. 每项任务只覆盖一个清晰目标，能独立完成和验证。
 3. 先按业务域垂直切片组织，再在每个业务域内按依赖顺序排序：schema/config -> backend/domain -> API/adapter -> frontend/state -> tests/docs。
 4. 每项规划期任务必须写：
@@ -89,6 +89,7 @@ description: "Coding 任务拆解技能。Activation restricted: use only when t
 ### T01 - <任务名>
 
 - status: TODO
+- depends_on: []
 - 业务域：
 - 输入：
 - 输出：
@@ -99,6 +100,25 @@ description: "Coding 任务拆解技能。Activation restricted: use only when t
 - 交付记录：
 ```
 
+### depends_on 规则
+
+- `depends_on` 列出当前任务依赖的前置任务 ID，例如 `depends_on: [T01, T02]`。
+- 无依赖的任务写 `depends_on: []`。
+- 拆解时自动分析依赖关系：数据表/配置类任务通常是其他任务的前置。
+- 互不依赖的任务可并行执行：当多个任务的 `depends_on` 中的前置任务均已 `DONE` 时，提示用户这些任务可并行。
+- `depends_on` 不改变 gate policy：`coding-implementation-execution` 仍一次只执行一个任务，但可按无依赖顺序连续执行，或提示用户在多个 session 中并行。
+
 ## 输出
 
 更新 `tasks.md`，并在 frontmatter 将 `stage_status` 标记为 `ready`、`evidence_complete: true`、`task_count` 更新为真实任务数量，同时同步更新 `updated_at`。如果本阶段因用户刚刚批准设计而写入 `design.md` 审批字段，也必须同步更新 `design.md` 的 `updated_at`，并保持 `design.md evidence_complete: true`。除非用户明确要求，否则不要开始编码。输出下一步建议后停止。
+
+## Metrics 写入规则
+
+本阶段在以下时机向 `metrics.json` 追加事件（参见 WORKFLOW_CONTRACT.md section 16）：
+
+1. **进入阶段时**：追加 `stage_enter` 事件，`stage: "tasks"`，`trigger` 为 `direct_explicit` 或 `routed_invocation`。
+2. **阶段完成时**（`stage_status` 标记为 `ready`）：追加 `stage_complete` 事件，计算 `duration_minutes` 和 `user_interactions`；同时更新 `summary.tasks_total` 为 `task_count`。
+3. **阶段阻塞时**（`stage_status` 标记为 `blocked`）：追加 `stage_blocked` 事件，记录 `blocker` 描述。
+4. **阻塞解除时**：追加 `blocker_resolved` 事件。
+
+写入失败不阻塞主流程；`metrics.json` 不存在时尝试从模板重建空结构。

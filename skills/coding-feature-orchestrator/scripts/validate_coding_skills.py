@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[3]
 SKILLS = ROOT / "skills"
 ORCHESTRATOR = SKILLS / "coding-feature-orchestrator"
 TEMPLATE = ORCHESTRATOR / "assets" / "feature-template"
+FAST_TRACK_TEMPLATE = ORCHESTRATOR / "assets" / "fast-track-template"
 CHILD_SKILLS = [
     "coding-feature-discovery",
     "coding-requirement-intake",
@@ -2086,6 +2087,80 @@ def main() -> int:
     for doc_path in [*sorted(SKILLS.glob("*/SKILL.md")), ORCHESTRATOR / "WORKFLOW_CONTRACT.md"]:
         if "AI feature workflow" in doc_path.read_text():
             fail(errors, f"{doc_path}: use unified term Coding Feature Workflow")
+
+    # Fast-track template validation
+    if not FAST_TRACK_TEMPLATE.is_dir():
+        fail(errors, f"{FAST_TRACK_TEMPLATE}: missing fast-track template directory")
+    else:
+        fast_track_files = {"brief.md", "implementation.md", "verification.md", "metrics.json"}
+        for ft_file in fast_track_files:
+            ft_path = FAST_TRACK_TEMPLATE / ft_file
+            if not ft_path.is_file():
+                fail(errors, f"{ft_path}: missing fast-track template file")
+        for md_path in sorted(FAST_TRACK_TEMPLATE.glob("*.md")):
+            metadata = parse_frontmatter(md_path, errors)
+            if not metadata:
+                continue
+            if "pipeline_mode" not in metadata:
+                fail(errors, f"{md_path}: fast-track template missing pipeline_mode")
+            elif metadata["pipeline_mode"] != "fast_track":
+                fail(errors, f"{md_path}: fast-track template pipeline_mode must be fast_track")
+            if "feature_stage" not in metadata:
+                fail(errors, f"{md_path}: fast-track template missing feature_stage")
+            if "stage_status" not in metadata:
+                fail(errors, f"{md_path}: fast-track template missing stage_status")
+            elif metadata["stage_status"] != "draft":
+                fail(errors, f"{md_path}: fast-track template stage_status must be draft")
+            if metadata.get("evidence_complete") not in {"false", "true"}:
+                fail(errors, f"{md_path}: fast-track template evidence_complete must be true or false")
+            for forbidden in ["feature_stage: discovery", "feature_stage: requirements", "feature_stage: design", "feature_stage: tasks"]:
+                if forbidden in md_path.read_text():
+                    fail(errors, f"{md_path}: fast-track template must not use standard pipeline stages")
+        ft_metrics = FAST_TRACK_TEMPLATE / "metrics.json"
+        if ft_metrics.is_file():
+            import json
+            try:
+                metrics_data = json.loads(ft_metrics.read_text())
+                if metrics_data.get("pipeline_mode") != "fast_track":
+                    fail(errors, f"{ft_metrics}: metrics.json pipeline_mode must be fast_track")
+            except json.JSONDecodeError:
+                fail(errors, f"{ft_metrics}: invalid JSON")
+
+    # Composition contract validation
+    composition_contract = ORCHESTRATOR / "COMPOSITION_CONTRACT.md"
+    if not composition_contract.is_file():
+        fail(errors, f"{composition_contract}: missing COMPOSITION_CONTRACT.md")
+    else:
+        cc_text = composition_contract.read_text()
+        for required in ["Advisory Call", "Utility Call", "Validation Call", "Composition Rules", "Call Payload"]:
+            if required not in cc_text:
+                fail(errors, f"{composition_contract}: missing {required}")
+
+    # Composition Interface checks for agent skills
+    for agent_skill in ["agent-product-manager", "agent-solution-architect"]:
+        agent_path = SKILLS / agent_skill / "SKILL.md"
+        if agent_path.is_file():
+            agent_text = agent_path.read_text()
+            if "Composition Interface" not in agent_text:
+                fail(errors, f"{agent_path}: missing Composition Interface section")
+
+    # Code review skill validation
+    code_review_skill = SKILLS / "coding-code-review" / "SKILL.md"
+    if not code_review_skill.is_file():
+        fail(errors, f"{code_review_skill}: missing coding-code-review SKILL.md")
+    else:
+        cr_text = code_review_skill.read_text()
+        if "Activation restricted" not in cr_text and "Activation policy" not in cr_text:
+            fail(errors, f"{code_review_skill}: missing activation restriction declaration")
+        if "Validation Call" not in cr_text:
+            fail(errors, f"{code_review_skill}: must reference Validation Call")
+
+    # Metrics contract and error recovery contract in WORKFLOW_CONTRACT
+    if contract.exists():
+        contract_text = contract.read_text()
+        for required in ["Metrics contract", "Error recovery contract"]:
+            if required not in contract_text:
+                fail(errors, f"{contract}: missing {required}")
 
     run_inspector_scenarios(errors)
 

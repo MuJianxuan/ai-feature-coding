@@ -149,3 +149,15 @@ description: "Coding 技术设计技能。Activation restricted: use only when t
 ## 输出
 
 更新 `design.md`。如果方案仍依赖未确认业务决策，在文档顶部标记 `DESIGN_BLOCKED`，并将 frontmatter `stage_status` 标记为 `blocked`、`evidence_complete: false`、`approval_status` 标记为 `blocked`；如果设计可直接拆任务，将 `stage_status` 标记为 `ready`、`evidence_complete: true`，但保持 `approval_status: pending`，等待用户明确批准后才能进入 `coding-task-planning`。每次写入 `design.md` 都必须同步更新 `updated_at`，并保持 `project_context` / `project_context_evidence` 与 discovery 一致。输出下一步建议后停止。
+
+## Metrics 写入规则
+
+本阶段在以下时机向 `metrics.json` 追加事件（参见 WORKFLOW_CONTRACT.md section 16）：
+
+1. **进入阶段时**：追加 `stage_enter` 事件，`stage: "design"`，`trigger` 为 `direct_explicit` 或 `routed_invocation`。
+2. **阶段完成时**（`stage_status` 标记为 `ready`）：追加 `stage_complete` 事件，计算 `duration_minutes` 和 `user_interactions`。
+3. **阶段阻塞时**（`stage_status` 标记为 `blocked`）：追加 `stage_blocked` 事件，记录 `blocker` 描述。
+4. **阻塞解除时**：追加 `blocker_resolved` 事件。
+5. **组合调用时**（如咨询 `agent-solution-architect`）：追加 `composition_call` 事件。
+
+写入失败不阻塞主流程；`metrics.json` 不存在时尝试从模板重建空结构。

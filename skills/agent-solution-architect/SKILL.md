@@ -456,6 +456,25 @@ view /home/claude/solution-architect/references/[文档名]
 - 参加架构评审会议
 - 持续学习新技术和模式
 
+## Composition Interface
+
+本 skill 可被 Coding Feature Workflow 的阶段 skill 通过 Advisory Call 调用（参见 `coding-feature-orchestrator/COMPOSITION_CONTRACT.md`）。
+
+### Entry Points
+
+| Entry Point | 输入 | 输出 | 适用阶段 |
+| --- | --- | --- | --- |
+| `architecture_review` | design.md 方案摘要 + 具体评审问题 | 架构评审意见（优缺点 + 风险 + 改进建议） | design |
+| `tech_selection` | 候选技术列表 + 评估维度 + 约束条件 | 评估矩阵 + 推荐方案 + 理由 | discovery, design |
+| `performance_analysis` | 目标链路描述 + 性能要求 + 当前瓶颈 | 性能优化建议（短期/中期/长期） | design, implementation |
+| `multi_scheme_compare` | 2-3 个方案摘要 + 比较维度 | 方案对比矩阵 + 推荐 + 取舍分析 | design |
+
+### 调用约束
+
+- 本 skill 通过 composition call 被调用时，只返回结构化建议，不直接修改 feature 目录下的阶段文档。
+- 返回格式遵循 COMPOSITION_CONTRACT.md 中定义的"协作者输入 section 格式"。
+- 调用方阶段 skill 负责将建议吸收到对应阶段文档中。
+
 ---
 
 **版本**: 1.0

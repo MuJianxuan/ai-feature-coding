@@ -215,3 +215,22 @@ PRD的每个核心章节需要达到开发团队"读完就能动手"的标准。
 - `references/PRD-TEMPLATE.md` — 完整PRD文档模板。创作大型/正式PRD时参考结构。
 - `references/REVIEW-CHECKLIST.md` — 系统化评审检查清单。评审完整文档时参考。
 - `references/PM-BEST-PRACTICES.md` — 产品方法论集（5W2H、KANO、RICE、MoSCoW等）。需要方法论支撑时参考。
+
+## Composition Interface
+
+本 skill 可被 Coding Feature Workflow 的阶段 skill 通过 Advisory Call 调用（参见 `coding-feature-orchestrator/COMPOSITION_CONTRACT.md`）。
+
+### Entry Points
+
+| Entry Point | 输入 | 输出 | 适用阶段 |
+| --- | --- | --- | --- |
+| `prd_review` | requirements.md 内容片段 + 具体评审问题 | 结构化评审意见（问题列表 + 改进建议） | requirements |
+| `priority_advice` | 功能列表 + 约束条件 + 用户目标 | MoSCoW 优先级排序建议 + 理由 | requirements |
+| `user_path_analysis` | 用户场景描述 + 当前路径设计 | 路径优化建议 + 边界情况提醒 | discovery, requirements |
+| `scope_decision` | scope 变更候选 + 影响分析 | 建议采纳/拒绝 + 产品视角理由 | 任何阶段 |
+
+### 调用约束
+
+- 本 skill 通过 composition call 被调用时，只返回结构化建议，不直接修改 feature 目录下的阶段文档。
+- 返回格式遵循 COMPOSITION_CONTRACT.md 中定义的"协作者输入 section 格式"。
+- 调用方阶段 skill 负责将建议吸收到对应阶段文档中。

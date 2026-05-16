@@ -1,0 +1,15 @@
+{
+  "feature_id": "",
+  "pipeline_mode": "standard",
+  "created_at": "",
+  "events": [],
+  "summary": {
+    "total_duration_hours": null,
+    "stages_completed": 0,
+    "stages_blocked": 0,
+    "tasks_total": 0,
+    "tasks_done": 0,
+    "composition_calls": 0,
+    "error_recoveries": 0
+  }
+}

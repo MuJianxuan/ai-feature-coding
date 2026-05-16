@@ -36,6 +36,10 @@ description: "use only when the user explicitly names `coding-feature-orchestrat
 - gate policy：默认一次只推进一个阶段。
 - safety policy：禁止破坏性操作和仓库状态变更。
 - design approval / scope change / service startup：设计审批、scope 变更和启动服务前检查。
+- metrics contract：阶段事件追踪与 `metrics.json` 写入规则。
+- error recovery contract：checkpoint 机制与错误恢复优先级。
+
+组合调用协议维护在 `COMPOSITION_CONTRACT.md`。阶段 skill 可通过 Advisory / Utility / Validation Call 调用其他 skill 获取专业输入，但不改变 gate policy 和阶段推进逻辑。
 
 完整正反例可按需读取 `references/golden-examples.md`；正常执行时不必加载。
 
@@ -103,6 +107,45 @@ description: "use only when the user explicitly names `coding-feature-orchestrat
 2. 输出当前阶段、缺失文档、阻塞项、下一步建议。
 3. 如用户随后要求继续，再按 `CONTINUE_FEATURE` 路由。
 
+### FAST_TRACK
+
+模式条件（仅在 `Activation policy` 已满足后判断）：
+
+- 用户明确要求快速通道 / fast-track / hotfix / 小改动，直接进入。
+- 或 Orchestrator 根据需求描述自动评估 complexity 为 `patch`（单文件改动、配置修改、样式调整、typo 修复、简单 bug fix），向用户建议 fast-track 模式并等待确认。
+
+Complexity 判断标准：
+
+| Complexity | 特征 | Pipeline |
+| --- | --- | --- |
+| `patch` | 单文件或少量文件改动、无 API 变更、无数据模型变更、无架构决策 | fast_track |
+| `minor` | 多文件改动、涉及 API 或数据模型、需要设计决策 | standard |
+| `major` | 跨模块改动、新增子系统、架构变更 | standard |
+
+执行：
+
+1. 生成短名：从需求主题提取英文 kebab-case short-name。
+2. 创建目录：`.docs/feature-YYYYMMDD-short-name/`。
+3. 从 `assets/fast-track-template/` 复制模板到新目录。
+4. 在 `brief.md` 中一次性完成：需求摘要、scope、acceptance criteria（1-3 条）。
+5. 用户确认 brief 后，直接进入 implementation（无需 design 审批）。
+6. Implementation 完成后直接进入 verification。
+7. 全程最多 3 步：**brief → implement → verify**。
+
+Fast-track gate policy：
+
+- `brief.md stage_status: ready` 即可进入 implementation。
+- 不要求 `design.md` 存在，不要求 design approval。
+- `task_count` 不强制；`implementation.md` 直接记录改动。
+- Verification 仍必须映射 acceptance criteria。
+- Code review 为可选（用户可跳过）。
+
+升级机制：
+
+- 如果执行中发现 complexity 超出 `patch`（需要多文件改动、涉及 API 变更、需要 design 决策），必须停止并建议升级为 standard pipeline。
+- 升级时，`brief.md` 内容拆分到 `discovery.md` + `requirements.md`，保留已有证据。
+- 追加 `pipeline_upgrade` 事件到 `metrics.json`。
+
 ## 目录选择规则
 
 - 用户指定 feature 目录时，以用户指定为准。
@@ -118,10 +161,13 @@ description: "use only when the user explicitly names `coding-feature-orchestrat
 ```text
 SKILL_ROOT/
 └── assets/
-    └── feature-template/
+    ├── feature-template/       # standard pipeline 模板
+    └── fast-track-template/    # fast-track pipeline 模板
 ```
 
-创建新需求目录时，复制 `SKILL_ROOT/assets/feature-template/` 到 `.docs/feature-YYYYMMDD-short-name/`。正式阶段文档只包含 `discovery.md`、`requirements.md`、`design.md`、`tasks.md`、`verification.md`、`handoff.md`。
+创建新需求目录时：
+- **Standard pipeline**：复制 `SKILL_ROOT/assets/feature-template/` 到 `.docs/feature-YYYYMMDD-short-name/`。正式阶段文档只包含 `discovery.md`、`requirements.md`、`design.md`、`tasks.md`、`verification.md`、`handoff.md`。
+- **Fast-track pipeline**：复制 `SKILL_ROOT/assets/fast-track-template/` 到 `.docs/feature-YYYYMMDD-short-name/`。正式阶段文档只包含 `brief.md`、`implementation.md`、`verification.md`。
 
 ## 阶段推断
 

@@ -77,4 +77,15 @@ description: "Coding 需求前置发现技能。Activation restricted: use only 
 
 ## 输出
 
-更新 `discovery.md`。如果仍有关键问题未回答，将 frontmatter `stage_status` 标记为 `blocked`、`evidence_complete: false`，并在“模糊点清单”与“逐问逐答记录”中记录证据；如果关键问题已清空且项目上下文调研、必要外部调研、方案方向、进入 requirements 的完成判定齐备，将 `stage_status` 标记为 `ready`、`evidence_complete: true`。每次写入 `discovery.md` 都必须同步更新 `updated_at`、`project_context` 和 `project_context_evidence`。输出下一步建议后停止。
+更新 `discovery.md`。如果仍有关键问题未回答，将 frontmatter `stage_status` 标记为 `blocked`、`evidence_complete: false`，并在”模糊点清单”与”逐问逐答记录”中记录证据；如果关键问题已清空且项目上下文调研、必要外部调研、方案方向、进入 requirements 的完成判定齐备，将 `stage_status` 标记为 `ready`、`evidence_complete: true`。每次写入 `discovery.md` 都必须同步更新 `updated_at`、`project_context` 和 `project_context_evidence`。输出下一步建议后停止。
+
+## Metrics 写入规则
+
+本阶段在以下时机向 `metrics.json` 追加事件（参见 WORKFLOW_CONTRACT.md section 16）：
+
+1. **进入阶段时**：追加 `stage_enter` 事件，`stage: “discovery”`，`trigger` 为 `direct_explicit` 或 `routed_invocation`。
+2. **阶段完成时**（`stage_status` 标记为 `ready`）：追加 `stage_complete` 事件，计算 `duration_minutes` 和 `user_interactions`。
+3. **阶段阻塞时**（`stage_status` 标记为 `blocked`）：追加 `stage_blocked` 事件，记录 `blocker` 描述。
+4. **阻塞解除时**：追加 `blocker_resolved` 事件。
+
+写入失败不阻塞主流程；`metrics.json` 不存在时尝试从模板重建空结构。

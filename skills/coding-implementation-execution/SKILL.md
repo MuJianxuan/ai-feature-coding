@@ -100,8 +100,65 @@ description: "Coding 编码执行技能。Activation restricted: use only when t
 4. 如果 diff 与任务范围不一致，先记录风险并停止请求用户确认，不擅自覆盖或回滚。
 5. 恢复执行后继续维护同一个任务的交付记录；不得新开重复任务掩盖中断状态。
 
+## Checkpoint 规则
+
+参见 WORKFLOW_CONTRACT.md section 17 (Error recovery contract)。
+
+1. **任务开始时**：任务状态从 `TODO` 变为 `DOING` 时，记录 `git diff --stat`（或当前文件列表）作为 baseline checkpoint `cp_01`。
+2. **子步骤完成时**：每完成一个可验证的子步骤（如：一个函数实现 + 对应测试通过），追加新 checkpoint。
+3. Checkpoint 写入 `tasks.md` 当前任务的交付记录区域，格式：
+
+```yaml
+checkpoints:
+  - id: cp_01
+    timestamp: "ISO 8601 + timezone"
+    files_modified: [path/to/file1, path/to/file2]
+    tests_passing: true
+    description: "简要描述已完成的子步骤"
+```
+
+## Error Recovery 规则
+
+当任务执行遇到失败（测试失败、编译错误、外部依赖不可用）时，按以下优先级恢复：
+
+1. **Retry**（瞬时错误）：重新执行失败命令，不修改代码。仍失败则进入下一步。
+2. **Fix-forward**（可定位错误）：分析根因，修改代码修复。每次修复后重新验证。最多尝试 2 次不同修复路径。
+3. **Rollback-to-checkpoint**（Fix-forward 失败）：回退到最近 `tests_passing: true` 的 checkpoint，尝试不同实现路径。
+4. **Escalate**（无法恢复）：标记任务为 `BLOCKED`，记录完整错误证据，停止并报告。
+
+Recovery 记录写入任务交付记录：
+
+```yaml
+recovery_log:
+  - timestamp: "ISO 8601 + timezone"
+    error_type: test_failure | build_error | dependency_unavailable | runtime_error | unknown
+    error_evidence: "具体错误信息摘要"
+    recovery_action: retry | fix_forward | rollback_to_checkpoint | escalate
+    recovery_result: success | failed
+    checkpoint_used: "cp_01"
+    attempts: 1
+```
+
+**Reflection**：每次 recovery 完成后（无论成功或 escalate），在交付记录中写：
+
+- **根因分析**：为什么失败？
+- **预防措施**：下次如何避免？
+- **上游影响**：是否需要更新 `design.md` 或 `tasks.md`？
+
 ## 禁止
 
 - 禁止跳过 `tasks.md` 直接凭记忆改代码。
 - 禁止删除文件、切换分支、提交或推送，除非用户明确许可。
 - 禁止把未验证任务标成 `DONE`。
+
+## Metrics 写入规则
+
+本阶段在以下时机向 `metrics.json` 追加事件（参见 WORKFLOW_CONTRACT.md section 16）：
+
+1. **进入阶段时**：追加 `stage_enter` 事件，`stage: "implementation"`，`trigger` 为 `direct_explicit` 或 `routed_invocation`。
+2. **每个任务完成时**（标记为 `DONE`）：更新 `summary.tasks_done`。
+3. **阶段完成时**（所有任务 `DONE`，准备进入 verification）：追加 `stage_complete` 事件，计算 `duration_minutes` 和 `user_interactions`。
+4. **错误恢复时**：追加 `error_recovery` 事件，记录 `task_id`、`error_type`、`recovery_action`、`recovery_result`。
+5. **组合调用时**（如调用 `coding-code-review`）：追加 `composition_call` 事件。
+
+写入失败不阻塞主流程；`metrics.json` 不存在时尝试从模板重建空结构。

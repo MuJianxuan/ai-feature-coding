@@ -51,6 +51,8 @@ description: "Coding 验证收口技能。Activation restricted: use only when t
 - `discovery.md`、`requirements.md`、`design.md`、`tasks.md` 的 `project_context` 均为 `existing_project` 或 `empty_project`，且相互一致。
 - `task_count` 与真实任务数量一致。
 - 不存在 `TODO` 或 `DOING` 任务；仍有未执行任务时回到 `coding-implementation-execution`。
+- **Standard pipeline**：`verification.md` 中存在"代码审查"section 且审查结果不为 `FAIL`（即 `coding-code-review` 已通过 Validation Call 完成审查）。如果缺少代码审查记录，建议先通过 composition call 调用 `coding-code-review`。
+- **Fast-track pipeline**：代码审查为可选，不阻塞 verification。
 
 如果缺少上述任一条件，立即停止并报告缺失项；不要临时补造上游阶段文档。
 
@@ -101,3 +103,14 @@ description: "Coding 验证收口技能。Activation restricted: use only when t
 ## 输出
 
 更新 `verification.md` 和 `handoff.md`，每次写入都必须同步更新对应 frontmatter 的 `updated_at`。只有所有 in-scope acceptance criteria 都有真实验证证据且结果为 `PASS` 时，才将 `verification.md` frontmatter `stage_status` 标记为 `complete`、`evidence_complete: true`；存在 `FAIL`、`BLOCKED`、未覆盖项或无法解释的验证缺口时，保持或更新为 `stage_status: draft/blocked`、`evidence_complete: false`，并在正文写明证据和残余风险。交付摘要、变更范围、用户复核入口、验证结论和残余风险齐备时，将 `handoff.md` frontmatter `stage_status` 标记为 `complete`、`evidence_complete: true`；否则保持 `evidence_complete: false`。输出交付状态后停止。
+
+## Metrics 写入规则
+
+本阶段在以下时机向 `metrics.json` 追加事件（参见 WORKFLOW_CONTRACT.md section 16）：
+
+1. **进入阶段时**：追加 `stage_enter` 事件，`stage: "verification"`，`trigger` 为 `direct_explicit` 或 `routed_invocation`。
+2. **阶段完成时**（`verification.md` 和 `handoff.md` 均标记为 `complete`）：追加 `stage_complete` 事件，计算 `duration_minutes` 和 `user_interactions`；同时计算 `summary.total_duration_hours`。
+3. **阶段阻塞时**（`stage_status` 标记为 `blocked`）：追加 `stage_blocked` 事件，记录 `blocker` 描述。
+4. **阻塞解除时**：追加 `blocker_resolved` 事件。
+
+写入失败不阻塞主流程；`metrics.json` 不存在时尝试从模板重建空结构。

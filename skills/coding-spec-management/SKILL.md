@@ -9,7 +9,9 @@ description: "编码规约 wiki 管理（coding standards / conventions / guidel
 
 帮助用户将编码经验、架构决策和技术约束沉淀为简洁可执行的团队规范，统一维护在 `.docs/spec/coding/` 目录下，并通过 `.docs/spec/INDEX.md` 暴露给其它 coding-* skill 消费。
 
-## 何时使用 / 何时不使用
+## Activation policy
+
+本 skill 是 explicit opt-in。Activation restricted: 仅在用户明确要求管理编码规范时使用。
 
 **使用**：
 
@@ -155,3 +157,21 @@ description: "编码规约 wiki 管理（coding standards / conventions / guidel
 - 规范内容 diff 摘要。
 - INDEX.md 是否更新（含 Checklist 两节是否变动）。
 - 邀请用户回复 `confirm` / `change <说明>` / `cancel`。
+
+## Composition Interface
+
+本 skill 可被 Coding Feature Workflow 的阶段 skill 通过 Utility Call 调用（参见 `coding-feature-orchestrator/COMPOSITION_CONTRACT.md`）。
+
+### Entry Points
+
+| Entry Point | 输入 | 输出 | 适用阶段 |
+| --- | --- | --- | --- |
+| `query_spec` | 技术栈关键词 / 场景描述 | 匹配的规范条目内容（原则 + 规约） | design, implementation |
+| `check_compliance` | 代码片段 + 涉及的技术栈 | 违反的规约列表 + 修复建议 | implementation, verification |
+| `list_applicable` | 任务涉及的模块/文件列表 | Pre-Development Checklist 中匹配的条目 | design, implementation |
+
+### 调用约束
+
+- 本 skill 通过 composition call 被调用时，只返回规范内容查询结果，不修改 feature 目录下的阶段文档。
+- 不触发 Step 5 的 Review 闭环（因为不产生规范变更）。
+- 如果 `.docs/spec/INDEX.md` 不存在，返回空结果并建议用户先初始化规范体系。

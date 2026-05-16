@@ -668,6 +668,8 @@ def parse_tasks(body: str) -> list[dict[str, Any]]:
 
         delivery_record = extract_task_field(block, "交付记录")
         delivery_issue = delivery_record_issue(status, delivery_record)
+        has_checkpoints = bool(re.search(r"checkpoints:", block)) or bool(re.search(r"cp_\d+", block))
+        has_recovery_log = bool(re.search(r"recovery_log:", block)) or bool(re.search(r"recovery_action:", block))
         is_real = status in VALID_TASK_STATUSES and not missing_fields
         tasks.append(
             {
@@ -680,6 +682,8 @@ def parse_tasks(body: str) -> list[dict[str, Any]]:
                 "delivery_record": delivery_record,
                 "delivery_record_issue": delivery_issue,
                 "delivery_record_incomplete": delivery_issue is not None,
+                "has_checkpoints": has_checkpoints,
+                "has_recovery_log": has_recovery_log,
             }
         )
 
