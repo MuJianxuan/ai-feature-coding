@@ -1,0 +1,81 @@
+---
+stage: <ship-intake-review | ship-design-review | ship-plan-review>
+gate_type: hard
+review_status: pending          # pending | approved | rejected | revision_needed
+reviewer: ""                    # 用户身份/姓名
+reviewed_at: ""                 # ISO8601 时间戳
+reviewed_documents: []          # 此次评审涉及的文档清单
+revision_count: 0               # 第几轮评审
+---
+
+# 评审记录: <阶段名>
+
+## 1. 评审摘要
+
+> 一句话结论：approved / rejected / 需要 N 处修改
+
+## 2. 评审范围
+
+| 文档 | 版本（updated_at） | 评审状态 |
+|------|-------------------|---------|
+| <doc-1>.md | YYYY-MM-DDTHH:MM:SS | pass / fail |
+| <doc-2>.md | YYYY-MM-DDTHH:MM:SS | pass / fail |
+
+## 3. 评审 Checklist
+
+### 通用 Checklist（每次必查）
+
+- [ ] 文档 frontmatter 完整且字段值非占位符
+- [ ] 内容与上游文档一致（无矛盾）
+- [ ] 无 `TBD` / `<...>` / `UNSET` 等占位符残留
+- [ ] 关键决策都有理由说明，不只是结论
+
+### 阶段专属 Checklist
+
+> 各阶段的 SKILL.md 中定义具体清单。本节从对应 SKILL.md 复制。
+
+- [ ] ...
+- [ ] ...
+
+## 4. 发现的问题
+
+### Critical（必须修复才能通过）
+
+| ID | 位置 | 问题描述 | 建议 |
+|----|------|---------|------|
+| C-1 | doc.md §X | ... | ... |
+
+### Major（应当修复，可协商延后）
+
+| ID | 位置 | 问题描述 | 建议 |
+|----|------|---------|------|
+| M-1 | ... | ... | ... |
+
+### Minor（可选修复）
+
+| ID | 位置 | 问题描述 | 建议 |
+|----|------|---------|------|
+| m-1 | ... | ... | ... |
+
+## 5. 修改建议（汇总）
+
+> 仅当 review_status 为 rejected 或 revision_needed 时填写。
+> 列出需要回到上一阶段修改的具体内容。
+
+1. ...
+2. ...
+
+## 6. 用户签字
+
+> 用户的原话摘要。仅在 review_status 为 approved 时填写。
+> 必须由用户主动确认，不允许 agent 代签。
+
+```
+用户原话: "<完整引用用户的批准/拒绝原话>"
+确认时间: YYYY-MM-DDTHH:MM:SS
+```
+
+## 7. 后续动作
+
+- 若 approved → 进入下一阶段：<下个 skill 名>
+- 若 rejected / revision_needed → 回到 <上一 skill 名> 处理 Critical / Major 问题，修改后产出 review-<stage>.md（revision_count + 1）

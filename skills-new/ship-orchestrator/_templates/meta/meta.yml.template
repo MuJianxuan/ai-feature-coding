@@ -1,0 +1,104 @@
+# Feature 级元数据 - 集中维护
+# 位置: .docs/feature-YYYYMMDD-<short-name>/meta.yml
+# 替代各阶段文档中重复的 frontmatter，避免 6 处同步维护
+
+feature_name: ""              # 例: "用户 TODO 管理"
+feature_id: ""                # 例: "feature-20260522-todo-app"
+created_at: ""                # ISO8601 时间戳
+updated_at: ""                # ISO8601 时间戳，每次更新文档同步刷新
+
+# 当前所处阶段（用于 orchestrator 的 INSPECT_FEATURES / CONTINUE_FEATURE 模式）
+current_stage: ""             # ship-intake | ship-intake-review | ship-research | ship-stack | ship-contract | ship-frontend-design | ship-backend-design | ship-design-review | ship-frontend-plan | ship-backend-plan | ship-plan-review | ship-build | ship-verify | ship-handoff
+
+# 流水线模式
+pipeline_mode: standard       # standard | fast-track
+# fast-track 适用场景: complexity=patch, 单文件改动, 无新增接口
+
+# 项目上下文（一次性维护，所有阶段共用）
+project_context: unknown      # unknown | new_project | existing_project
+project_context_evidence: ""  # 一句话证据，例: "已有 package.json 且 src/ 下有源码"
+
+# 技术栈（在 ship-stack 阶段填写后冻结）
+tech_stack:
+  frontend: ""                # 例: "React 18 + Vite 5 + TypeScript 5"
+  backend: ""                 # 例: "Node 20 + Express 4 + Prisma 5"
+  database: ""                # 例: "SQLite (开发) / PostgreSQL (生产)"
+  testing:
+    frontend: ""              # 例: "Vitest + Testing Library + Playwright"
+    backend: ""               # 例: "Vitest + Supertest"
+
+# 各阶段状态汇总（由 orchestrator 维护，避免读取 14 个文档 frontmatter）
+stages:
+  ship-intake:
+    status: pending           # pending | draft | ready | blocked
+    evidence_complete: false
+  ship-intake-review:
+    status: pending           # pending | reviewing | approved | rejected
+    approved: false
+    approved_at: ""
+  ship-research:
+    status: pending
+    evidence_complete: false
+  ship-stack:
+    status: pending
+    evidence_complete: false
+  ship-contract:
+    status: pending
+    evidence_complete: false
+  ship-frontend-design:
+    status: pending
+    evidence_complete: false
+  ship-backend-design:
+    status: pending
+    evidence_complete: false
+  ship-design-review:
+    status: pending
+    approved: false
+    approved_at: ""
+  ship-frontend-plan:
+    status: pending
+    evidence_complete: false
+    task_count: 0
+  ship-backend-plan:
+    status: pending
+    evidence_complete: false
+    task_count: 0
+  ship-plan-review:
+    status: pending
+    approved: false
+    approved_at: ""
+  ship-build:
+    status: pending
+    tasks_done: 0
+    tasks_total: 0
+    current_task_id: ""        # DOING 状态的任务 ID，唯一性约束
+  ship-verify:
+    status: pending
+    coverage_frontend: 0
+    coverage_backend: 0
+  ship-handoff:
+    status: pending
+    all_ac_verified: false
+
+# AC ID 索引（所有 AC 的快速查找表，避免重复扫 requirements.md）
+ac_index: []
+# 示例:
+# - id: AC-001
+#   domain: TODO
+#   summary: "用户能创建一条 TODO"
+
+# Domain ID 索引（业务域快速查找表）
+domain_index: []
+# 示例:
+# - id: TODO
+#   name: "TODO 管理"
+#   description: "TODO 的增删改查"
+
+# 风险登记
+risks: []
+# 示例:
+# - id: R-001
+#   stage: ship-stack
+#   description: "Prisma 在 SQLite 下不支持 enum"
+#   severity: minor
+#   mitigation: "用 string + zod 校验替代"
