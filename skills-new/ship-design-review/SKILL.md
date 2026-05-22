@@ -26,7 +26,7 @@ description: "ShipKit hard gate. Reviews technical design for consistency across
 - 前端或后端设计尚未完成 —— 等待设计阶段完成
 - 仅修改了一个接口的小变更 —— 使用轻量 diff review
 - 纯 UI 样式调整，不涉及接口变更 —— 无需本阶段
-- 需求尚未通过评审 —— 先完成 requirement-review
+- 需求尚未通过评审 —— 先完成 `ship-intake-review`
 
 ## Gate Protocol
 
@@ -200,6 +200,11 @@ gate_type: hard
 review_status: pending  # pending / approved / rejected / revision_needed
 reviewer: ""
 reviewed_at: ""
+reviewed_documents: ["api-contract.md", "frontend-design.md", "backend-design.md"]
+revision_count: 0
+user_sign_off: ""
+signed_at: ""
+conditions: []
 ---
 ```
 

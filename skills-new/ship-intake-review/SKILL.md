@@ -174,6 +174,11 @@ gate_type: hard
 review_status: pending  # pending / approved / rejected / revision_needed
 reviewer: ""  # 用户身份
 reviewed_at: ""
+reviewed_documents: ["requirements.md"]
+revision_count: 0
+user_sign_off: ""
+signed_at: ""
+conditions: []
 requirement_version: ""  # 对应 requirements.md 的版本/更新时间
 ---
 ```
@@ -275,7 +280,7 @@ requirement_version: ""  # 对应 requirements.md 的版本/更新时间
 - [ ] review-requirement.md 的 frontmatter 字段完整
 - [ ] review_status 与用户明确表态一致
 - [ ] 如果 approved：无未解决的 Critical 问题
-- [ ] 如果 revision_needed：问题清单已明确传递给 requirement-intake
+- [ ] 如果 revision_needed：问题清单已明确传递给 `ship-intake`
 - [ ] 用户签字章节有用户原话记录
 ```
 

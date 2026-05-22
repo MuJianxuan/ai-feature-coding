@@ -25,10 +25,10 @@ description: "ShipKit stage. Executes coding tasks from ship-frontend-plan and s
 
 ## When NOT to Use
 
-- plan 尚未通过评审 —— 回到 plan-review 阶段
-- 发现需求有重大歧义 —— 回到 requirement-intake 阶段
+- plan 尚未通过评审 —— 回到 `ship-plan-review` 阶段
+- 发现需求有重大歧义 —— 回到 `ship-intake` 阶段
 - 纯技术调研/方案验证 —— 使用 tech-research 阶段
-- 需要修改 API 契约 —— 回到 api-contract-design 阶段
+- 需要修改 API 契约 —— 回到 `ship-contract` 阶段
 
 ## Contract-First Execution Order
 
@@ -110,6 +110,7 @@ Phase 3: 集成联调
 - 阅读任务条目中的"完成判定标准"（Acceptance Criteria for Task）
 - 阅读"关联文件清单"中列出的所有文件，理解现状
 - 如果任务关联了 design 文档章节，读取该章节
+- 若存在匹配的 `.docs/spec/` 规范，先加载并记录引用的 `spec_id`
 - 不要凭记忆或假设直接动手
 
 **Step 5: 编写代码**
@@ -235,8 +236,8 @@ Phase 3: 集成联调
 - **plan 中的任务依赖关系出现循环**：plan 有结构性问题，回到 plan-review
 - **Phase 1（契约层）尚未完成就开始 Phase 2 任务**：契约未对齐会导致后期大量返工
 - **DOING 任务超过 1 个**：状态机被破坏，必须先收敛
-- **发现 api-contract.md 与实际需求不符**：停下回到 api-contract-design 阶段
-- **测试通过但用户验收失败**：测试与 AC 不对齐，回到 testing 阶段补齐
+- **发现 api-contract.md 与实际需求不符**：停下回到 `ship-contract` 阶段
+- **测试通过但用户验收失败**：测试与 AC 不对齐，回到 `ship-verify` 阶段补齐
 
 ## Verification (退出 Checklist)
 
@@ -260,5 +261,6 @@ Phase 3: 集成联调
 - [ ] Phase 1（契约层）实现与 api-contract.md 一致
 - [ ] 端到端关键路径已跑通（即使是手动验证）
 - [ ] 已知的偏离/妥协已记录在 plan.md 的 notes 字段
-- [ ] 准备进入 testing 阶段（或 testing 已与 implementation 同步完成）
+- [ ] 相关规范已加载并在任务证据中留痕（如适用）
+- [ ] 准备进入 `ship-verify` 阶段（或 `ship-verify` 已与 `ship-build` 同步完成）
 ```

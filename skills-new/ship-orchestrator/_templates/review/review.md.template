@@ -6,6 +6,9 @@ reviewer: ""                    # 用户身份/姓名
 reviewed_at: ""                 # ISO8601 时间戳
 reviewed_documents: []          # 此次评审涉及的文档清单
 revision_count: 0               # 第几轮评审
+user_sign_off: ""               # 用户原话；仅 approved 时必填
+signed_at: ""                   # ISO8601 时间戳；仅 approved 时必填
+conditions: []                  # revision_needed 时列出必须解决的条件
 ---
 
 # 评审记录: <阶段名>
@@ -67,13 +70,15 @@ revision_count: 0               # 第几轮评审
 
 ## 6. 用户签字
 
-> 用户的原话摘要。仅在 review_status 为 approved 时填写。
+> 用户的原话摘要。仅在 review_status 为 approved 时必填。
 > 必须由用户主动确认，不允许 agent 代签。
 
 ```
 用户原话: "<完整引用用户的批准/拒绝原话>"
 确认时间: YYYY-MM-DDTHH:MM:SS
 ```
+
+> 同步要求：上方文本与 frontmatter 中的 `user_sign_off`、`signed_at` 保持一致。
 
 ## 7. 后续动作
 

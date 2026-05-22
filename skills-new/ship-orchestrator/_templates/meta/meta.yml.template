@@ -1,13 +1,13 @@
-# Feature 级元数据 - 集中维护
+# Feature 级元数据 - orchestrator 索引层
 # 位置: .docs/feature-YYYYMMDD-<short-name>/meta.yml
-# 替代各阶段文档中重复的 frontmatter，避免 6 处同步维护
+# 用于恢复、总览、快速路由；阶段是否完成以各产物 frontmatter 为准
 
 feature_name: ""              # 例: "用户 TODO 管理"
 feature_id: ""                # 例: "feature-20260522-todo-app"
 created_at: ""                # ISO8601 时间戳
 updated_at: ""                # ISO8601 时间戳，每次更新文档同步刷新
 
-# 当前所处阶段（用于 orchestrator 的 INSPECT_FEATURES / CONTINUE_FEATURE 模式）
+# 当前所处阶段（必须使用 canonical stage id）
 current_stage: ""             # ship-intake | ship-intake-review | ship-research | ship-stack | ship-contract | ship-frontend-design | ship-backend-design | ship-design-review | ship-frontend-plan | ship-backend-plan | ship-plan-review | ship-build | ship-verify | ship-handoff
 
 # 流水线模式
@@ -27,57 +27,57 @@ tech_stack:
     frontend: ""              # 例: "Vitest + Testing Library + Playwright"
     backend: ""               # 例: "Vitest + Supertest"
 
-# 各阶段状态汇总（由 orchestrator 维护，避免读取 14 个文档 frontmatter）
+# 各阶段摘要状态（由 orchestrator 维护；与文档冲突时以文档 frontmatter 为准）
 stages:
   ship-intake:
-    status: pending           # pending | draft | ready | blocked
+    status: pending           # pending | in_progress | ready | blocked | completed
     evidence_complete: false
   ship-intake-review:
-    status: pending           # pending | reviewing | approved | rejected
-    approved: false
+    status: pending           # pending | in_progress | approved | rejected | revision_needed
+    approved: false           # 由 review_status 派生的便捷索引
     approved_at: ""
   ship-research:
-    status: pending
+    status: pending           # pending | in_progress | ready | blocked | completed
     evidence_complete: false
   ship-stack:
-    status: pending
+    status: pending           # pending | in_progress | ready | blocked | completed
     evidence_complete: false
   ship-contract:
-    status: pending
+    status: pending           # pending | in_progress | ready | blocked | completed
     evidence_complete: false
   ship-frontend-design:
-    status: pending
+    status: pending           # pending | in_progress | ready | blocked | completed
     evidence_complete: false
   ship-backend-design:
-    status: pending
+    status: pending           # pending | in_progress | ready | blocked | completed
     evidence_complete: false
   ship-design-review:
-    status: pending
-    approved: false
+    status: pending           # pending | in_progress | approved | rejected | revision_needed
+    approved: false           # 由 review_status 派生的便捷索引
     approved_at: ""
   ship-frontend-plan:
-    status: pending
+    status: pending           # pending | in_progress | ready | blocked | completed
     evidence_complete: false
     task_count: 0
   ship-backend-plan:
-    status: pending
+    status: pending           # pending | in_progress | ready | blocked | completed
     evidence_complete: false
     task_count: 0
   ship-plan-review:
-    status: pending
-    approved: false
+    status: pending           # pending | in_progress | approved | rejected | revision_needed
+    approved: false           # 由 review_status 派生的便捷索引
     approved_at: ""
   ship-build:
-    status: pending
+    status: pending           # pending | in_progress | blocked | completed
     tasks_done: 0
     tasks_total: 0
     current_task_id: ""        # DOING 状态的任务 ID，唯一性约束
   ship-verify:
-    status: pending
+    status: pending           # pending | in_progress | ready | blocked | completed
     coverage_frontend: 0
     coverage_backend: 0
   ship-handoff:
-    status: pending
+    status: pending           # pending | in_progress | blocked | completed
     all_ac_verified: false
 
 # AC ID 索引（所有 AC 的快速查找表，避免重复扫 requirements.md）

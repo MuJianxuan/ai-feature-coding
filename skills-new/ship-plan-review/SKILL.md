@@ -35,7 +35,7 @@ description: "ShipKit hard gate. Reviews implementation plans for completeness a
 
 1. **不可跳过**：实施计划必须经过评审才能开始编码
 2. **必须用户签字**：AI 可以执行评审，但最终通过/拒绝决定权在用户
-3. **阻塞后续**：`review_status` 不为 `approved` 时，禁止进入 implementation 阶段
+3. **阻塞后续**：`review_status` 不为 `approved` 时，禁止进入 `ship-build` 阶段
 4. **修改后重审**：如果状态为 `revision_needed`，修改后必须重新执行评审流程
 
 ### 状态流转
@@ -202,6 +202,11 @@ gate_type: hard
 review_status: pending  # pending / approved / rejected / revision_needed
 reviewer: ""
 reviewed_at: ""
+reviewed_documents: ["frontend-plan.md", "backend-plan.md"]
+revision_count: 0
+user_sign_off: ""
+signed_at: ""
+conditions: []
 ---
 ```
 

@@ -13,7 +13,7 @@ description: "ShipKit stage. Researches latest technical information using sourc
 
 ## When to Use
 
-- requirements.md 已通过 requirement-review gate（stage_status: ready）
+- requirements.md 已通过 `ship-intake-review` gate
 - 需要评估新技术栈、框架、库的适用性
 - 需要确认技术方案的可行性和最新状态
 - 项目涉及不熟悉的技术领域

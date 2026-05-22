@@ -1,13 +1,13 @@
 ---
 name: ship-handoff
-description: "ShipKit stage. Verifies all acceptance criteria and produces delivery summary. Use after ship-verify completes."
+description: "ShipKit stage. Consumes verification.md from ship-verify, completes AC acceptance, and produces delivery summary."
 ---
 
 # 实施验收 (Acceptance)
 
 ## Overview
 
-实施验收是开发工作流的最终阶段，负责对照 requirements.md 中的 Acceptance Criteria (AC) 进行全量验证，评估残余风险，并产出交付总结。核心原则：**每条 AC 必须有可追溯的验证证据，未通过项必须显式记录而非隐藏**。
+实施验收是开发工作流的最终阶段，负责消费 `ship-verify` 产出的 `verification.md`，对照 requirements.md 中的 Acceptance Criteria (AC) 做最终验收，评估残余风险，并产出交付总结。核心原则：**每条 AC 必须有可追溯的验证证据，未通过项必须显式记录而非隐藏**。
 
 核心目标：
 - AC 全量映射验证：每条 AC 对应至少一项验证证据
@@ -15,18 +15,18 @@ description: "ShipKit stage. Verifies all acceptance criteria and produces deliv
 - 交付边界清晰：变更范围、部署事项、后续建议形成可移交文档
 
 产物：
-- `verification.md` —— AC 映射与验证证据
+- `verification.md` —— 共享验收证据文件；本阶段补齐 AC 映射、手工验证、残余风险与最终结论
 - `handoff.md` —— 交付摘要与移交清单
 
 ## When to Use
 
-- testing 阶段已通过（自动化测试全部跑过且核心覆盖率达标）
+- `ship-verify` 已完成，且 `verification.md.stage_status = ready`
 - 进入用户/QA 验收前的最后一道闸口
 - 需要向团队/客户交付一个完整可审计的实施记录时
 
 ## When NOT to Use
 
-- testing 尚未完成 —— 自动化测试未通过谈不上验收
+- `ship-verify` 尚未将 `verification.md` 置为 `ready` —— 自动化验证未完成谈不上验收
 - 仅是临时实验/原型 —— 不进入正式交付链路
 - 需要跨需求合并验收 —— 应分别验收后再做集成验收
 
@@ -43,7 +43,7 @@ description: "ShipKit stage. Verifies all acceptance criteria and produces deliv
 
 - 每条 AC 在 requirements.md 中已有 ID（推荐格式 `AC-{Domain}-{NNN}`）
 - verification.md 中按相同 ID 引用，便于跨文档跳转
-- 若 AC 在 testing 阶段被拆分为多个测试用例，需在证据列中列出所有相关用例
+- 若 AC 在 `ship-verify` 中被拆分为多个测试用例，需在证据列中列出所有相关用例
 
 ## Process
 
@@ -55,7 +55,7 @@ description: "ShipKit stage. Verifies all acceptance criteria and produces deliv
 │  1. 读取 requirements.md，提取所有 AC                  │
 │         │                                            │
 │         ▼                                            │
-│  2. 读取 verification.md（如已有）/ 创建骨架            │
+│  2. 读取 verification.md（由 ship-verify 生成）          │
 │         │                                            │
 │         ▼                                            │
 │  3. 对每条 AC 执行映射                                 │
@@ -85,7 +85,7 @@ description: "ShipKit stage. Verifies all acceptance criteria and produces deliv
 
 **Step 1-2: 上下文准备**
 - 提取 requirements.md 中所有 AC，建立完整列表
-- verification.md 已有部分内容（来自 testing 阶段）的，在此基础上扩展
+- verification.md 已有测试章节（来自 `ship-verify`），在此基础上扩展 AC 映射和验收结论
 - 不放过任何一条 AC，包括非功能 AC（性能、安全、可访问性）
 
 **Step 3: AC 映射**
@@ -160,7 +160,7 @@ P3 (Low):    优化建议、非功能性改进
 - 描述：登录失败 5 次后未触发账户锁定
 - 影响：安全风险，可能被暴力破解
 - 当前状态：FAIL
-- 建议：在 implementation 阶段补充锁定逻辑后重新验收
+- 建议：在 `ship-build` 阶段补充锁定逻辑后重新验收
 - Owner: TBD
 
 ### R-002 [P1] AC-ORD-007 BLOCKED
@@ -178,7 +178,7 @@ P3 (Low):    优化建议、非功能性改进
 ```yaml
 ---
 stage: ship-handoff
-stage_status: draft  # draft → 存在 FAIL/BLOCKED 未处理; complete → 全部 PASS 或 N/A 已解释
+stage_status: ready  # ship-verify 结束时应为 ready；ship-handoff 完成后改为 complete 或回退为 draft
 updated_at: ""
 all_ac_verified: false  # 所有 AC 都有明确结果（含 N/A）则为 true
 ---
@@ -235,7 +235,7 @@ all_ac_verified: false  # 所有 AC 都有明确结果（含 N/A）则为 true
 - **存在未映射的 AC**：requirements.md 有但 verification.md 没出现的 AC
 - **PASS 但无证据**：标 PASS 却找不到对应的测试 ID 或命令输出
 - **N/A 无解释**：直接标 N/A 不说明原因
-- **FAIL 项数 > 总 AC 的 20%**：实施质量明显不达标，回到 implementation 阶段
+- **FAIL 项数 > 总 AC 的 20%**：实施质量明显不达标，回到 `ship-build` 阶段
 - **handoff 中部署事项与代码改动不匹配**：例如新增了环境变量但 handoff 没列出
 - **all_ac_verified=false 但 stage_status=complete**：状态机被破坏
 
@@ -279,6 +279,7 @@ all_ac_verified: false  # 所有 AC 都有明确结果（含 N/A）则为 true
 
 | 条件 | status |
 |------|--------|
+| `ship-verify` 产物不完整或 `verification.md` 未达到 `ready` | `draft` |
 | 存在 P0 残余风险且未与用户对齐 | `draft` |
 | 存在未映射的 AC | `draft` |
 | AC 全部 PASS / N/A 已解释，FAIL/BLOCKED 已登记并对齐 | `complete` |

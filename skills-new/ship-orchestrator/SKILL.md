@@ -9,9 +9,13 @@ description: "ShipKit orchestrator. Routes development workflow stages. Use when
 
 Workflow Orchestrator 是开发工作流 skills 套件的总调度器，负责入口判断、阶段推断和路由分发。它不执行具体阶段工作，而是识别用户意图后将控制权交给对应的阶段 skill。
 
-本 skill 支持三种入口模式：NEW_FEATURE（启动新功能开发）、CONTINUE_FEATURE（恢复中断的功能开发）、INSPECT_FEATURES（查看功能状态总览）。调度器通过读取 meta.yml 中的 current_stage 和各阶段 status 字段来判断当前位置，并根据门禁规则决定是否允许推进到下一阶段。
+本 skill 支持三种入口模式：NEW_FEATURE（启动新功能开发）、CONTINUE_FEATURE（恢复中断的功能开发）、INSPECT_FEATURES（查看功能状态总览）。调度器通过读取 `meta.yml.current_stage`、各产物 frontmatter 和 `meta.yml` 摘要状态来判断当前位置，并根据门禁规则决定是否允许推进到下一阶段。
 
 设计原则是"放宽触发、严格推进"——用户无需记住 skill 名称或阶段编号，只要表达出开发意图，调度器就能识别并给出执行计划摘要，用户一句话确认即可启动。但阶段间的推进必须满足门禁条件，不允许跳过。
+
+协议约束：
+- Canonical stage id、门禁字段、`verification.md` ownership 统一以 [`workflow-protocol.md`](./_templates/protocol/workflow-protocol.md) 为准
+- 阶段文档 frontmatter 是事实源；`meta.yml` 仅是 orchestrator 索引层
 
 ## When to Use
 
@@ -112,19 +116,19 @@ ship-intake → ship-intake-review [硬门禁]
 | 阶段 | 入口条件 | 出口产物 | 出口条件 |
 |------|---------|---------|---------|
 | ship-intake | NEW_FEATURE 确认启动 | requirements.md | frontmatter stage_status: ready |
-| ship-intake-review | requirements.md 存在且 stage_status: ready | review-requirement.md | approved: true + 用户签字 |
-| ship-research | review-requirement.md approved: true | tech-research.md | stage_status: ready |
+| ship-intake-review | requirements.md 存在且 stage_status: ready | review-requirement.md | review_status: approved + user_sign_off/signed_at |
+| ship-research | review-requirement.md review_status: approved | tech-research.md | stage_status: ready |
 | ship-stack | tech-research.md ready | tech-selection.md | stage_status: ready |
 | ship-contract | tech-selection.md ready | api-contract.md | stage_status: ready |
 | ship-frontend-design | api-contract.md ready | frontend-design.md | stage_status: ready |
 | ship-backend-design | api-contract.md ready | backend-design.md | stage_status: ready |
-| ship-design-review | frontend-design + backend-design ready | review-design.md | approved: true + 用户签字 |
-| ship-frontend-plan | review-design.md approved: true | frontend-plan.md | stage_status: ready |
-| ship-backend-plan | review-design.md approved: true | backend-plan.md | stage_status: ready |
-| ship-plan-review | frontend-plan + backend-plan ready | review-plan.md | approved: true + 用户签字 |
-| ship-build | review-plan.md approved: true | 代码产物 | 所有 task 完成 |
-| ship-verify | implementation 完成 | verification.md | 测试通过率达标 |
-| ship-handoff | verification.md ready | handoff.md | 用户验收确认 |
+| ship-design-review | frontend-design + backend-design ready | review-design.md | review_status: approved + user_sign_off/signed_at |
+| ship-frontend-plan | review-design.md review_status: approved | frontend-plan.md | stage_status: ready |
+| ship-backend-plan | review-design.md review_status: approved | backend-plan.md | stage_status: ready |
+| ship-plan-review | frontend-plan + backend-plan ready | review-plan.md | review_status: approved + user_sign_off/signed_at |
+| ship-build | review-plan.md review_status: approved | 代码产物 | 所有 task 完成 |
+| ship-verify | ship-build 完成 | verification.md | `stage_status: ready` |
+| ship-handoff | verification.md stage_status: ready | handoff.md + verification.md | `handoff.md` 完成且 `verification.md stage_status: complete` |
 
 并行规则：
 - ship-frontend-design 和 ship-backend-design 可并行执行（共同依赖 05 的产出）
@@ -139,10 +143,10 @@ standard 模式（默认）：
 
 fast-track 模式：
 - 适用于小型功能或紧急修复
-- 最小路径：01→02→12→13→14（需求→评审→实现→测试→验收）
+- 最小路径：01→02→12→13→14（`ship-intake → ship-intake-review → ship-build → ship-verify → ship-handoff`）
 - 可选扩展：在最小路径基础上按需插入 03-04（技术调研选型）或 05-07（设计）
 - 切换条件：用户在 NEW_FEATURE 确认时明确要求，或 02 评审时 reviewer 判定功能复杂度为 low
-- 硬门禁 02 仍然必须执行，08 和 11 在 fast-track 中合并为实现前的简化确认
+- 硬门禁 02 仍然必须执行；fast-track 允许不生成设计/计划产物，但不允许绕过需求录入、需求评审、测试和验收
 
 模式切换规则：
 - standard → fast-track：仅在 02 评审通过后、03 开始前允许降级
@@ -159,9 +163,10 @@ fast-track 模式：
 - upstream_docs：上游阶段产出文档路径列表
 
 阶段 skill 完成后必须回调调度器：
-- 更新 meta.yml 中对应阶段的 status 为 completed
-- 更新 current_stage 为下一阶段
-- 若阶段产出需要用户确认，标记 status 为 pending_review
+- 先读取对应产物 frontmatter，确认事实状态
+- 将 `meta.yml` 中对应阶段状态回写为摘要状态（如 `ready` / `approved` / `completed`）
+- 更新 `current_stage` 为下一阶段 canonical stage id
+- 若发现 `meta.yml` 与产物 frontmatter 不一致，优先修正 `meta.yml`
 
 ## Gate Protocol
 
@@ -174,11 +179,13 @@ fast-track 模式：
    - reviewer：执行评审的角色（AI / 用户 / 两者）
    - checklist：评审检查项列表，每项标注 pass/fail/na
    - issues：发现的问题列表，含严重级别和处理建议
-   - decision：approved / rejected / conditional
-   - user_sign_off：用户确认文本 + 时间戳
-2. 只有 decision 为 approved 且 user_sign_off 非空时，才允许推进
-3. 若 rejected：回退到对应的产出阶段重新执行
-4. 若 conditional：列出必须解决的条件，解决后重新提交评审
+   - review_status：pending / approved / rejected / revision_needed
+   - user_sign_off：用户确认文本
+   - signed_at：用户确认时间戳
+   - conditions：必须解决的条件列表（如有）
+2. 只有 `review_status=approved` 且 `user_sign_off`、`signed_at` 非空时，才允许推进
+3. 若 `rejected`：回退到对应的产出阶段重新执行
+4. 若 `revision_needed`：列出必须解决的问题，解决后重新提交评审
 
 ### 软门禁（Soft Gate）
 
@@ -201,12 +208,15 @@ fast-track 模式：
 
 每个评审产物必须包含 frontmatter，字段约定：
 - stage：所属阶段标识
+- gate_type：固定为 `hard`
+- review_status：`pending / approved / rejected / revision_needed`
 - reviewer：评审者标识
-- decision：approved / rejected / conditional
-- approved：true / false（仅在 decision=approved 时为 true）
+- reviewed_at：评审时间
+- reviewed_documents：本轮评审涉及文档
+- revision_count：重审次数
 - user_sign_off：用户签字文本
 - signed_at：签字时间戳（ISO 8601）
-- conditions：若 decision=conditional，列出待解决条件
+- conditions：若 `revision_needed`，列出待解决条件
 
 调度器读取 frontmatter 后才判定门禁结果，正文内容仅作参考不影响判定。
 
@@ -238,7 +248,7 @@ NEW_FEATURE 模式下的目录创建流程：
 中断恢复流程（CONTINUE_FEATURE 模式）：
 
 1. 扫描 .docs/ 目录，列出所有 feature-YYYYMMDD-* 目录
-2. 读取每个 feature 的 meta.yml，过滤出 current_stage 不为 acceptance 且 status 不为 completed 的活跃 feature
+2. 读取每个 feature 的 meta.yml，过滤出 `ship-handoff` 尚未 `completed` 的活跃 feature
 3. 若只有一个进行中的 feature：自动选中并报告
 4. 若有多个：列表展示（功能名 / 当前阶段 / 最后更新时间），让用户选择
 5. 若无活跃 feature：提示用户是否启动新功能或查看历史 feature
@@ -246,7 +256,7 @@ NEW_FEATURE 模式下的目录创建流程：
 7. 根据 current_stage 和该阶段 status 判断恢复点：
    - status: completed → 检查门禁后推进到下一阶段
    - status: in_progress → 恢复当前阶段（传递已有产物作为上下文）
-   - status: pending_review → 路由到对应的评审阶段
+   - status: approved / ready → 检查门禁后推进到下一阶段
    - status: blocked → 报告阻塞原因，询问用户决策（解除阻塞 / 切换 feature / 终止）
    - status: pending → 路由到该阶段重新启动
 8. 检查门禁条件后路由到目标阶段 skill
@@ -260,6 +270,7 @@ NEW_FEATURE 模式下的目录创建流程：
 恢复时的状态校验：
 - 若 meta.yml 中 current_stage 与实际文档产出不一致（如 current_stage 为 04 但 tech-research.md 不存在），优先信任文件系统状态，回退 current_stage
 - 若发现孤立产物（如存在 frontend-plan.md 但无 review-design.md），警告用户并询问处理方式
+- 若 `meta.yml` 摘要状态与产物 frontmatter 冲突，优先信任产物 frontmatter 并回写 `meta.yml`
 
 ## Inspect Protocol
 

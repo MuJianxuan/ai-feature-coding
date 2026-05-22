@@ -68,4 +68,4 @@ BE-I-001 → BE-I-002 ─┬─ BE-I-003 → BE-TODO-001 → BE-TODO-002 ┐
 
 - **C1（BE-I-005 完成时）**: 通知前端基础 URL 和错误格式已确定，可调整 API client baseURL
 - **C2（BE-TODO-005 完成时）**: 通知前端可关闭 MSW，连真实接口
-- **C3（BE-TEST-002 完成时）**: 契约一致性确认，进入 testing 阶段联调
+- **C3（BE-TEST-002 完成时）**: 契约一致性确认，进入 `ship-verify` 阶段联调

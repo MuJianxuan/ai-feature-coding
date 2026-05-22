@@ -24,7 +24,7 @@ todo-app-example/
 │   ├── frontend-plan.md         # 前端实施计划
 │   └── backend-plan.md          # 后端实施计划
 └── implementation/
-    └── notes.md                 # 实施要点说明
+    └── notes.md                 # 实施要点说明（示例备注目录，不代表 canonical stage id）
 ```
 
 ## 使用方式

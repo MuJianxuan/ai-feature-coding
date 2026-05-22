@@ -7,9 +7,11 @@
 ```
 _templates/
 ├── meta/
-│   └── meta.yml.template          # feature 级元数据模板（集中维护，替代 6 处 frontmatter 重复）
+│   └── meta.yml.template          # feature 级索引模板（恢复 / 汇总 / 路由）
 ├── review/
 │   └── review.md.template         # 硬门禁评审记录模板（02/08/11 阶段共用）
+├── protocol/
+│   └── workflow-protocol.md       # 共享协议单源（阶段 id / 门禁 / 状态机）
 └── todo-app-example/              # TODO Web App 完整范本（端到端示例）
     ├── README.md
     ├── requirements/
@@ -30,9 +32,13 @@ _templates/
 
 ### meta/meta.yml.template
 
-每个新 feature 启动时，由 `ship-orchestrator` 复制到 `.docs/feature-YYYYMMDD-<short-name>/meta.yml`，作为该 feature 的中央元数据文件。
+每个新 feature 启动时，由 `ship-orchestrator` 复制到 `.docs/feature-YYYYMMDD-<short-name>/meta.yml`，作为该 feature 的索引文件。
 
-阶段文档不再各自维护 `project_context` / `pipeline_mode` 等冗余字段，只在 `meta.yml` 中维护一次。
+阶段文档不再各自维护 `project_context` / `pipeline_mode` 等冗余字段，只在 `meta.yml` 中维护一次。阶段是否 `ready` / `approved` 仍以产物 frontmatter 为准。
+
+### protocol/workflow-protocol.md
+
+共享协议单源。凡是涉及 stage id、门禁字段、`verification.md` ownership、fast-track 规则，都先对照此文档，再更新其他 SKILL。
 
 ### review/review.md.template
 

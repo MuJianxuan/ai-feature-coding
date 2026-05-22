@@ -10,25 +10,26 @@ description: "ShipKit stage. Runs frontend and backend tests to verify implement
 测试阶段负责对实现产物进行系统性验证，覆盖前端、后端及前后端契约一致性。核心原则：**前后端分轨执行 + 契约层统一校验**。
 
 核心目标：
-- 后端测试在 implementation 阶段随任务同步完成（TDD 风格）
+- 后端测试在 `ship-build` 阶段随任务同步完成（TDD 风格）
 - 前端 E2E 测试在所有前端任务完成后统一执行
 - 契约测试验证前后端对 api-contract.md 的实现一致性
-- 输出可审计的测试结果，更新 verification.md 中的测试章节
+- 输出可审计的测试结果，创建或更新 `verification.md` 的测试章节
+- 自动化验证通过后，将 `verification.md.stage_status` 置为 `ready`，交由 `ship-handoff` 完成最终验收
 
-产物：测试代码 + 测试报告（汇总进入 verification.md）
+产物：测试代码 + 测试报告 + `verification.md`（测试章节）
 
 ## When to Use
 
-- implementation 阶段的任务正在/已完成，需要验证
+- `ship-build` 阶段的任务正在/已完成，需要验证
 - TDD 模式下：每个后端任务实现前先写测试
 - 前端任务全部完成后，准备跑 E2E
 - 需要验证前后端集成一致性时
 
 ## When NOT to Use
 
-- implementation 尚未启动 —— 没有可测对象
+- `ship-build` 尚未启动 —— 没有可测对象
 - 需求/契约未稳定 —— 测试会大量返工，先稳定上游产物
-- 纯文档/配置类改动 —— 不需要传统测试，使用 acceptance 阶段的手工验证
+- 纯文档/配置类改动 —— 不需要传统测试，使用 `ship-handoff` 阶段的手工验证
 
 ## Testing Strategy (前后端分轨)
 
@@ -38,10 +39,10 @@ description: "ShipKit stage. Runs frontend and backend tests to verify implement
 ├──────────────┬──────────────┬──────────────────────────┤
 │   类型       │   范围       │   执行时机                │
 ├──────────────┼──────────────┼──────────────────────────┤
-│ 后端单元测试  │ 单个函数/类   │ implementation 同步       │
-│ 后端集成测试  │ 多模块协作   │ implementation 任务结束   │
+│ 后端单元测试  │ 单个函数/类   │ ship-build 同步           │
+│ 后端集成测试  │ 多模块协作   │ ship-build 任务结束       │
 │ 后端契约测试  │ API endpoint │ 契约层任务完成后          │
-│ 前端组件测试  │ 单个组件     │ implementation 同步       │
+│ 前端组件测试  │ 单个组件     │ ship-build 同步           │
 │ 前端 E2E     │ 关键用户路径 │ 所有前端任务完成后        │
 │ 视觉回归     │ 关键页面     │ 可选，UI 重构时           │
 │ 契约一致性   │ 前后端对齐   │ 集成联调时                │
@@ -192,7 +193,7 @@ E2E 路径选择原则：
 │  6. 收集失败用例，分类（真 bug / 测试问题 / 环境）│
 │         │                                        │
 │         ▼                                        │
-│  7. 真 bug 回到 implementation 修复               │
+│  7. 真 bug 回到 ship-build 修复                   │
 │         │                                        │
 │         ▼                                        │
 │  8. 收集覆盖率与结果，更新 verification.md        │
@@ -205,14 +206,14 @@ E2E 路径选择原则：
 **Step 1-3: 测试覆盖审计**
 - 列出所有 DONE 任务
 - 对照 Verification Per Task 检查测试是否齐全
-- 缺失测试者补齐，不再以 implementation 阶段已结束为由跳过
+- 缺失测试者补齐，不再以 `ship-build` 已结束为由跳过
 
 **Step 4-5: 分轨执行**
 - 优先级：后端单测 → 后端集成 → 后端契约 → 前端组件 → 前端 E2E
 - 前序失败时不阻塞后序，但需要分类标记
 
 **Step 6-7: 失败诊断**
-- 真 bug → 创建修复任务，回到 implementation
+- 真 bug → 创建修复任务，回到 `ship-build`
 - 测试问题（写错的断言、过期的 fixture）→ 修测试
 - 环境问题（端口冲突、依赖缺失）→ 修环境，记录到 README
 
@@ -220,6 +221,31 @@ E2E 路径选择原则：
 - 测试运行命令与输出
 - 覆盖率报告路径
 - 失败列表与处理状态
+- 若自动化验证通过且无阻塞，设置 `verification.md.stage_status: ready`
+- 若仍有未解决 blocker，保持 `verification.md.stage_status: draft`
+
+## Output: verification.md
+
+`verification.md` 是 `ship-verify` 与 `ship-handoff` 的共享产物。`ship-verify` 负责写入测试章节，不负责最终 AC 验收结论。
+
+### Frontmatter
+
+```yaml
+---
+stage: ship-handoff
+stage_status: draft  # draft / ready / complete
+updated_at: ""
+all_ac_verified: false
+---
+```
+
+### 本阶段必须写入的章节
+
+- 自动化测试结果汇总
+- 覆盖率结果与报告路径
+- 失败用例分类（真 bug / 测试问题 / 环境）
+- 测试运行命令
+- 已知的测试环境限制
 
 ## Coverage Requirements
 
@@ -251,7 +277,7 @@ E2E 路径选择原则：
 以下情况必须暂停处理：
 
 - **多个测试同时失败但模式相似**：可能是共享基础设施问题（如测试 DB 未清理）
-- **测试通过但 AC 失败**：测试与需求不对齐，回到 testing 设计阶段
+- **测试通过但 AC 失败**：测试与需求不对齐，回到 `ship-verify` 补齐验证设计
 - **修复一个 bug 引发其他测试失败**：可能是修复方向错了，或测试在测错的东西
 - **覆盖率剧烈下降**：可能新增代码无测试，或测试被误删
 - **E2E 通过但用户实际操作失败**：测试环境与真实环境差异过大
@@ -275,5 +301,6 @@ E2E 路径选择原则：
 - [ ] 真 bug 已创建修复任务并解决
 - [ ] 测试运行命令已写入项目 README 或 CI 配置
 - [ ] 测试结果与覆盖率已写入 verification.md
+- [ ] verification.md 的测试章节完整，且 `stage_status` 已正确设置为 `ready` 或 `draft`
 - [ ] 无未处理的 flaky 测试（要么修，要么显式标记 skip 并记录原因）
 ```
