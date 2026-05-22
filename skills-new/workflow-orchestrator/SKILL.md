@@ -53,6 +53,7 @@ skills-new/workflow-orchestrator/WORKFLOW_CONTRACT.md
 1. 从需求主题提取 `short-name`
 2. 创建 `.docs/workflows/workflow-YYYYMMDD-short-name/`
 3. 从 `assets/workflow-template/` 复制模板
+4. 将用户资料移动到创建的需求目录
 4. 将用户资料索引到 `source-index.md`
 5. 根据阶段推断进入 `product-requirements`
 
