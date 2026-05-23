@@ -57,6 +57,7 @@ last_updated: "2026-05-23T10:00:00+08:00"
         self.assertEqual(result["index_status"], "ready")
         self.assertEqual(result["warnings"], [])
         self.assertEqual(result["specs"][0]["spec_id"], "react-query-data-fetching")
+        self.assertEqual(result["specs"][0]["path"], ".docs/spec/coding/frontend-data.md")
 
     def test_scan_specs_marks_invalid_when_frontmatter_is_broken(self) -> None:
         self.write_text(

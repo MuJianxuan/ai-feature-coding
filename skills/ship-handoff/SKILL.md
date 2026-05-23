@@ -111,7 +111,8 @@ description: "ShipKit stage. Consumes verification.md from ship-verify, complete
 **Step 6: Spec Proposal**
 - 读取 `meta.yml.spec_context.referenced_spec_ids`
 - 若发现重复模式、临时约定或 review 中反复出现的问题，生成待沉淀 proposal
-- proposal 先写入 `handoff.md` 与 `meta.yml.spec_context.pending_proposals`
+- proposal 摘要先写入 `meta.yml.spec_context.pending_proposals`
+- 详细 proposal 在 Step 7 编写 `handoff.md` 时落盘
 - 默认不直接创建或修改 `.docs/spec/*.md`
 
 **Step 7: 交付文档**

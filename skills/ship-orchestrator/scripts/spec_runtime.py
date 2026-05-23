@@ -99,7 +99,7 @@ def _parse_spec(path: Path, spec_root: Path) -> SpecRecord:
 
     return SpecRecord(
         spec_id=spec_id.strip(),
-        path=str(path.relative_to(spec_root.parent)),
+        path=str(path.relative_to(spec_root.parent.parent)),
         scope=scope,
         stage_hooks=stage_hooks,
         stack_tags=stack_tags,

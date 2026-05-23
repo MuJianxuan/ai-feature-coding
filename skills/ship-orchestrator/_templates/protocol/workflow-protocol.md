@@ -137,13 +137,15 @@ conditions: []
 运行时约束：
 
 - orchestrator 在进入以上阶段前，应通过 `spec_runtime.py` 或等价 helper 解析规范，并回写 `meta.yml.spec_context`
-- `ship-tech-discovery / ship-frontend-design / ship-backend-design / ship-build / ship-handoff` 的产物 frontmatter 应包含：
+- `ship-tech-discovery / ship-frontend-design / ship-backend-design / ship-handoff` 的相关产物 frontmatter 应包含：
 
 ```yaml
 spec_checked_at: ""
 referenced_spec_ids: []
 spec_warnings: []
 ```
+
+- `ship-build` 没有阶段产物 frontmatter；它应在任务条目或任务证据中记录 `spec_refs`
 
 - `.docs/spec/INDEX.md` 是 registry，服务于人工浏览；运行时匹配事实源是各个 `.docs/spec/*.md` 的 frontmatter
 - 缺少 `INDEX.md`、找不到匹配规范、frontmatter 不合法时，默认只告警并留痕；除非用户显式要求严格模式，否则不阻塞阶段推进
