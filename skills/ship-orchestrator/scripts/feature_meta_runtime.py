@@ -2,12 +2,14 @@
 """Runtime helpers for ship feature meta files.
 
 This script provides the minimum executable behavior needed to keep
-`macro_stage` in sync during feature creation and resume flows.
+`macro_stage` and delegation metadata in sync during feature creation
+and resume flows.
 """
 
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 import json
 import shutil
 import sys
@@ -26,6 +28,196 @@ from workflow_stage_map import stage_view_for  # noqa: E402
 
 META_TEMPLATE_PATH = ROOT / "skills/ship-orchestrator/_templates/meta/meta.yml.template"
 FEATURES_ROOT = ROOT / ".docs"
+
+CURRENT_CONTEXT = "current_context"
+ASSISTIVE_SUBAGENT = "assistive_subagent"
+PARALLEL_SUBAGENT = "parallel_subagent"
+GATE_CHECK_SUBAGENT = "gate_check_subagent"
+
+FORBIDDEN = "forbidden"
+GATE_CHECK_SWITCHABLE = "gate_check_switchable"
+PARALLEL_OWNED_OUTPUTS = "parallel_owned_outputs"
+ASSISTIVE_ONLY = "assistive_only"
+
+ASK_ON_PARALLEL_STAGE = "ask_on_parallel_stage"
+ASK_ON_ASSISTIVE_NODE = "ask_on_assistive_node"
+
+VALID_EXECUTION_MODES: tuple[str, ...] = (
+    CURRENT_CONTEXT,
+    ASSISTIVE_SUBAGENT,
+    PARALLEL_SUBAGENT,
+    GATE_CHECK_SUBAGENT,
+)
+VALID_DEFAULT_MODES: tuple[str, ...] = (
+    CURRENT_CONTEXT,
+    ASSISTIVE_SUBAGENT,
+)
+VALID_DELEGATION_MODES: tuple[str, ...] = (
+    FORBIDDEN,
+    GATE_CHECK_SWITCHABLE,
+    PARALLEL_OWNED_OUTPUTS,
+    ASSISTIVE_ONLY,
+)
+
+
+@dataclass(frozen=True)
+class DelegationNodeSpec:
+    node_id: str
+    delegation_mode: str
+    ask_flag: str | None
+    allowed_execution_modes: tuple[str, ...]
+
+
+CANONICAL_DELEGATION_NODES: dict[str, DelegationNodeSpec] = {
+    "ship-intake": DelegationNodeSpec(
+        node_id="ship-intake",
+        delegation_mode=ASSISTIVE_ONLY,
+        ask_flag=ASK_ON_ASSISTIVE_NODE,
+        allowed_execution_modes=(CURRENT_CONTEXT, ASSISTIVE_SUBAGENT),
+    ),
+    "ship-intake-review": DelegationNodeSpec(
+        node_id="ship-intake-review",
+        delegation_mode=GATE_CHECK_SWITCHABLE,
+        ask_flag=None,
+        allowed_execution_modes=(CURRENT_CONTEXT, GATE_CHECK_SUBAGENT),
+    ),
+    "ship-tech-discovery.research": DelegationNodeSpec(
+        node_id="ship-tech-discovery.research",
+        delegation_mode=ASSISTIVE_ONLY,
+        ask_flag=ASK_ON_ASSISTIVE_NODE,
+        allowed_execution_modes=(CURRENT_CONTEXT, ASSISTIVE_SUBAGENT),
+    ),
+    "ship-tech-discovery.selection": DelegationNodeSpec(
+        node_id="ship-tech-discovery.selection",
+        delegation_mode=FORBIDDEN,
+        ask_flag=None,
+        allowed_execution_modes=(CURRENT_CONTEXT,),
+    ),
+    "ship-contract": DelegationNodeSpec(
+        node_id="ship-contract",
+        delegation_mode=FORBIDDEN,
+        ask_flag=None,
+        allowed_execution_modes=(CURRENT_CONTEXT,),
+    ),
+    "ship-frontend-design": DelegationNodeSpec(
+        node_id="ship-frontend-design",
+        delegation_mode=PARALLEL_OWNED_OUTPUTS,
+        ask_flag=ASK_ON_PARALLEL_STAGE,
+        allowed_execution_modes=(CURRENT_CONTEXT, PARALLEL_SUBAGENT),
+    ),
+    "ship-backend-design": DelegationNodeSpec(
+        node_id="ship-backend-design",
+        delegation_mode=PARALLEL_OWNED_OUTPUTS,
+        ask_flag=ASK_ON_PARALLEL_STAGE,
+        allowed_execution_modes=(CURRENT_CONTEXT, PARALLEL_SUBAGENT),
+    ),
+    "ship-design-review": DelegationNodeSpec(
+        node_id="ship-design-review",
+        delegation_mode=GATE_CHECK_SWITCHABLE,
+        ask_flag=None,
+        allowed_execution_modes=(CURRENT_CONTEXT, GATE_CHECK_SUBAGENT),
+    ),
+    "ship-delivery-plan": DelegationNodeSpec(
+        node_id="ship-delivery-plan",
+        delegation_mode=FORBIDDEN,
+        ask_flag=None,
+        allowed_execution_modes=(CURRENT_CONTEXT,),
+    ),
+    "ship-plan-review": DelegationNodeSpec(
+        node_id="ship-plan-review",
+        delegation_mode=GATE_CHECK_SWITCHABLE,
+        ask_flag=None,
+        allowed_execution_modes=(CURRENT_CONTEXT, GATE_CHECK_SUBAGENT),
+    ),
+    "ship-build.read-next-task": DelegationNodeSpec(
+        node_id="ship-build.read-next-task",
+        delegation_mode=ASSISTIVE_ONLY,
+        ask_flag=ASK_ON_ASSISTIVE_NODE,
+        allowed_execution_modes=(CURRENT_CONTEXT, ASSISTIVE_SUBAGENT),
+    ),
+    "ship-build.spec-scan": DelegationNodeSpec(
+        node_id="ship-build.spec-scan",
+        delegation_mode=ASSISTIVE_ONLY,
+        ask_flag=ASK_ON_ASSISTIVE_NODE,
+        allowed_execution_modes=(CURRENT_CONTEXT, ASSISTIVE_SUBAGENT),
+    ),
+    "ship-build.env-precheck": DelegationNodeSpec(
+        node_id="ship-build.env-precheck",
+        delegation_mode=ASSISTIVE_ONLY,
+        ask_flag=ASK_ON_ASSISTIVE_NODE,
+        allowed_execution_modes=(CURRENT_CONTEXT, ASSISTIVE_SUBAGENT),
+    ),
+    "ship-build.evidence-pack": DelegationNodeSpec(
+        node_id="ship-build.evidence-pack",
+        delegation_mode=ASSISTIVE_ONLY,
+        ask_flag=ASK_ON_ASSISTIVE_NODE,
+        allowed_execution_modes=(CURRENT_CONTEXT, ASSISTIVE_SUBAGENT),
+    ),
+    "ship-verify.backend-unit": DelegationNodeSpec(
+        node_id="ship-verify.backend-unit",
+        delegation_mode=ASSISTIVE_ONLY,
+        ask_flag=ASK_ON_ASSISTIVE_NODE,
+        allowed_execution_modes=(CURRENT_CONTEXT, ASSISTIVE_SUBAGENT),
+    ),
+    "ship-verify.backend-integration": DelegationNodeSpec(
+        node_id="ship-verify.backend-integration",
+        delegation_mode=ASSISTIVE_ONLY,
+        ask_flag=ASK_ON_ASSISTIVE_NODE,
+        allowed_execution_modes=(CURRENT_CONTEXT, ASSISTIVE_SUBAGENT),
+    ),
+    "ship-verify.backend-contract": DelegationNodeSpec(
+        node_id="ship-verify.backend-contract",
+        delegation_mode=ASSISTIVE_ONLY,
+        ask_flag=ASK_ON_ASSISTIVE_NODE,
+        allowed_execution_modes=(CURRENT_CONTEXT, ASSISTIVE_SUBAGENT),
+    ),
+    "ship-verify.frontend-component": DelegationNodeSpec(
+        node_id="ship-verify.frontend-component",
+        delegation_mode=ASSISTIVE_ONLY,
+        ask_flag=ASK_ON_ASSISTIVE_NODE,
+        allowed_execution_modes=(CURRENT_CONTEXT, ASSISTIVE_SUBAGENT),
+    ),
+    "ship-verify.frontend-e2e": DelegationNodeSpec(
+        node_id="ship-verify.frontend-e2e",
+        delegation_mode=ASSISTIVE_ONLY,
+        ask_flag=ASK_ON_ASSISTIVE_NODE,
+        allowed_execution_modes=(CURRENT_CONTEXT, ASSISTIVE_SUBAGENT),
+    ),
+    "ship-handoff.ac-evidence": DelegationNodeSpec(
+        node_id="ship-handoff.ac-evidence",
+        delegation_mode=ASSISTIVE_ONLY,
+        ask_flag=ASK_ON_ASSISTIVE_NODE,
+        allowed_execution_modes=(CURRENT_CONTEXT, ASSISTIVE_SUBAGENT),
+    ),
+    "ship-handoff.deploy-materials": DelegationNodeSpec(
+        node_id="ship-handoff.deploy-materials",
+        delegation_mode=ASSISTIVE_ONLY,
+        ask_flag=ASK_ON_ASSISTIVE_NODE,
+        allowed_execution_modes=(CURRENT_CONTEXT, ASSISTIVE_SUBAGENT),
+    ),
+    "ship-handoff.spec-proposals": DelegationNodeSpec(
+        node_id="ship-handoff.spec-proposals",
+        delegation_mode=ASSISTIVE_ONLY,
+        ask_flag=ASK_ON_ASSISTIVE_NODE,
+        allowed_execution_modes=(CURRENT_CONTEXT, ASSISTIVE_SUBAGENT),
+    ),
+}
+
+PARALLEL_OWNED_NODE_IDS = frozenset(
+    node_id
+    for node_id, spec in CANONICAL_DELEGATION_NODES.items()
+    if spec.delegation_mode == PARALLEL_OWNED_OUTPUTS
+)
+ASSISTIVE_ONLY_NODE_IDS = frozenset(
+    node_id
+    for node_id, spec in CANONICAL_DELEGATION_NODES.items()
+    if spec.delegation_mode == ASSISTIVE_ONLY
+)
+HARD_GATE_NODE_IDS = frozenset(
+    node_id
+    for node_id, spec in CANONICAL_DELEGATION_NODES.items()
+    if spec.delegation_mode == GATE_CHECK_SWITCHABLE
+)
 
 
 def iso_now() -> str:
@@ -73,12 +265,320 @@ def ensure_spec_context(data: dict) -> dict:
 
 def ensure_delegation(data: dict) -> dict:
     delegation = data.setdefault("delegation", {})
-    delegation.setdefault("default_mode", "current_context")
+    delegation.setdefault("default_mode", CURRENT_CONTEXT)
     delegation.setdefault("ask_on_parallel_stage", True)
     delegation.setdefault("ask_on_assistive_node", True)
     delegation.setdefault("node_overrides", {})
     delegation.setdefault("warnings", [])
     return data
+
+
+def delegation_node_spec(node_id: str) -> DelegationNodeSpec:
+    try:
+        return CANONICAL_DELEGATION_NODES[node_id]
+    except KeyError as exc:
+        raise ValueError(f"unknown delegation node_id: {node_id}") from exc
+
+
+def _normalize_delegation_config(delegation: dict | None) -> dict:
+    if delegation is None:
+        raw: dict = {}
+    elif isinstance(delegation, dict):
+        raw = delegation
+    else:
+        raise ValueError("delegation config must be a mapping")
+
+    node_overrides = raw.get("node_overrides") or {}
+    warnings = raw.get("warnings") or []
+    if not isinstance(node_overrides, dict):
+        raise ValueError("delegation.node_overrides must be a mapping")
+    if not isinstance(warnings, list):
+        raise ValueError("delegation.warnings must be a list")
+
+    return {
+        "default_mode": raw.get("default_mode", CURRENT_CONTEXT),
+        ASK_ON_PARALLEL_STAGE: bool(raw.get(ASK_ON_PARALLEL_STAGE, True)),
+        ASK_ON_ASSISTIVE_NODE: bool(raw.get(ASK_ON_ASSISTIVE_NODE, True)),
+        "node_overrides": dict(node_overrides),
+        "warnings": list(warnings),
+    }
+
+
+def _resolution_payload(
+    node_id: str,
+    requested_mode: str | None,
+    resolved_mode: str | None,
+    used_override: bool,
+    should_ask_user: bool,
+    warning_reason: str | None,
+) -> dict:
+    return {
+        "node_id": node_id,
+        "requested_mode": requested_mode,
+        "resolved_mode": resolved_mode,
+        "used_override": used_override,
+        "should_ask_user": should_ask_user,
+        "warning_reason": warning_reason,
+    }
+
+
+def _resolve_forbidden(node_id: str, requested_mode: str | None, used_override: bool) -> dict:
+    if requested_mode is None:
+        return _resolution_payload(
+            node_id=node_id,
+            requested_mode=None,
+            resolved_mode=CURRENT_CONTEXT,
+            used_override=False,
+            should_ask_user=False,
+            warning_reason=None,
+        )
+    return _resolution_payload(
+        node_id=node_id,
+        requested_mode=requested_mode,
+        resolved_mode=CURRENT_CONTEXT,
+        used_override=used_override,
+        should_ask_user=False,
+        warning_reason=f"{node_id} forbids delegation and always falls back to current_context",
+    )
+
+
+def _resolve_parallel_owned(node_id: str, config: dict, override_mode: str | None) -> dict:
+    if override_mode is not None:
+        if override_mode in (CURRENT_CONTEXT, PARALLEL_SUBAGENT):
+            return _resolution_payload(
+                node_id=node_id,
+                requested_mode=override_mode,
+                resolved_mode=override_mode,
+                used_override=True,
+                should_ask_user=False,
+                warning_reason=None,
+            )
+        return _resolution_payload(
+            node_id=node_id,
+            requested_mode=override_mode,
+            resolved_mode=CURRENT_CONTEXT,
+            used_override=True,
+            should_ask_user=False,
+            warning_reason=(
+                f"{node_id} only accepts current_context or parallel_subagent overrides"
+            ),
+        )
+
+    if config[ASK_ON_PARALLEL_STAGE]:
+        return _resolution_payload(
+            node_id=node_id,
+            requested_mode=None,
+            resolved_mode=None,
+            used_override=False,
+            should_ask_user=True,
+            warning_reason=None,
+        )
+
+    default_mode = config["default_mode"]
+    if default_mode == CURRENT_CONTEXT:
+        return _resolution_payload(
+            node_id=node_id,
+            requested_mode=CURRENT_CONTEXT,
+            resolved_mode=CURRENT_CONTEXT,
+            used_override=False,
+            should_ask_user=False,
+            warning_reason=None,
+        )
+
+    if default_mode == ASSISTIVE_SUBAGENT:
+        return _resolution_payload(
+            node_id=node_id,
+            requested_mode=ASSISTIVE_SUBAGENT,
+            resolved_mode=CURRENT_CONTEXT,
+            used_override=False,
+            should_ask_user=False,
+            warning_reason=(
+                f"{node_id} requires an explicit parallel_subagent override when ask_on_parallel_stage is false"
+            ),
+        )
+
+    return _resolution_payload(
+        node_id=node_id,
+        requested_mode=str(default_mode),
+        resolved_mode=CURRENT_CONTEXT,
+        used_override=False,
+        should_ask_user=False,
+        warning_reason=f"invalid default_mode `{default_mode}` for {node_id}",
+    )
+
+
+def _resolve_assistive_only(node_id: str, config: dict, override_mode: str | None) -> dict:
+    if override_mode is not None:
+        if override_mode in (CURRENT_CONTEXT, ASSISTIVE_SUBAGENT):
+            return _resolution_payload(
+                node_id=node_id,
+                requested_mode=override_mode,
+                resolved_mode=override_mode,
+                used_override=True,
+                should_ask_user=False,
+                warning_reason=None,
+            )
+        return _resolution_payload(
+            node_id=node_id,
+            requested_mode=override_mode,
+            resolved_mode=CURRENT_CONTEXT,
+            used_override=True,
+            should_ask_user=False,
+            warning_reason=(
+                f"{node_id} only accepts current_context or assistive_subagent overrides"
+            ),
+        )
+
+    if config[ASK_ON_ASSISTIVE_NODE]:
+        return _resolution_payload(
+            node_id=node_id,
+            requested_mode=None,
+            resolved_mode=None,
+            used_override=False,
+            should_ask_user=True,
+            warning_reason=None,
+        )
+
+    default_mode = config["default_mode"]
+    if default_mode in (CURRENT_CONTEXT, ASSISTIVE_SUBAGENT):
+        return _resolution_payload(
+            node_id=node_id,
+            requested_mode=default_mode,
+            resolved_mode=default_mode,
+            used_override=False,
+            should_ask_user=False,
+            warning_reason=None,
+        )
+
+    return _resolution_payload(
+        node_id=node_id,
+        requested_mode=str(default_mode),
+        resolved_mode=CURRENT_CONTEXT,
+        used_override=False,
+        should_ask_user=False,
+        warning_reason=f"invalid default_mode `{default_mode}` for {node_id}",
+    )
+
+
+def _resolve_gate_check(node_id: str, config: dict, override_mode: str | None) -> dict:
+    requested_mode = override_mode if override_mode is not None else config["default_mode"]
+    used_override = override_mode is not None
+
+    if requested_mode == CURRENT_CONTEXT:
+        resolved_mode = CURRENT_CONTEXT
+        warning_reason = None
+    elif requested_mode == GATE_CHECK_SUBAGENT:
+        resolved_mode = GATE_CHECK_SUBAGENT
+        warning_reason = None
+    elif requested_mode == ASSISTIVE_SUBAGENT:
+        resolved_mode = GATE_CHECK_SUBAGENT
+        warning_reason = None
+    elif used_override:
+        fallback = _resolve_gate_check(node_id, config, None)
+        fallback["requested_mode"] = requested_mode
+        fallback["used_override"] = True
+        fallback["warning_reason"] = (
+            f"{node_id} does not accept override `{requested_mode}` and fell back to default_mode"
+        )
+        return fallback
+    else:
+        return _resolution_payload(
+            node_id=node_id,
+            requested_mode=str(requested_mode),
+            resolved_mode=CURRENT_CONTEXT,
+            used_override=False,
+            should_ask_user=False,
+            warning_reason=f"invalid default_mode `{requested_mode}` for {node_id}",
+        )
+
+    return _resolution_payload(
+        node_id=node_id,
+        requested_mode=requested_mode,
+        resolved_mode=resolved_mode,
+        used_override=used_override,
+        should_ask_user=False,
+        warning_reason=warning_reason,
+    )
+
+
+def resolve_delegation(node_id: str, delegation: dict | None) -> dict:
+    spec = delegation_node_spec(node_id)
+    config = _normalize_delegation_config(delegation)
+    override_mode = config["node_overrides"].get(node_id)
+
+    if spec.delegation_mode == FORBIDDEN:
+        return _resolve_forbidden(node_id, override_mode, override_mode is not None)
+    if spec.delegation_mode == PARALLEL_OWNED_OUTPUTS:
+        return _resolve_parallel_owned(node_id, config, override_mode)
+    if spec.delegation_mode == ASSISTIVE_ONLY:
+        return _resolve_assistive_only(node_id, config, override_mode)
+    if spec.delegation_mode == GATE_CHECK_SWITCHABLE:
+        return _resolve_gate_check(node_id, config, override_mode)
+    raise ValueError(f"unsupported delegation mode `{spec.delegation_mode}` for {node_id}")
+
+
+def _ensure_execution_mode_value(execution_mode: str, *, allow_default_only: bool = False) -> None:
+    valid_modes = VALID_DEFAULT_MODES if allow_default_only else VALID_EXECUTION_MODES
+    if execution_mode not in valid_modes:
+        raise ValueError(f"invalid execution mode: {execution_mode}")
+
+
+def _save_meta_with_updated_at(meta_path: Path, data: dict) -> None:
+    data["updated_at"] = iso_now()
+    save_meta(meta_path, data)
+
+
+def record_delegation_warning(
+    meta_path: Path,
+    node_id: str,
+    requested_mode: str | None,
+    resolved_mode: str | None,
+    reason: str,
+) -> dict:
+    delegation_node_spec(node_id)
+    if not reason:
+        raise ValueError("delegation warning reason must be non-empty")
+
+    data = load_meta(meta_path)
+    ensure_delegation(data)
+    warning = {
+        "at": iso_now(),
+        "node_id": node_id,
+        "requested_mode": requested_mode or "",
+        "resolved_mode": resolved_mode or "",
+        "reason": reason,
+    }
+    data["delegation"]["warnings"].append(warning)
+    _save_meta_with_updated_at(meta_path, data)
+    return warning
+
+
+def set_node_override(meta_path: Path, node_id: str, execution_mode: str) -> dict:
+    delegation_node_spec(node_id)
+    _ensure_execution_mode_value(execution_mode)
+
+    data = load_meta(meta_path)
+    ensure_delegation(data)
+    data["delegation"]["node_overrides"][node_id] = execution_mode
+    _save_meta_with_updated_at(meta_path, data)
+    return {"node_id": node_id, "execution_mode": execution_mode}
+
+
+def set_default_delegation_mode(meta_path: Path, default_mode: str) -> dict:
+    _ensure_execution_mode_value(default_mode, allow_default_only=True)
+
+    data = load_meta(meta_path)
+    ensure_delegation(data)
+    data["delegation"]["default_mode"] = default_mode
+    _save_meta_with_updated_at(meta_path, data)
+    return {"default_mode": default_mode}
+
+
+def clear_delegation_warning_log(meta_path: Path) -> None:
+    data = load_meta(meta_path)
+    ensure_delegation(data)
+    data["delegation"]["warnings"] = []
+    _save_meta_with_updated_at(meta_path, data)
 
 
 def feature_dir_for(feature_name: str) -> Path:

@@ -15,6 +15,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from workflow_stage_map import CANONICAL_STAGE_ORDER, macro_stage_for  # noqa: E402
+from feature_meta_runtime import CANONICAL_DELEGATION_NODES  # noqa: E402
 
 
 def read_text(path: Path) -> str:
@@ -88,6 +89,8 @@ def validate_protocol_doc() -> None:
         "ship-verify.backend-contract",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
+    for node_id in CANONICAL_DELEGATION_NODES:
+        require(node_id in text, f"{path}: missing canonical node_id `{node_id}` from runtime registry")
     require("单 `DOING`" in text, f"{path}: missing build delegation constraint")
     for stage in CANONICAL_STAGE_ORDER:
         macro = macro_stage_for(stage)
@@ -180,6 +183,18 @@ def validate_stage_delegation_boundaries() -> None:
     for path, snippet in parallel_owned_expectations.items():
         text = read_text(path)
         require(snippet in text, f"{path}: missing `{snippet}`")
+
+    build_text = read_text(ROOT / "skills/ship-build/SKILL.md")
+    for node_id in sorted(node_id for node_id in CANONICAL_DELEGATION_NODES if node_id.startswith("ship-build.")):
+        require(node_id in build_text, f"ship-build/SKILL.md: missing runtime node_id `{node_id}`")
+
+    verify_text = read_text(ROOT / "skills/ship-verify/SKILL.md")
+    for node_id in sorted(node_id for node_id in CANONICAL_DELEGATION_NODES if node_id.startswith("ship-verify.")):
+        require(node_id in verify_text, f"ship-verify/SKILL.md: missing runtime node_id `{node_id}`")
+
+    handoff_text = read_text(ROOT / "skills/ship-handoff/SKILL.md")
+    for node_id in sorted(node_id for node_id in CANONICAL_DELEGATION_NODES if node_id.startswith("ship-handoff.")):
+        require(node_id in handoff_text, f"ship-handoff/SKILL.md: missing runtime node_id `{node_id}`")
 
     gate_skill_paths = [
         ROOT / "skills/ship-intake-review/SKILL.md",
