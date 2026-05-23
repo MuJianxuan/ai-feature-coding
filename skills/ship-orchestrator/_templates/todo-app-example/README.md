@@ -1,6 +1,13 @@
 # TODO Web App — 范本文档集
 
-本目录是一套完整的 TODO Web App 开发工作流范本，展示 skills-new 套件从需求到交付的全流程产物。
+本目录是一套 TODO Web App 阶段产物范本，展示 skills-new 套件在 `requirements / design / plan / meta view` 上的典型写法。
+
+重要说明：
+
+- 本目录按产物类型分组，方便学习和复制
+- 它不是某一时刻的完整 feature 运行时快照
+- 运行时索引应以真实项目里的 `.docs/feature-YYYYMMDD-<short-name>/meta.yml` 为准
+- 默认对外视图应展示 `Define → Design → Build → Close`，内部仍用 `current_stage` 记录 canonical stage id
 
 ## 技术栈
 
@@ -13,6 +20,7 @@
 ```
 todo-app-example/
 ├── README.md                    # 本文件
+├── meta-view-example.md         # meta.yml / macro_stage 视图示例
 ├── requirements/
 │   └── requirements.md          # 需求清单范本
 ├── design/
@@ -31,4 +39,17 @@ todo-app-example/
 
 1. 阅读各文档了解每个阶段的产物标准
 2. 在实际项目中用 `ship-orchestrator` 启动流程时，参考这些范本的结构和详细程度
-3. 范本中的内容是"最小完整"示例——真实项目可能更复杂，但不应比这更简略
+3. 范本中的内容是当前已提供阶段的参考下限；真实项目可能更复杂，但不应比这更简略
+
+## 默认展示视图
+
+用户默认应看到大阶段视图，而不是一长串内部阶段名：
+
+| 默认视图 | 内部事实源 |
+|----------|------------|
+| `Define` | `ship-intake`, `ship-intake-review` |
+| `Design` | `ship-research`, `ship-stack`, `ship-contract`, `ship-frontend-design`, `ship-backend-design`, `ship-design-review` |
+| `Build` | `ship-frontend-plan`, `ship-backend-plan`, `ship-plan-review`, `ship-build`, `ship-verify` |
+| `Close` | `ship-handoff` |
+
+如果你想看 `meta.yml` 里的实际索引结构，参考 [meta-view-example.md](/Users/rao/AiDoWork/ai-feature-coding/skills/ship-orchestrator/_templates/todo-app-example/meta-view-example.md:1)。

@@ -1,6 +1,6 @@
-# AI Coding Skills — Coding Feature Workflow
+# AI Coding Skills
 
-> 一套 explicit opt-in 的 AI 辅助编码工作流，把需求从输入资料推进到可验证交付。
+一套面向 AI coding agent 的开发工作流技能集。目标不是减少实际治理动作，而是把复杂流程收敛成更易理解的默认入口和阶段视图。
 
 ## 安装
 
@@ -8,214 +8,71 @@
 npx skills add MuJianxuan/ai-feature-coding
 ```
 
-## 技能体系概览
+## 默认使用方式
 
-本仓库包含 8 个正式协作 skill，由 `coding-feature-orchestrator` 统一调度：
+默认只需要记住：
 
-| 阶段 | Skill | 产物 | 职责 |
-| --- | --- | --- | --- |
-| 总调度 | `coding-feature-orchestrator` | route payload | 入口判断、阶段推断、路由分发 |
-| 前置发现 | `coding-feature-discovery` | `discovery.md` | 项目上下文调研、外部调研、方案方向、模糊点穷举与逐问逐答 |
-| 需求澄清 | `coding-requirement-intake` | `requirements.md` | 基于 discovery 把输入规格化为可验证的 scope 和 acceptance criteria |
-| 技术设计 | `coding-technical-design` | `design.md` | 按 project context 精查真实代码链路或 bootstrap architecture，并写可拆任务的技术方案 |
-| 任务拆解 | `coding-task-planning` | `tasks.md` | 拆成原子、可验证、按依赖排序的任务 |
-| 编码执行 | `coding-implementation-execution` | 代码改动 + 交付记录 | 按 tasks.md 逐项执行 |
-| 验证收口 | `coding-verification-closeout` | `verification.md` + `handoff.md` | AC 映射验证、交付总结 |
-| 规范管理 | `coding-spec-management` | `.docs/spec/` | 沉淀编码规范 |
+- 入口：`ship-orchestrator`
+- 大阶段：`Define → Design → Build → Close`
 
-### 流程线框图
+这 4 个大阶段是默认对外视图。内部仍然保留细阶段、硬门禁、文档产物和恢复协议，用于精确推进与诊断。
 
-```mermaid
-flowchart TD
-    A["用户显式触发<br/>coding-feature-orchestrator"] --> B{"入口模式"}
-    S0["用户显式触发<br/>coding-spec-management"] --> S["规范管理<br/>.docs/spec/"]
+## 你会得到什么
 
-    B -->|NEW_FEATURE| C["创建 feature 目录<br/>.docs/feature-YYYYMMDD-short-name/"]
-    B -->|CONTINUE_FEATURE| D["读取阶段文档<br/>推断当前状态"]
-    B -->|INSPECT_FEATURES| E["列出 feature 状态<br/>等待用户指定目录"]
-    B -->|AD_HOC_AUDIT| H["只读审计当前流程<br/>输出阻塞项和下一步建议"]
+- 对外更简单：首屏不再要求理解所有内部 skill 名
+- 对内不降级：Contract-First、前后端分离、三道硬门禁、验证与交付都保留
+- 可恢复：`meta.yml.current_stage` 继续记录内部 canonical stage id
+- 可诊断：需要时可展开到具体 `ship-*` 阶段
 
-    C --> F["前置发现<br/>coding-feature-discovery<br/>discovery.md"]
-    D --> F
-    E -->|用户指定目录| D
-    F --> FGate{"用户确认继续<br/>stage_status: ready"}
+## 文档入口
 
-    FGate --> R["需求澄清<br/>coding-requirement-intake<br/>requirements.md"]
-    R --> RGate{"用户确认继续<br/>stage_status: ready"}
+- 主文档：`skills/README.md`
+- 共享协议：`skills/ship-orchestrator/_templates/protocol/workflow-protocol.md`
+- 元数据模板：`skills/ship-orchestrator/_templates/meta/meta.yml.template`
 
-    RGate --> T["技术设计<br/>coding-technical-design<br/>design.md<br/>技术上下文 + 澄清 + 方案"]
-    T --> TGate{"设计审批<br/>approval_status"}
-    TGate -->|pending 或修改| T
-    TGate -->|approved| P["任务拆解<br/>coding-task-planning<br/>tasks.md"]
+## 启动示例
 
-    P --> PGate{"用户确认开始编码<br/>task_count: N"}
-    PGate --> X["编码执行<br/>coding-implementation-execution<br/>TODO / DOING 转为 DONE"]
-    X --> XGate{"还有 TODO / DOING?"}
-    XGate -->|继续下一项| X
-    XGate -->|全部完成| V["验证收口<br/>coding-verification-closeout<br/>verification.md + handoff.md"]
-    V --> Z["可验证交付<br/>AC 全量映射 + 残余风险"]
-    Z -. 经验沉淀 .-> S
-```
-
-### 核心设计原则
-
-- **Explicit opt-in**：普通编码/调试/设计不会自动触发工作流
-- **一次一步**：默认每次只推进一个阶段，跨阶段需用户确认
-- **证据驱动**：每个阶段产物必须有真实证据支撑，不允许猜测
-- **设计审批门禁**：design → tasks 之间有硬门禁，需用户明确批准
-- **可恢复**：中断后可通过 DOING 状态精确恢复
-
-## 使用场景
-
-### 场景一：0-1 新建 Feature（Greenfield）
-
-适用于全新功能开发，从需求到交付的完整流程。
-
-**启动命令：**
+### 新建 feature
 
 ```text
-使用 coding-feature-orchestrator，为"<功能名>"启动一条新的 Coding Feature Workflow：<需求描述>
+启动 ship-orchestrator，为"<功能名>"开启完整工作流：<需求描述>
 ```
 
-**完整推进流程：**
-
-```
-1. 前置发现 → 产出 discovery.md (stage_status: ready)
-   用户确认 ↓
-2. 需求澄清 → 产出 requirements.md (stage_status: ready)
-   用户确认 ↓
-3. 技术设计 → 在 design.md 中完成技术上下文与架构依据、澄清问题和方案设计 (stage_status: ready, approval_status: pending)
-   用户批准设计 ↓
-4. 任务拆解 → 产出 tasks.md (stage_status: ready, task_count: N)
-   用户确认 ↓
-5. 编码执行 → 逐个任务执行 (TODO → DOING → DONE)
-   每个任务完成后停下，用户确认继续 ↓
-6. 验证收口 → verification.md + handoff.md (stage_status: complete)
-```
-
-**推进话术：**
-
-| 阶段转换 | 用户说 |
-| --- | --- |
-| 发现 → 需求 | "继续下一阶段" |
-| 需求 → 设计 | "继续下一阶段" |
-| 设计 → 任务 | "批准设计，继续任务拆解" |
-| 任务 → 编码 | "开始编码" / "执行第一个任务" |
-| 编码下一项 | "继续执行下一个任务" |
-| 编码 → 验证 | "进入验证收口" |
-
-### 场景二：迭代已有 Feature（Iteration）
-
-适用于继续推进中断的工作、恢复 DOING 任务、或在已有 feature 基础上补充。
-
-**继续命令：**
+### 继续已有 feature
 
 ```text
-使用 coding-feature-orchestrator，继续 .docs/feature-YYYYMMDD-short-name/
+继续 .docs/feature-YYYYMMDD-<short-name>/
 ```
 
-**恢复中断任务：**
+### 高级模式
 
-```text
-使用 coding-feature-orchestrator，恢复 .docs/feature-YYYYMMDD-short-name/ 的当前 DOING 任务
-```
+如果你明确知道要打到哪个内部阶段，也可以直接调用对应 `ship-*` skill；但这不是默认路径。
 
-**查看所有 feature 状态：**
+## 结构说明
 
-```text
-使用 coding-feature-orchestrator
-```
-
-（无指定目录时进入 INSPECT_FEATURES 模式，列出所有 feature 目录状态）
-
-**直接调用某阶段：**
-
-```text
-使用 coding-task-planning，基于 .docs/feature-20260509-example/ 的 design.md 拆 tasks.md
-```
-
-## 最佳实践
-
-### 启动前
-
-1. **明确触发意图** — 只有确实需要完整工作流时才启动；简单 bug fix 或小改动直接做
-2. **准备需求资料** — PRD、原型图、会议纪要放到 `resource/` 目录，越完整 discovery 和需求澄清越快
-3. **一个 feature 一个目录** — 不要混合多个不相关需求到同一个 feature 目录
-
-### 推进中
-
-4. **不要跳阶段** — 每个阶段的产物是下一阶段的输入，跳过会导致证据断裂
-5. **设计必须审批** — 仔细 review design.md 再批准，这是最后一道防线
-6. **任务粒度适中** — 每个任务应该能在一次对话中完成并验证
-7. **及时记录 scope 变化** — 发现需要扩大范围时走 scope change 流程，不要偷偷加
-8. **保持 metadata 一致** — `updated_at`、`evidence_complete`、`task_count` 必须与内容同步
-
-### 验证收口
-
-9. **验证要映射 AC** — 每条 acceptance criteria 都要有对应的验证证据
-10. **失败不隐藏** — FAIL/BLOCKED 写入残余风险，不要伪装成 PASS
-11. **handoff 要完整** — 配置/SQL/部署事项即使没有也要显式写"无"
-
-### 常见反模式
-
-| 反模式 | 正确做法 |
-| --- | --- |
-| 普通 bug 排查触发工作流 | 只有显式指定 skill 才触发 |
-| 跳过 discovery 直接写 PRD | 先按 project_context 做项目上下文调研、外部调研和关键问题逐问逐答 |
-| 设计 ready 就直接拆任务 | 等用户明确批准 |
-| 一个任务完成后自动执行下一个 | 停下等用户确认 |
-| 用"已完成"作为交付记录 | 写改动文件、验证命令、结果、残余风险 |
-| 验证只看 tasks.md | 必须结合 design.md 的技术上下文与架构依据、目标链路和 source of truth |
-
-## Feature 目录结构
-
-```
-.docs/feature-YYYYMMDD-short-name/
-├── README.md              # 目录说明
-├── discovery.md           # 前置发现、项目上下文调研、方案方向、模糊点澄清
-├── requirements.md        # 需求、scope、验收标准
-├── design.md              # 技术上下文与架构依据、技术方案、影响范围
-├── tasks.md               # 任务清单（唯一编码驱动文件）
-├── verification.md        # 验收映射
-├── handoff.md             # 交付总结
-├── resource/              # 需求资料
-│   └── README.md
-└── sql/                   # SQL 草案
-    ├── DDL.sql
-    ├── DML.sql
-    └── ROLLBACK.sql
-```
-
-## 阶段文档 Metadata
-
-每个阶段文档都有 YAML frontmatter：
-
-```yaml
----
-feature_stage: discovery     # discovery/requirements/design/tasks/verification/handoff
-stage_status: draft          # draft/ready/blocked (前4阶段) 或 draft/blocked/complete (后2阶段)
-updated_at: "2026-05-11T10:00:00+08:00"
-evidence_complete: false
-project_context: unknown  # unknown/existing_project/empty_project
-project_context_evidence: ""
----
-```
-
-`design.md` 额外包含审批字段：
-
-```yaml
-approval_status: pending     # pending/approved/blocked
-approved_by: ""
-approved_at: ""
-approval_evidence: ""
-```
+- `skills/README.md`：默认用户视图，重点讲 4 个大阶段
+- `skills/ship-orchestrator/`：统一入口与路由规则
+- `skills/ship-orchestrator/_templates/`：协议、模板、示例
+- `.docs/`：feature 运行时产物和规范沉淀
 
 ## 维护
 
-修改任何 skill 后运行 smoke test：
+修改 workflow 相关文档后，至少检查：
+
+- README 与 `workflow-protocol.md` 的阶段描述一致
+- `meta.yml.template` 的字段与 orchestrator 说明一致
+- 默认视图仍然是 4 大阶段，细阶段只在高级/诊断视图暴露
+
+可执行校验命令：
 
 ```bash
-python3 skills/coding-feature-orchestrator/scripts/validate_coding_skills.py
+python3 skills/ship-orchestrator/scripts/validate_workflow_docs.py
+python3 skills/ship-orchestrator/scripts/workflow_stage_map.py --list
 ```
 
-详细的 onboarding 指南见 `.docs/coding-skills-onboarding-practice-guide.md`。
+最小 runtime helper：
+
+```bash
+python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py init .docs/feature-YYYYMMDD-demo --feature-name "Demo Feature" --feature-id "feature-YYYYMMDD-demo"
+python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py refresh .docs/feature-YYYYMMDD-demo/meta.yml
+```

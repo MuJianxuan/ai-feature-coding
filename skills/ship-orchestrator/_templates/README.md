@@ -14,6 +14,7 @@ _templates/
 │   └── workflow-protocol.md       # 共享协议单源（阶段 id / 门禁 / 状态机）
 └── todo-app-example/              # TODO Web App 完整范本（端到端示例）
     ├── README.md
+    ├── meta-view-example.md
     ├── requirements/
     │   └── requirements.md
     ├── design/
@@ -36,6 +37,11 @@ _templates/
 
 阶段文档不再各自维护 `project_context` / `pipeline_mode` 等冗余字段，只在 `meta.yml` 中维护一次。阶段是否 `ready` / `approved` 仍以产物 frontmatter 为准。
 
+`meta.yml` 同时维护两层视图：
+
+- `current_stage`：内部 canonical stage id，用于恢复和精确路由
+- `macro_stage`：默认对外展示的 4 大阶段摘要，用于状态列表和执行摘要
+
 ### protocol/workflow-protocol.md
 
 共享协议单源。凡是涉及 stage id、门禁字段、`verification.md` ownership、fast-track 规则，都先对照此文档，再更新其他 SKILL。
@@ -50,7 +56,7 @@ _templates/
 
 ### todo-app-example/
 
-一套完整的端到端示例，展示从需求到交付的所有产物。技术栈：
+一套按阶段分组的产物范本，展示 `requirements / design / plan / meta view` 的典型写法。技术栈：
 
 - 前端: React 18 + Vite 5 + TypeScript 5 + TailwindCSS + TanStack Query + Zustand
 - 后端: Node 20 + Express 4 + Prisma 5 + SQLite + zod + pino
@@ -60,4 +66,4 @@ _templates/
 
 - 学习 skills-new 流程时作为"标准答案"参考
 - 实际项目启动时作为模板基准（详细程度的下限）
-- 验证 skills 套件能端到端跑通的最小可运行示例
+- 对照各阶段产物的结构、粒度与表达方式
