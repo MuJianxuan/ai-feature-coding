@@ -65,7 +65,13 @@ Phase 3: 集成联调
   - spec 匹配与引用建议
   - 测试/构建/环境预检查
   - 已完成 slice 的证据整理
+- 上述辅助节点在 `node_overrides` 中的 canonical `node_id` 固定为：
+  - `ship-build.read-next-task`
+  - `ship-build.spec-scan`
+  - `ship-build.env-precheck`
+  - `ship-build.evidence-pack`
 - 子代理不得并行推进多个正式编码任务，不得自行把任务状态从 `TODO/DOING` 改为 `DONE/BLOCKED`
+- 子代理只返回检查结果、引用建议或证据包，不直接编辑正式 plan / 代码任务记录的 canonical 状态或正文
 - 每个 verified slice 完成后，是否继续下一个正式任务仍由用户决定
 
 ## Process (单任务执行循环)

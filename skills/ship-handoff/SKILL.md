@@ -133,11 +133,17 @@ description: "ShipKit stage. Consumes verification.md from ship-verify, complete
 - 整理部署事项原材料
 - 梳理 spec proposal 候选
 
+对应的 canonical `node_id`：
+- `ship-handoff.ac-evidence`
+- `ship-handoff.deploy-materials`
+- `ship-handoff.spec-proposals`
+
 禁止委派的动作：
 - 最终判定 AC 是 `PASS / FAIL / BLOCKED / N/A`
 - 最终判定 P0/P1/P2/P3 风险级别
 - 直接把 `verification.md.stage_status` 置为 `complete`
 - 替用户做 close / follow-up / proposal 取舍
+- 不直接编辑 `handoff.md` / `verification.md` 正文或 frontmatter
 
 ## Verification Evidence Standards
 

@@ -94,6 +94,7 @@ spec_warnings: []
 - `research` 子段允许子代理协助做资料搜集、版本信息核验、对比矩阵初稿和来源清单整理
 - `selection` 子段必须由主上下文统一完成，因为每个 ADR 都必须能回指 `tech-research.md` 的证据链
 - 子代理不得直接把 `tech-selection.md.stage_status` 置为 `ready`，也不得跳过 spec compatibility check
+- 子代理返回的只能是 research 证据包或候选矩阵，不直接编辑 `tech-research.md` / `tech-selection.md` 正文或 frontmatter
 
 ## Part 1: Research
 

@@ -156,6 +156,7 @@ description: "ShipKit stage 1. Parses requirement materials (PRD, prototypes, UI
 - 统一需求理解
 - 建立唯一的 Domain ID 体系
 - 写出并定稿 `requirements.md`
+- 合并所有辅助委派返回的证据包；子代理不直接编辑 `requirements.md` 正文或 frontmatter
 
 ## Output: requirements.md (产物结构说明)
 

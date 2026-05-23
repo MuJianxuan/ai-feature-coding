@@ -48,8 +48,10 @@ def validate_meta_template() -> None:
         "ask_on_parallel_stage: true",
         "ask_on_assistive_node: true",
         "node_overrides: {}",
+        "warnings: []",
         "parallel_subagent",
         "gate_check_subagent",
+        "ship-verify.backend-contract: assistive_subagent",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
 
@@ -78,6 +80,12 @@ def validate_protocol_doc() -> None:
         "`parallel_subagent` -> 对 hard gate 无效",
         "记录 warning 后回退到 `default_mode`",
         "在三个 hard gate 节点，映射为 `gate_check_subagent`",
+        "只有 `node_overrides[node_id] = parallel_subagent` 时才自动启动子代理",
+        "`ask_on_assistive_node = false`",
+        "delegation.warnings",
+        "canonical `node_id`",
+        "ship-build.read-next-task",
+        "ship-verify.backend-contract",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
     require("单 `DOING`" in text, f"{path}: missing build delegation constraint")
@@ -146,6 +154,33 @@ def validate_stage_delegation_boundaries() -> None:
         text = read_text(path)
         require("## Delegation Boundary" in text, f"{path}: missing `## Delegation Boundary`")
 
+    forbidden_stage_expectations = {
+        ROOT / "skills/ship-contract/SKILL.md": "禁止启动任何子代理",
+        ROOT / "skills/ship-delivery-plan/SKILL.md": "禁止启动任何子代理",
+    }
+    for path, snippet in forbidden_stage_expectations.items():
+        text = read_text(path)
+        require(snippet in text, f"{path}: missing `{snippet}`")
+
+    assistive_only_expectations = {
+        ROOT / "skills/ship-intake/SKILL.md": "不直接编辑 `requirements.md` 正文或 frontmatter",
+        ROOT / "skills/ship-tech-discovery/SKILL.md": "不直接编辑 `tech-research.md` / `tech-selection.md` 正文或 frontmatter",
+        ROOT / "skills/ship-build/SKILL.md": "不直接编辑正式 plan / 代码任务记录的 canonical 状态或正文",
+        ROOT / "skills/ship-verify/SKILL.md": "不直接编辑 `verification.md` 正文或 frontmatter",
+        ROOT / "skills/ship-handoff/SKILL.md": "不直接编辑 `handoff.md` / `verification.md` 正文或 frontmatter",
+    }
+    for path, snippet in assistive_only_expectations.items():
+        text = read_text(path)
+        require(snippet in text, f"{path}: missing `{snippet}`")
+
+    parallel_owned_expectations = {
+        ROOT / "skills/ship-frontend-design/SKILL.md": "`assistive_subagent` 在本阶段无效",
+        ROOT / "skills/ship-backend-design/SKILL.md": "`assistive_subagent` 在本阶段无效",
+    }
+    for path, snippet in parallel_owned_expectations.items():
+        text = read_text(path)
+        require(snippet in text, f"{path}: missing `{snippet}`")
+
     gate_skill_paths = [
         ROOT / "skills/ship-intake-review/SKILL.md",
         ROOT / "skills/ship-design-review/SKILL.md",
@@ -198,6 +233,11 @@ def validate_orchestrator_doc() -> None:
         "`assistive_subagent` 解释为 `gate_check_subagent`",
         "`parallel_subagent` 是无效值；记录 warning 后回退",
         "三个 hard gate 的执行方式复用 `node_overrides` 与 `default_mode`",
+        "canonical `node_id`",
+        "`assistive_subagent` 不得在 `parallel_owned_outputs` 节点上被解释成 `parallel_subagent`",
+        "ask_on_assistive_node",
+        "delegation.warnings",
+        "ship-verify.backend-contract",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
 

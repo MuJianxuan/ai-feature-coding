@@ -127,6 +127,7 @@ conditions: []
   - `ask_on_assistive_node`: 辅助委派节点前是否征询用户
   - `node_overrides`: 节点级覆盖；key 使用 `stage` 或 `stage.substage`
   - `node_overrides` 合法值：`current_context | assistive_subagent | parallel_subagent | gate_check_subagent`
+  - `warnings`: 最近一次 delegation 解析产生的告警；不得与 `spec_context.warnings` 混用
 
 ## 7. Delegation Contract
 
@@ -186,7 +187,95 @@ conditions: []
   - 写入 `user_sign_off`、`signed_at`
   - 推进 `current_stage`
 
-### 7.4 Hard Gate Runtime Execution Modes
+### 7.4 Canonical Delegation Node IDs
+
+所有 `node_overrides` key 都必须来自预定义的 canonical `node_id` 集合；未知 key 一律视为无效 override。
+
+| Node ID | Delegation Mode | 说明 |
+|--------|-----------------|------|
+| `ship-intake` | `assistive_only` | 需求资料索引与可访问性检查 |
+| `ship-intake-review` | `gate_check_switchable` | 需求评审 gate |
+| `ship-tech-discovery.research` | `assistive_only` | 技术资料搜集与证据初筛 |
+| `ship-tech-discovery.selection` | `forbidden` | 技术选型与 ADR 收口 |
+| `ship-contract` | `forbidden` | 共享 API 契约定稿 |
+| `ship-frontend-design` | `parallel_owned_outputs` | 前端设计正式产物 |
+| `ship-backend-design` | `parallel_owned_outputs` | 后端设计正式产物 |
+| `ship-design-review` | `gate_check_switchable` | 设计评审 gate |
+| `ship-delivery-plan` | `forbidden` | 前后端计划同步收口 |
+| `ship-plan-review` | `gate_check_switchable` | 计划评审 gate |
+| `ship-build.read-next-task` | `assistive_only` | 下一个任务的现状阅读与文件清单整理 |
+| `ship-build.spec-scan` | `assistive_only` | spec 匹配与引用建议 |
+| `ship-build.env-precheck` | `assistive_only` | 测试/构建/环境预检查 |
+| `ship-build.evidence-pack` | `assistive_only` | 已完成 slice 的证据整理 |
+| `ship-verify.backend-unit` | `assistive_only` | backend unit 测试轨 |
+| `ship-verify.backend-integration` | `assistive_only` | backend integration 测试轨 |
+| `ship-verify.backend-contract` | `assistive_only` | backend contract 测试轨 |
+| `ship-verify.frontend-component` | `assistive_only` | frontend component 测试轨 |
+| `ship-verify.frontend-e2e` | `assistive_only` | frontend E2E 测试轨 |
+| `ship-handoff.ac-evidence` | `assistive_only` | AC 证据收集 |
+| `ship-handoff.deploy-materials` | `assistive_only` | 部署事项原材料整理 |
+| `ship-handoff.spec-proposals` | `assistive_only` | spec proposal 候选梳理 |
+
+### 7.5 Delegation Warning Log
+
+delegation 解析产生的 warning 必须写入 `meta.yml.delegation.warnings`，对象结构固定为：
+
+```yaml
+delegation:
+  warnings:
+    - at: ""
+      node_id: ""
+      requested_mode: ""
+      resolved_mode: ""
+      reason: ""
+```
+
+约束：
+
+- `delegation.warnings` 只记录委派解析告警，不复用 `spec_context.warnings`
+- 当 override 非法、节点不接受某个 mode、或自动解析被强制回退时，必须追加一条 warning
+- warning 是审计信息，不改变阶段事实状态
+
+### 7.6 Runtime Delegation Resolution
+
+orchestrator 在进入可委派节点前，必须按如下顺序解析执行方式：
+
+1. 先确定当前 `node_id`
+2. 读取 `node_overrides[node_id]`
+3. 若 override 缺失，再根据节点类别决定是否询问用户
+4. 若跳过询问，再按该节点可接受的默认规则解析
+5. 若仍无法解析，回退 `current_context`
+
+节点类别的运行时规则：
+
+- `forbidden`
+  - 不可启动任何子代理，包括辅助委派与只读支线
+  - 若存在任何 override，记录 warning 并强制回退 `current_context`
+- `parallel_owned_outputs`
+  - 只接受 `current_context | parallel_subagent`
+  - `assistive_subagent` 与 `gate_check_subagent` 一律视为无效
+  - 若 `ask_on_parallel_stage = true`，默认先询问用户
+  - 若 `ask_on_parallel_stage = false`，只有 `node_overrides[node_id] = parallel_subagent` 时才自动启动子代理；否则回退 `current_context`
+  - 禁止从 `default_mode = assistive_subagent` 推断出 `parallel_subagent`
+  - 前后端设计按各自 `node_id` 独立决策；允许只启动其中一侧
+- `assistive_only`
+  - 只接受 `current_context | assistive_subagent`
+  - `parallel_subagent` 与 `gate_check_subagent` 一律视为无效
+  - 若 `ask_on_assistive_node = true`，默认先询问用户
+  - 若 `ask_on_assistive_node = false`，可在 override 缺失时回落到 `default_mode`
+- `gate_check_switchable`
+  - 只接受 `current_context | gate_check_subagent`
+  - `assistive_subagent` 映射为 `gate_check_subagent`
+  - `parallel_subagent` 一律视为无效
+  - 三个 hard gate 不单独受 `ask_on_assistive_node` 或 `ask_on_parallel_stage` 控制；它们只复用 `node_overrides` 与 `default_mode`
+
+用户在委派决策节点的回答持久化规则：
+
+- 节点级回答写入 `node_overrides[node_id]`
+- 不得隐式改写 `default_mode`
+- 只有用户明确表达“以后默认都这样”时，orchestrator 才能更新 `default_mode`
+
+### 7.7 Hard Gate Runtime Execution Modes
 
 以下三阶段进入时，orchestrator 必须按 delegation 配置自动解析本次质量门禁检查的执行者：
 
@@ -230,7 +319,7 @@ conditions: []
 5. 若主代理判断可通过，再向用户请求明确批准
 6. 只有用户明确批准后，主代理才能写入 `user_sign_off` 与 `signed_at`
 
-### 7.5 User Decision Nodes
+### 7.8 User Decision Nodes
 
 以下节点允许 orchestrator 询问“当前上下文执行，还是启用子代理策略”：
 
@@ -247,6 +336,8 @@ conditions: []
   - 在 `assistive_only` 节点，表示默认启用辅助委派
   - 在三个 hard gate 节点，映射为 `gate_check_subagent`
 - `parallel_owned_outputs` 阶段默认仍应询问用户，除非 `ask_on_parallel_stage = false`
+- 当 `ask_on_parallel_stage = false` 时，只有显式 `node_overrides[node_id] = parallel_subagent` 才能自动委派；否则回退 `current_context`
+- 当 `ask_on_assistive_node = false` 时，`assistive_only` 节点可在 override 缺失时回落到 `default_mode`
 - 三个 hard gate 的执行方式复用 `node_overrides` 与 `default_mode`，不再每次进入都单独询问
 - `node_overrides` 的值语义固定为：
   - `current_context`: 当前上下文执行

@@ -66,10 +66,18 @@ description: "ShipKit stage. Runs frontend and backend tests to verify implement
 - frontend component
 - frontend E2E
 
+对应的 canonical `node_id`：
+- `ship-verify.backend-unit`
+- `ship-verify.backend-integration`
+- `ship-verify.backend-contract`
+- `ship-verify.frontend-component`
+- `ship-verify.frontend-e2e`
+
 约束：
 - 子代理可以各自运行测试、整理失败分类和覆盖率结果
 - `verification.md` 仍由主上下文统一更新
 - 只有主上下文可以决定 `verification.md.stage_status = ready | draft`
+- 子代理只返回测试结果与失败归类，不直接编辑 `verification.md` 正文或 frontmatter
 
 ## Backend Testing (单元/集成/契约)
 

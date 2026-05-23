@@ -51,6 +51,8 @@ description: "ShipKit stage. Designs frontend architecture based on UI/UX protot
 
 - 当 `api-contract.md.stage_status = ready` 且 UI/UX 资料可访问时，可由子代理独立拥有并产出 `frontend-design.md`
 - 允许与 `ship-backend-design` 并行执行，但两者只能共享 `api-contract.md`、`requirements.md` 和 `spec_context`，不可互改对方正式产物
+- `parallel_subagent` 仅作用于当前节点；允许只启动前端设计，不要求与后端成对启动
+- `assistive_subagent` 在本阶段无效；若 `ask_on_parallel_stage = false` 且没有显式 `node_overrides[ship-frontend-design] = parallel_subagent`，则回退 `current_context`
 - 子代理仍不得推进 `ship-design-review`，正式阶段切换由 orchestrator 统一收口
 
 ## Process

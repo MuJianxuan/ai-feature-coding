@@ -71,6 +71,16 @@ def ensure_spec_context(data: dict) -> dict:
     return data
 
 
+def ensure_delegation(data: dict) -> dict:
+    delegation = data.setdefault("delegation", {})
+    delegation.setdefault("default_mode", "current_context")
+    delegation.setdefault("ask_on_parallel_stage", True)
+    delegation.setdefault("ask_on_assistive_node", True)
+    delegation.setdefault("node_overrides", {})
+    delegation.setdefault("warnings", [])
+    return data
+
+
 def feature_dir_for(feature_name: str) -> Path:
     return FEATURES_ROOT / feature_name
 
@@ -101,6 +111,7 @@ def create_feature_meta(
     data["project_context"] = project_context
     ensure_macro_stage(data)
     ensure_spec_context(data)
+    ensure_delegation(data)
     save_meta(meta_path, data)
     return meta_path
 
@@ -109,6 +120,7 @@ def refresh_feature_meta(meta_path: Path) -> None:
     data = load_meta(meta_path)
     ensure_macro_stage(data)
     ensure_spec_context(data)
+    ensure_delegation(data)
     save_meta(meta_path, data)
 
 
@@ -122,6 +134,7 @@ def sync_spec_context(
 ) -> dict:
     data = load_meta(meta_path)
     ensure_spec_context(data)
+    ensure_delegation(data)
     result = resolve_specs(
         spec_root=spec_root,
         stage_hook=stage_hook,
@@ -154,6 +167,7 @@ def record_spec_proposal(
 ) -> dict:
     data = load_meta(meta_path)
     ensure_spec_context(data)
+    ensure_delegation(data)
     pending_proposals = [
         proposal
         for proposal in data["spec_context"].get("pending_proposals", [])

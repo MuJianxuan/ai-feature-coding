@@ -79,6 +79,8 @@ Bounded Context → 业务域（与 requirements.md 的 Domain ID 对齐）
 
 - 当 `api-contract.md.stage_status = ready` 且 Domain ID 已稳定时，可由子代理独立拥有并产出 `backend-design.md`
 - 允许与 `ship-frontend-design` 并行执行，但两者只能共享 `api-contract.md`、`requirements.md` 和 `spec_context`，不可互改对方正式产物
+- `parallel_subagent` 仅作用于当前节点；允许只启动后端设计，不要求与前端成对启动
+- `assistive_subagent` 在本阶段无效；若 `ask_on_parallel_stage = false` 且没有显式 `node_overrides[ship-backend-design] = parallel_subagent`，则回退 `current_context`
 - 子代理仍不得推进 `ship-design-review`，正式阶段切换由 orchestrator 统一收口
 
 ### 步骤详解

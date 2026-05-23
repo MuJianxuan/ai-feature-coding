@@ -123,7 +123,8 @@
 - 默认流程不新增 stage，也不改变 12 个 canonical stages
 - 只有 `ship-frontend-design` 与 `ship-backend-design` 是显式并行阶段
 - research 取证、计划审计、测试分轨、证据整理等可以作为辅助委派
-- 所有硬门禁、`ship-build` 正式任务推进、最终 close 决策仍由主上下文与用户完成
+- hard gate 可由子代理起草正式 `review-*.md` 草案，但最终 `review_status`、`user_sign_off`、`signed_at` 仍由主上下文与用户完成
+- `ship-build` 正式任务推进与最终 close 决策仍由主上下文与用户完成
 
 ## Feature 目录结构
 
