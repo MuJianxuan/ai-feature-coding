@@ -2,7 +2,7 @@
 """Validate workflow documentation consistency.
 
 This checks that the executable stage mapping, protocol docs, meta template,
-and example docs all describe the same 4-stage default view.
+and primary workflow docs all describe the same 4-stage default view.
 """
 
 from __future__ import annotations
@@ -39,6 +39,10 @@ def validate_meta_template() -> None:
         "current_part: research",
         "ship-delivery-plan:",
         "current_part: frontend",
+        "spec_context:",
+        "index_status: missing",
+        "referenced_spec_ids: []",
+        "pending_proposals: []",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
 
@@ -47,36 +51,33 @@ def validate_protocol_doc() -> None:
     path = ROOT / "skills/ship-orchestrator/_templates/protocol/workflow-protocol.md"
     text = read_text(path)
     require("## 2. Macro Stage View" in text, f"{path}: missing macro stage section")
+    require("## 7. Spec Hook Contract" in text, f"{path}: missing spec hook section")
     require(
         "macro_stage.next_user_decision" in text,
         f"{path}: missing next_user_decision references",
     )
+    require("`ship-spec` 是 workflow utility" in text, f"{path}: missing ship-spec utility wording")
+    require("spec_context" in text, f"{path}: missing spec_context references")
     for stage in CANONICAL_STAGE_ORDER:
         macro = macro_stage_for(stage)
         row = f"| `{macro.current}` | `{macro.label}` |"
         require(row in text, f"{path}: missing macro row for {macro.current}/{macro.label}")
 
 
-def validate_macro_view_example() -> None:
-    path = ROOT / "skills/ship-orchestrator/_templates/todo-app-example/meta-view-example.md"
-    text = read_text(path)
-    require("current_stage: \"ship-design-review\"" in text, f"{path}: missing example current_stage")
-    require("macro_stage:" in text, f"{path}: missing macro_stage example")
-    for stage in CANONICAL_STAGE_ORDER:
-        macro = macro_stage_for(stage)
-        row = f"| `{stage}` | `{macro.current}` | `{macro.label}` |"
-        require(row in text, f"{path}: missing mapping row for {stage}")
-
-
 def validate_readmes() -> None:
-    readme_paths = [
+    workflow_readme_paths = [
         ROOT / "README.md",
         ROOT / "skills/README.md",
-        ROOT / "skills/ship-orchestrator/_templates/todo-app-example/README.md",
     ]
-    for path in readme_paths:
+    for path in workflow_readme_paths:
         text = read_text(path)
         require("Define" in text and "Design" in text and "Build" in text and "Close" in text, f"{path}: missing 4-stage view")
+        require("ship-spec" in text, f"{path}: missing ship-spec mention")
+
+    templates_readme = ROOT / "skills/ship-orchestrator/_templates/README.md"
+    templates_text = read_text(templates_readme)
+    for snippet in ("meta.yml.template", "review.md.template", "workflow-protocol.md", "spec_context"):
+        require(snippet in templates_text, f"{templates_readme}: missing `{snippet}`")
 
 
 def validate_orchestrator_doc() -> None:
@@ -85,6 +86,23 @@ def validate_orchestrator_doc() -> None:
     require("meta.yml.macro_stage" in text, f"{path}: missing meta.yml.macro_stage")
     require("macro_stage.next_user_decision" in text, f"{path}: missing next_user_decision sync")
     require("Define → Design → Build → Close" in text, f"{path}: missing default stage sequence")
+    require("ship-spec" in text, f"{path}: missing ship-spec utility references")
+    require("spec_context" in text, f"{path}: missing spec_context references")
+
+
+def validate_ship_spec_doc() -> None:
+    path = ROOT / "skills/ship-spec/SKILL.md"
+    text = read_text(path)
+    for snippet in (
+        "stage_hooks",
+        "stack_tags",
+        "domains",
+        "Proposal-First",
+        "spec_runtime.py",
+        "feature_meta_runtime.py sync-spec",
+    ):
+        require(snippet in text, f"{path}: missing `{snippet}`")
+    require("不是 canonical stage" in text, f"{path}: missing non-stage wording")
 
 
 def validate_stage_map_script() -> None:
@@ -101,6 +119,7 @@ def validate_root_readme_commands() -> None:
     require("ship-orchestrator" in text, f"{path}: missing ship-orchestrator entry")
     require("4 大阶段" in text or "4 个大阶段" in text or "4 个大阶段" in text, f"{path}: missing 4-stage wording")
     require("feature_meta_runtime.py" in text, f"{path}: missing feature_meta_runtime helper command")
+    require("spec_runtime.py" in text, f"{path}: missing spec_runtime helper command")
 
 
 def main() -> int:
@@ -108,9 +127,9 @@ def main() -> int:
         validate_stage_map_script,
         validate_meta_template,
         validate_protocol_doc,
-        validate_macro_view_example,
         validate_readmes,
         validate_orchestrator_doc,
+        validate_ship_spec_doc,
         validate_root_readme_commands,
     ]
     for validator in validators:

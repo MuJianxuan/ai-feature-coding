@@ -8,6 +8,7 @@ This script provides the minimum executable behavior needed to keep
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import sys
 from datetime import datetime
@@ -19,6 +20,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 ROOT = SCRIPT_DIR.parents[2]
 sys.path.insert(0, str(SCRIPT_DIR))
 
+from spec_runtime import VALID_STAGE_HOOKS, resolve_specs  # noqa: E402
 from workflow_stage_map import stage_view_for  # noqa: E402
 
 
@@ -58,6 +60,17 @@ def ensure_macro_stage(data: dict) -> dict:
     return data
 
 
+def ensure_spec_context(data: dict) -> dict:
+    spec_context = data.setdefault("spec_context", {})
+    spec_context.setdefault("index_status", "missing")
+    spec_context.setdefault("last_checked_at", "")
+    spec_context.setdefault("last_checked_stage", "")
+    spec_context.setdefault("referenced_spec_ids", [])
+    spec_context.setdefault("warnings", [])
+    spec_context.setdefault("pending_proposals", [])
+    return data
+
+
 def feature_dir_for(feature_name: str) -> Path:
     return FEATURES_ROOT / feature_name
 
@@ -87,6 +100,7 @@ def create_feature_meta(
     data["pipeline_mode"] = pipeline_mode
     data["project_context"] = project_context
     ensure_macro_stage(data)
+    ensure_spec_context(data)
     save_meta(meta_path, data)
     return meta_path
 
@@ -94,7 +108,70 @@ def create_feature_meta(
 def refresh_feature_meta(meta_path: Path) -> None:
     data = load_meta(meta_path)
     ensure_macro_stage(data)
+    ensure_spec_context(data)
     save_meta(meta_path, data)
+
+
+def sync_spec_context(
+    meta_path: Path,
+    stage_hook: str,
+    spec_root: Path,
+    stack_tags: list[str],
+    domains: list[str],
+    files: list[str],
+) -> dict:
+    data = load_meta(meta_path)
+    ensure_spec_context(data)
+    result = resolve_specs(
+        spec_root=spec_root,
+        stage_hook=stage_hook,
+        stack_tags=stack_tags,
+        domains=domains,
+        files=files,
+    )
+
+    spec_context = data["spec_context"]
+    existing_spec_ids = set(spec_context.get("referenced_spec_ids", []))
+    existing_spec_ids.update(result["matched_spec_ids"])
+
+    spec_context["index_status"] = result["index_status"]
+    spec_context["last_checked_at"] = iso_now()
+    spec_context["last_checked_stage"] = stage_hook
+    spec_context["referenced_spec_ids"] = sorted(existing_spec_ids)
+    spec_context["warnings"] = result["warnings"]
+    data["updated_at"] = iso_now()
+    save_meta(meta_path, data)
+    return result
+
+
+def record_spec_proposal(
+    meta_path: Path,
+    proposal_id: str,
+    title: str,
+    source_stage: str,
+    target_spec_id: str,
+    summary: str,
+) -> dict:
+    data = load_meta(meta_path)
+    ensure_spec_context(data)
+    pending_proposals = [
+        proposal
+        for proposal in data["spec_context"].get("pending_proposals", [])
+        if proposal.get("proposal_id") != proposal_id
+    ]
+    pending_proposals.append(
+        {
+            "proposal_id": proposal_id,
+            "title": title,
+            "source_stage": source_stage,
+            "target_spec_id": target_spec_id,
+            "summary": summary,
+        }
+    )
+    data["spec_context"]["pending_proposals"] = pending_proposals
+    data["updated_at"] = iso_now()
+    save_meta(meta_path, data)
+    return pending_proposals[-1]
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -121,6 +198,22 @@ def build_parser() -> argparse.ArgumentParser:
     refresh_parser = subparsers.add_parser("refresh", help="Refresh macro_stage from current_stage")
     refresh_parser.add_argument("meta_path", help="Path to meta.yml")
 
+    sync_parser = subparsers.add_parser("sync-spec", help="Resolve specs and sync spec_context")
+    sync_parser.add_argument("meta_path", help="Path to meta.yml")
+    sync_parser.add_argument("--stage", required=True, choices=VALID_STAGE_HOOKS)
+    sync_parser.add_argument("--spec-root", default=".docs/spec", help="Spec root directory")
+    sync_parser.add_argument("--stack-tag", action="append", default=[], help="Stack tag used for spec matching")
+    sync_parser.add_argument("--domain", action="append", default=[], help="Domain tag used for spec matching")
+    sync_parser.add_argument("--file", action="append", default=[], help="File path used for ship-build matching")
+
+    proposal_parser = subparsers.add_parser("record-spec-proposal", help="Append a pending spec proposal")
+    proposal_parser.add_argument("meta_path", help="Path to meta.yml")
+    proposal_parser.add_argument("--proposal-id", required=True, help="Stable proposal identifier")
+    proposal_parser.add_argument("--title", required=True, help="Proposal title")
+    proposal_parser.add_argument("--source-stage", required=True, choices=VALID_STAGE_HOOKS)
+    proposal_parser.add_argument("--target-spec-id", required=True, help="Target spec id")
+    proposal_parser.add_argument("--summary", required=True, help="Proposal summary")
+
     return parser
 
 
@@ -143,6 +236,30 @@ def main(argv: list[str]) -> int:
     if args.command == "refresh":
         refresh_feature_meta(Path(args.meta_path))
         print(args.meta_path)
+        return 0
+
+    if args.command == "sync-spec":
+        payload = sync_spec_context(
+            meta_path=Path(args.meta_path),
+            stage_hook=args.stage,
+            spec_root=Path(args.spec_root),
+            stack_tags=args.stack_tag,
+            domains=args.domain,
+            files=args.file,
+        )
+        print(json.dumps(payload, ensure_ascii=True, indent=2))
+        return 0
+
+    if args.command == "record-spec-proposal":
+        payload = record_spec_proposal(
+            meta_path=Path(args.meta_path),
+            proposal_id=args.proposal_id,
+            title=args.title,
+            source_stage=args.source_stage,
+            target_spec_id=args.target_spec_id,
+            summary=args.summary,
+        )
+        print(json.dumps(payload, ensure_ascii=True, indent=2))
         return 0
 
     parser.error(f"unknown command: {args.command}")

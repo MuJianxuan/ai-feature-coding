@@ -17,6 +17,8 @@ npx skills add MuJianxuan/ai-feature-coding
 
 这 4 个大阶段是默认对外视图。内部仍然保留细阶段、硬门禁、文档产物和恢复协议，用于精确推进与诊断。
 
+`ship-spec` 以 workflow utility 形态接入，不占用 stage map；它会在 `ship-tech-discovery`、`ship-frontend-design`、`ship-backend-design`、`ship-build`、`ship-handoff` 被自动消费并通过 `meta.yml.spec_context` 留痕。
+
 ## 你会得到什么
 
 - 对外更简单：首屏不再要求理解所有内部 skill 名
@@ -30,6 +32,7 @@ npx skills add MuJianxuan/ai-feature-coding
 - 主文档：`skills/README.md`
 - 共享协议：`skills/ship-orchestrator/_templates/protocol/workflow-protocol.md`
 - 元数据模板：`skills/ship-orchestrator/_templates/meta/meta.yml.template`
+- 规范管理：`skills/ship-spec/SKILL.md`
 
 ## 启动示例
 
@@ -53,7 +56,7 @@ npx skills add MuJianxuan/ai-feature-coding
 
 - `skills/README.md`：默认用户视图，重点讲 4 个大阶段
 - `skills/ship-orchestrator/`：统一入口与路由规则
-- `skills/ship-orchestrator/_templates/`：协议、模板、示例
+- `skills/ship-orchestrator/_templates/`：协议与模板
 - `.docs/`：feature 运行时产物和规范沉淀
 
 ## 维护
@@ -69,6 +72,7 @@ npx skills add MuJianxuan/ai-feature-coding
 ```bash
 python3 skills/ship-orchestrator/scripts/validate_workflow_docs.py
 python3 skills/ship-orchestrator/scripts/workflow_stage_map.py --list
+python3 skills/ship-orchestrator/scripts/spec_runtime.py scan .docs/spec
 ```
 
 最小 runtime helper：
@@ -76,4 +80,5 @@ python3 skills/ship-orchestrator/scripts/workflow_stage_map.py --list
 ```bash
 python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py init .docs/feature-YYYYMMDD-demo --feature-name "Demo Feature" --feature-id "feature-YYYYMMDD-demo"
 python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py refresh .docs/feature-YYYYMMDD-demo/meta.yml
+python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec .docs/feature-YYYYMMDD-demo/meta.yml --stage ship-build --file src/app.ts
 ```

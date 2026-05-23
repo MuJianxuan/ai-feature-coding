@@ -57,17 +57,19 @@ Bounded Context → 业务域（与 requirements.md 的 Domain ID 对齐）
    verify: 选择有 tech-selection.md 依据
 2. 业务域 → 模块映射
    verify: 与 requirements.md 的 Domain ID 一一对应
-3. 设计数据模型（ER 图 + 表结构）
+3. 加载 ship-spec 约束
+   verify: 已记录匹配的 `spec_id` 或“无匹配规范”
+4. 设计数据模型（ER 图 + 表结构）
    verify: 支撑 api-contract.md 所有数据结构
-4. 设计服务层（Service + 方法签名）
+5. 设计服务层（Service + 方法签名）
    verify: 每个 Domain 至少一个 Service
-5. 接口实现映射（Controller → Service → Repository）
+6. 接口实现映射（Controller → Service → Repository）
    verify: api-contract.md 每个接口都有映射
-6. 设计中间件与横切关注点
+7. 设计中间件与横切关注点
    verify: 认证/授权/日志/错误处理覆盖
-7. 制定数据库迁移策略
+8. 制定数据库迁移策略
    verify: 含初始化脚本与升级脚本规范
-8. 制定后端非功能方案
+9. 制定后端非功能方案
    verify: 缓存/限流/监控各至少一条
 ```
 
@@ -91,14 +93,20 @@ D-ORD-001  订单创建  →   src/modules/order/
 D-PAY-001  支付处理  →   src/modules/payment/
 ```
 
-**Step 3: 数据模型设计**
+**Step 3: 加载 ship-spec 约束**
+
+- 基于 `tech-selection.md` 的技术栈标签和 `requirements.md` 的 Domain ID 匹配规范
+- 将命中的 `spec_id` 记录到 `backend-design.md.referenced_spec_ids`
+- 无匹配规范时显式写“无匹配规范”，并把 warning 写入 `spec_warnings`
+
+**Step 4: 数据模型设计**
 
 - 从 api-contract.md 的数据模型反推数据库表结构
 - 标注主键、外键、唯一索引、复合索引
 - 考虑软删除、审计字段（created_at / updated_at / created_by）
 - 标注字段的业务含义与约束
 
-**Step 4-5: 服务层与接口映射**
+**Step 5-6: 服务层与接口映射**
 
 每个接口必须能追溯到：
 ```
@@ -108,7 +116,7 @@ POST /api/v1/todos
       → TodoRepository.save(entity)
 ```
 
-**Step 6-8: 横切关注点**
+**Step 7-9: 横切关注点**
 
 认证、授权、日志、错误处理、缓存、限流、监控均需统一方案。
 
@@ -203,6 +211,9 @@ stage: ship-backend-design
 stage_status: draft  # draft / ready
 updated_at: ""
 evidence_complete: false
+spec_checked_at: ""
+referenced_spec_ids: []
+spec_warnings: []
 ---
 ```
 
@@ -241,14 +252,19 @@ src/
 | D-TODO-001 | 待办管理 | modules/todo | TodoService |
 ```
 
-#### 3. 数据模型设计
+#### 3. Referenced Specs / Constraints
+- 引用的 `spec_id` 列表
+- 对当前后端方案生效的关键约束
+- 若无匹配规范，显式记录原因和 warnings
+
+#### 4. 数据模型设计
 - ER 图（表 + 关系）
 - 每张表的 DDL（含字段类型、约束、索引）
 - 索引策略说明
 - 软删除/审计字段约定
 - 数据迁移与初始数据
 
-#### 4. 服务层设计
+#### 5. 服务层设计
 
 每个 Domain 列出：
 
@@ -269,7 +285,7 @@ src/
 **事务边界**：每个公开方法为一个事务
 ```
 
-#### 5. 接口实现映射
+#### 6. 接口实现映射
 
 api-contract.md 中每个接口的实现路径：
 
@@ -281,20 +297,20 @@ api-contract.md 中每个接口的实现路径：
 | DELETE /api/v1/todos/:id | TodoController.delete | TodoService.deleteTodo | TodoRepository.softDelete | UPDATE todos SET deleted_at |
 ```
 
-#### 6. 中间件 / 拦截器设计
+#### 7. 中间件 / 拦截器设计
 - **认证中间件**：解析 JWT、注入 user 上下文
 - **授权中间件**：基于角色 / 权限的访问控制
 - **请求日志**：记录请求/响应、脱敏 PII
 - **错误处理**：统一异常 → API 错误响应
 - **限流**：按 IP / 用户 / 接口的限流策略
 
-#### 7. 数据库迁移策略
+#### 8. 数据库迁移策略
 - 迁移工具（Prisma Migrate / TypeORM / Flyway）
 - 迁移命名规范（`YYYYMMDDHHmmss_description.sql`）
 - 回滚策略（每个迁移配套 down 脚本）
 - 生产环境迁移流程（备份 → 演练 → 灰度）
 
-#### 8. 后端非功能方案
+#### 9. 后端非功能方案
 - **缓存**：Redis 使用场景、key 命名规范、过期策略
 - **限流**：算法（令牌桶 / 漏桶）、维度、配置
 - **监控**：指标（QPS / 延迟 / 错误率）、告警阈值
@@ -310,6 +326,7 @@ api-contract.md 中每个接口的实现路径：
 ### evidence_complete 判定标准
 
 - 每个 Domain ID 有对应的代码模块和 Service
+- 已记录 `referenced_spec_ids` 或“无匹配规范”
 - 每个接口在接口实现映射中有完整链路
 - 数据模型支撑 api-contract.md 所有数据结构
 - 中间件方案覆盖认证、授权、错误处理
@@ -340,6 +357,7 @@ api-contract.md 中每个接口的实现路径：
 ```
 □ 业务域是否与 requirements.md 的 Domain ID 一一对应？
 □ 每个 Domain 是否有对应的代码模块和 Service？
+□ 是否已完成 ship-spec 匹配并记录 `referenced_spec_ids` / `spec_warnings`？
 □ api-contract.md 中每个接口是否有完整的实现映射？
 □ 数据模型是否支撑接口规约的所有数据结构？
 □ 数据库表是否包含审计字段（created_at / updated_at）？

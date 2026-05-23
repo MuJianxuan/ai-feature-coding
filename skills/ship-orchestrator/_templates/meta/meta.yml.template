@@ -34,6 +34,15 @@ tech_stack:
     frontend: ""              # 例: "Vitest + Testing Library + Playwright"
     backend: ""               # 例: "Vitest + Supertest"
 
+# ship-spec 摘要索引（Utility Hook；规范事实源仍是 .docs/spec/*.md）
+spec_context:
+  index_status: missing       # missing | ready | invalid
+  last_checked_at: ""
+  last_checked_stage: ""      # ship-tech-discovery | ship-frontend-design | ship-backend-design | ship-build | ship-handoff
+  referenced_spec_ids: []     # 本 feature 已引用过的规范
+  warnings: []                # 最近一次 helper 解析产生的告警
+  pending_proposals: []       # ship-handoff 生成、待用户确认沉淀的规范提案
+
 # 各阶段摘要状态（由 orchestrator 维护；与文档冲突时以文档 frontmatter 为准）
 stages:
   ship-intake:

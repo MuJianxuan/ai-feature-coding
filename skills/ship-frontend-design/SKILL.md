@@ -52,15 +52,17 @@ description: "ShipKit stage. Designs frontend architecture based on UI/UX protot
    verify: 所有页面的设计稿可访问
 2. 构建页面树（Page Tree）
    verify: 覆盖 requirements.md 所有用户路径
-3. 按原子设计分层规划组件
+3. 加载 ship-spec 约束
+   verify: 已记录匹配的 `spec_id` 或“无匹配规范”
+4. 按原子设计分层规划组件
    verify: 每个组件标注数据来源
-4. 编写页面-接口映射表
+5. 编写页面-接口映射表
    verify: 覆盖所有页面的所有用户操作
-5. 设计状态管理方案
+6. 设计状态管理方案
    verify: 区分全局状态与局部状态
-6. 设计路由与权限
+7. 设计路由与权限
    verify: 与 requirements.md 权限模型一致
-7. 制定前端非功能方案
+8. 制定前端非功能方案
    verify: 性能/SEO/无障碍各至少一条
 ```
 
@@ -79,7 +81,13 @@ description: "ShipKit stage. Designs frontend architecture based on UI/UX protot
 - 标注每个页面的访问权限
 - 区分公开页面、登录后页面、特定角色页面
 
-**Step 3: 组件分层（Atomic Design）**
+**Step 3: 加载 ship-spec 约束**
+
+- 基于 `tech-selection.md` 的技术栈标签和 `requirements.md` 的 domain 信息匹配规范
+- 将命中的 `spec_id` 记录到 `frontend-design.md.referenced_spec_ids`
+- 无匹配规范时显式写“无匹配规范”，并把 warning 写入 `spec_warnings`
+
+**Step 4: 组件分层（Atomic Design）**
 
 ```
 atoms      → Button / Input / Icon
@@ -89,11 +97,11 @@ templates  → DashboardLayout / AuthLayout
 pages      → HomePage / TodoListPage
 ```
 
-**Step 4: 页面-接口映射（核心产物）**
+**Step 5: 页面-接口映射（核心产物）**
 
 这是前端方案最关键的产物，必须详尽完整。
 
-**Step 5-7: 横切关注点**
+**Step 6-8: 横切关注点**
 
 状态管理、路由、性能、无障碍均需明确决策与依据。
 
@@ -169,6 +177,9 @@ stage: ship-frontend-design
 stage_status: draft  # draft / ready
 updated_at: ""
 evidence_complete: false
+spec_checked_at: ""
+referenced_spec_ids: []
+spec_warnings: []
 ---
 ```
 
@@ -218,28 +229,33 @@ evidence_complete: false
 - TodoListPage = DashboardLayout + TodoList + TodoForm
 ```
 
-#### 4. 页面-接口映射表（核心产物）
+#### 4. Referenced Specs / Constraints
+- 引用的 `spec_id` 列表
+- 对当前方案生效的关键约束
+- 若无匹配规范，显式记录原因和 warnings
+
+#### 5. 页面-接口映射表（核心产物）
 
 完整列出每个页面的每个用户操作对应的接口调用。
 
-#### 5. 状态管理方案
+#### 6. 状态管理方案
 - 全局状态：用户信息、认证 token、全局通知
 - 局部状态：表单数据、UI 临时状态
 - 服务端状态：API 数据缓存（推荐 React Query / SWR）
 - 数据流向图：用户操作 → 组件 → Store/Hook → API → Store 更新 → 组件重渲染
 
-#### 6. 路由与权限设计
+#### 7. 路由与权限设计
 - 路由守卫机制（公开 / 已登录 / 特定角色）
 - Token 存储与刷新策略
 - 401 / 403 的统一处理
 
-#### 7. UI/UX 设计资料索引
+#### 8. UI/UX 设计资料索引
 - Figma 链接（含具体页面锚点）
 - 墨刀 / 截图清单
 - 设计系统引用（设计 token / 颜色 / 间距）
 - 组件库映射（设计稿组件 → 代码组件）
 
-#### 8. 前端非功能方案
+#### 9. 前端非功能方案
 - **性能**：路由懒加载、图片懒加载、虚拟列表、防抖节流
 - **SEO**：SSR / SSG 决策、meta 标签、sitemap
 - **无障碍**：语义化 HTML、ARIA 属性、键盘导航、对比度
@@ -254,6 +270,7 @@ evidence_complete: false
 ### evidence_complete 判定标准
 
 - 每个页面有可访问的 UI/UX 设计资料
+- 已记录 `referenced_spec_ids` 或“无匹配规范”
 - 映射表覆盖所有页面的所有用户操作
 - 每个接口在映射表中至少被一个页面引用
 - 状态管理与路由权限方案明确

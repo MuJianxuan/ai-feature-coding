@@ -23,6 +23,7 @@
 - 用户默认只和 `ship-orchestrator` 交互
 - 状态默认显示大阶段，不要求记住 12 个内部阶段名
 - 只有在恢复断点、排查阻塞、直接调用某阶段时，才展开内部细阶段
+- `ship-spec` 作为 workflow utility 隐式接入，不作为单独阶段暴露给默认用户视图
 
 ## 为什么这样设计
 
@@ -137,6 +138,7 @@
 
 - `current_stage` 记录内部细阶段
 - `macro_stage` 记录默认对外展示的大阶段摘要
+- `spec_context` 记录最近一次规范解析状态、已引用规范和待沉淀 proposal
 
 ## Advanced
 
@@ -144,19 +146,12 @@
 
 - 完整 12 阶段路由顺序
 - `meta.yml` 细阶段状态维护
+- `ship-spec` hook 契约与 `spec_context` 摘要字段
 - 各阶段 SKILL 的详细输入输出
 - review gate frontmatter 协议
 - fast-track 的最小路径和升级/降级规则
 
 这些内容以 `ship-orchestrator/_templates/protocol/workflow-protocol.md` 为准。
-
-## 范本
-
-`ship-orchestrator/_templates/todo-app-example/` 提供一套阶段产物范本，可作为：
-
-- 学习流程的标准答案
-- 实际项目启动时的详细程度下限
-- 对照 `requirements / design / plan / meta view` 的写法参考
 
 ## 维护
 
@@ -165,4 +160,3 @@
 - 检查与 `ship-orchestrator/_templates/protocol/workflow-protocol.md` 的协议对齐
 - 检查与 `ship-orchestrator/_templates/meta/meta.yml.template` 的字段对齐
 - 检查与 `ship-orchestrator/_templates/review/review.md.template` 的章节对齐
-- 用 `ship-orchestrator/_templates/todo-app-example/` 对照阶段产物写法是否仍然一致

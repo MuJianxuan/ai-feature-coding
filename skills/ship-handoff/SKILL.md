@@ -13,6 +13,7 @@ description: "ShipKit stage. Consumes verification.md from ship-verify, complete
 - AC 全量映射验证：每条 AC 对应至少一项验证证据
 - 残余风险显式登记：FAIL / BLOCKED 项不能藏起来
 - 交付边界清晰：变更范围、部署事项、后续建议形成可移交文档
+- 规范沉淀闭环：汇总本次引用过的规范，并以 Proposal-First 方式记录新增规范建议
 
 产物：
 - `verification.md` —— 共享验收证据文件；本阶段补齐 AC 映射、手工验证、残余风险与最终结论
@@ -70,13 +71,16 @@ description: "ShipKit stage. Consumes verification.md from ship-verify, complete
 │  5. 评估残余风险（FAIL / BLOCKED / 未覆盖场景）        │
 │         │                                            │
 │         ▼                                            │
-│  6. 编写 handoff.md（变更范围、部署、建议）            │
+│  6. 生成 spec proposal（如有）                        │
 │         │                                            │
 │         ▼                                            │
-│  7. 自检（Verification Checklist）                    │
+│  7. 编写 handoff.md（变更范围、部署、建议）            │
 │         │                                            │
 │         ▼                                            │
-│  8. 设置 stage_status（complete 或 draft）             │
+│  8. 自检（Verification Checklist）                    │
+│         │                                            │
+│         ▼                                            │
+│  9. 设置 stage_status（complete 或 draft）             │
 │                                                      │
 └──────────────────────────────────────────────────────┘
 ```
@@ -104,11 +108,17 @@ description: "ShipKit stage. Consumes verification.md from ship-verify, complete
 - 评估影响（用户影响 / 业务影响 / 安全影响）
 - 给出处理建议（修复 / 接受 / 回退）
 
-**Step 6: 交付文档**
+**Step 6: Spec Proposal**
+- 读取 `meta.yml.spec_context.referenced_spec_ids`
+- 若发现重复模式、临时约定或 review 中反复出现的问题，生成待沉淀 proposal
+- proposal 先写入 `handoff.md` 与 `meta.yml.spec_context.pending_proposals`
+- 默认不直接创建或修改 `.docs/spec/*.md`
+
+**Step 7: 交付文档**
 - handoff.md 即使没有变更/部署事项，也要显式写"无"
 - 后续建议要具体（哪个文件、哪个模块、什么时机），不要泛泛"建议优化性能"
 
-**Step 7-8: 自检与状态设定**
+**Step 8-9: 自检与状态设定**
 - 完成 Verification Checklist
 - `stage_status: complete` 仅当 Checklist 全部通过
 - 否则维持 `draft`，列出待补项
@@ -181,6 +191,9 @@ stage: ship-handoff
 stage_status: ready  # ship-verify 结束时应为 ready；ship-handoff 完成后改为 complete 或回退为 draft
 updated_at: ""
 all_ac_verified: false  # 所有 AC 都有明确结果（含 N/A）则为 true
+spec_checked_at: ""
+referenced_spec_ids: []
+spec_warnings: []
 ---
 ```
 
@@ -202,6 +215,8 @@ all_ac_verified: false  # 所有 AC 都有明确结果（含 N/A）则为 true
 
 **5. 残余风险**：见 Risk Assessment 章节格式
 
+**6. Spec Proposals**：列出“无新增规范”或待沉淀 proposal（proposal_id / target_spec_id / summary）
+
 ### handoff.md 核心章节
 
 **1. 交付摘要**：一段话说清涉及需求、AC 通过率、已知缺陷、可上线阶段
@@ -219,6 +234,8 @@ all_ac_verified: false  # 所有 AC 都有明确结果（含 N/A）则为 true
 - [P0] 补齐 AC-AUTH-003 账户锁定逻辑（owner: 后续迭代）
 - [P2] AuthService 魔法数字提取到 config（owner: TBD）
 ```
+
+**5. Spec Proposals**：记录本次是否产生规范沉淀建议；若产生，需与 `meta.yml.spec_context.pending_proposals` 一致
 
 ## Anti-Rationalizations
 
@@ -238,6 +255,7 @@ all_ac_verified: false  # 所有 AC 都有明确结果（含 N/A）则为 true
 - **FAIL 项数 > 总 AC 的 20%**：实施质量明显不达标，回到 `ship-build` 阶段
 - **handoff 中部署事项与代码改动不匹配**：例如新增了环境变量但 handoff 没列出
 - **all_ac_verified=false 但 stage_status=complete**：状态机被破坏
+- **存在待沉淀模式但 handoff / meta 没有 proposal**：规范闭环失效
 
 ## Verification (退出 Checklist)
 
@@ -263,11 +281,17 @@ all_ac_verified: false  # 所有 AC 都有明确结果（含 N/A）则为 true
 - [ ] 部署事项即使为空也显式写"无"
 - [ ] 变更文件清单与实际 git diff 一致
 - [ ] 后续建议条目带优先级与 owner（可为 TBD）
+- [ ] handoff.md 已记录“无新增规范”或完整 spec proposal
 
 ### 风险登记
 - [ ] 所有 P0 风险已与用户对齐处理方案
 - [ ] P1 风险列入 handoff 的"已知缺陷"
 - [ ] P2/P3 风险列入"后续建议"
+
+### 规范沉淀
+- [ ] 已读取 `meta.yml.spec_context.referenced_spec_ids`
+- [ ] 若发现可沉淀模式，proposal 已同步写入 `meta.yml.spec_context.pending_proposals`
+- [ ] 未经用户确认，不直接修改 `.docs/spec/*.md`
 
 ### Frontmatter
 - [ ] stage_status 与实际验收结果一致

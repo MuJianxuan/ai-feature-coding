@@ -110,7 +110,8 @@ Phase 3: 集成联调
 - 阅读任务条目中的"完成判定标准"（Acceptance Criteria for Task）
 - 阅读"关联文件清单"中列出的所有文件，理解现状
 - 如果任务关联了 design 文档章节，读取该章节
-- 若存在匹配的 `.docs/spec/` 规范，先加载并记录引用的 `spec_id`
+- 使用 `ship-spec` hook 匹配 `.docs/spec/*.md`，将命中的 `spec_id` 写入任务的 `spec_refs`
+- 若无匹配规范或规范 frontmatter 不合法，记录 warning，但默认继续
 - 不要凭记忆或假设直接动手
 
 **Step 5: 编写代码**
@@ -167,6 +168,9 @@ Phase 3: 集成联调
 - assignee: claude
 - started_at: 2026-05-22T10:00:00+08:00
 - finished_at: 2026-05-22T10:35:00+08:00
+- spec_refs:
+  - react-query-data-fetching
+  - error-handling
 - evidence:
   - tests: src/pages/Login.test.tsx (12 passed)
   - build: pnpm build → success
@@ -218,6 +222,7 @@ Phase 3: 集成联调
 3. **运行验证**，确认环境状态与文件状态一致
 4. **不要凭印象继续**：如果验证显示部分代码已改但测试未跑，先把验证补齐再继续
 5. **如果发现 DOING 任务已经实际完成但状态未更新**，先补齐状态变更再选取下一任务
+6. **若 `spec_refs` 缺失**：先重新执行 spec 匹配并把结果补到任务证据，再继续实现
 
 ## Anti-Rationalizations
 
@@ -251,6 +256,7 @@ Phase 3: 集成联调
 - [ ] 改动文件在任务清单范围内
 - [ ] 关键改动有对应的测试覆盖
 - [ ] plan.md 中状态已更新为 DONE，evidence 已填写
+- [ ] 任务条目已记录 `spec_refs`（无匹配规范时显式写明）
 - [ ] 无未提交的临时调试代码（console.log / TODO 占位）
 - [ ] 无 spec 之外的"顺手改动"
 

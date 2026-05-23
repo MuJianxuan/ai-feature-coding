@@ -58,6 +58,9 @@ artifact_role: selection
 stage_status: draft
 updated_at: ""
 evidence_complete: false
+spec_checked_at: ""
+referenced_spec_ids: []
+spec_warnings: []
 ---
 ```
 
@@ -77,7 +80,7 @@ evidence_complete: false
 3. 读取 tech-research.md + requirements.md
    verify: 候选方案、约束和评估维度完整
 4. 执行 selection 子段
-   verify: 形成带 ADR 的 tech-selection.md
+   verify: 形成带 ADR 的 tech-selection.md，并完成 spec compatibility check
 5. 交叉校验 research → selection
    verify: 每个关键决策都能回指 research 证据
 6. 标记两个产物为 ready
@@ -109,6 +112,7 @@ selection 子段遵循 ADR 决策纪律：
 
 - 读取 `tech-research.md` 中的候选与证据
 - 读取 `requirements.md` 中的非功能需求与约束
+- 通过 `ship-spec` hook 检查已有规范是否与选型冲突，并记录 `referenced_spec_ids`
 - 定义评估维度与权重
 - 逐项做出技术栈和架构决策
 - 每项决策必须有至少 1 个备选方案和不选理由
@@ -119,16 +123,18 @@ selection 子段遵循 ADR 决策纪律：
 1. 选型摘要
 2. 技术栈决策表
 3. ADR 列表
-4. 架构模式选择
-5. 关键约束
-6. 与 requirements.md 非功能需求的对齐验证
-7. 项目初始化方案（仅新项目）
+4. Spec Compatibility（引用规范、冲突结果、warnings）
+5. 架构模式选择
+6. 关键约束
+7. 与 requirements.md 非功能需求的对齐验证
+8. 项目初始化方案（仅新项目）
 
 ## Cross-Checks
 
 在本阶段结束前必须执行以下一致性检查：
 
 - `tech-selection.md` 中每个关键决策都能回指 `tech-research.md` 中的证据
+- 若存在匹配规范，`tech-selection.md` 已记录对应 `spec_id`
 - research 中识别出的高风险项在 selection 中有处理策略
 - requirements.md 的非功能需求没有被 research 或 selection 漏掉
 - `tech-selection.md` 中的新项目初始化命令与选定技术栈一致
@@ -149,6 +155,7 @@ selection 子段遵循 ADR 决策纪律：
 - [ ] tech-selection.md frontmatter 已设置 `stage: ship-tech-discovery` 和 `artifact_role: selection`
 - [ ] 所有 P0/P1 调研点已完成
 - [ ] 所有关键决策都有 ADR
+- [ ] 已完成 ship-spec compatibility check，并记录 `referenced_spec_ids` 或“无匹配规范”
 - [ ] selection 中每个决策都引用了 research 证据
 - [ ] 两份文档都无阻塞性 TODO
 - [ ] 两份文档的 `stage_status` 都已正确置为 `ready`

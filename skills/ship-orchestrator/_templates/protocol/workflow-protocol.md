@@ -39,6 +39,7 @@
 - `current_stage` 仍然只允许写 Canonical Stage IDs。
 - `macro_stage` 是 `meta.yml` 中的展示/摘要字段，用于默认用户视图、状态列表和执行摘要。
 - 对外默认显示 `macro_stage.label`、`macro_stage.summary`、`macro_stage.next_user_decision`；只有在恢复断点、排查阻塞、直接调用具体阶段时，才展开到 `current_stage`。
+- `ship-spec` 不是 canonical stage；它是由 orchestrator 感知、由各阶段实际消费的 workflow utility。
 
 ## 3. Source of Truth
 
@@ -114,8 +115,60 @@ conditions: []
 - 对双产物阶段记录 `current_part`，用于阶段内恢复：
   - `ship-tech-discovery.current_part`: `research | selection`
   - `ship-delivery-plan.current_part`: `frontend | backend | sync`
+- `spec_context` 记录最近一次规范解析结果与本 feature 已引用规范摘要：
+  - `index_status`: `missing | ready | invalid`
+  - `last_checked_stage`: 最近一次消费规范的 hook 点
+  - `referenced_spec_ids`: 本 feature 已留痕的规范集合
+  - `warnings`: 最近一次 helper 解析的告警
+  - `pending_proposals`: `ship-handoff` 生成、待用户确认的规范沉淀提案
 
-## 7. Testing / Handoff Ownership
+## 7. Spec Hook Contract
+
+`ship-spec` 是 workflow utility，不参与 stage map，也不拥有 `current_stage`。它通过 hook 的方式接入以下阶段：
+
+| Hook 点 | 触发时机 | 默认动作 | 缺失/不匹配策略 |
+|---------|---------|---------|----------------|
+| `ship-tech-discovery` | `selection` 子段完成前 | 检查规范与选定技术栈/约束是否冲突 | Warn Then Continue |
+| `ship-frontend-design` | 编写设计约束前 | 加载前端相关规范作为设计约束 | Warn Then Continue |
+| `ship-backend-design` | 编写设计约束前 | 加载后端相关规范作为设计约束 | Warn Then Continue |
+| `ship-build` | 每个任务开始前 | 按文件清单匹配规范并写入任务证据 | Warn Then Continue |
+| `ship-handoff` | 验收总结前 | 汇总已引用规范并生成待沉淀 proposal | Warn Then Continue |
+
+运行时约束：
+
+- orchestrator 在进入以上阶段前，应通过 `spec_runtime.py` 或等价 helper 解析规范，并回写 `meta.yml.spec_context`
+- `ship-tech-discovery / ship-frontend-design / ship-backend-design / ship-build / ship-handoff` 的产物 frontmatter 应包含：
+
+```yaml
+spec_checked_at: ""
+referenced_spec_ids: []
+spec_warnings: []
+```
+
+- `.docs/spec/INDEX.md` 是 registry，服务于人工浏览；运行时匹配事实源是各个 `.docs/spec/*.md` 的 frontmatter
+- 缺少 `INDEX.md`、找不到匹配规范、frontmatter 不合法时，默认只告警并留痕；除非用户显式要求严格模式，否则不阻塞阶段推进
+- `fast-track` 不新增 hook stage；跳过设计阶段时，规范检查压缩到 `ship-build` 入口和 `ship-handoff` 汇总
+
+规范 frontmatter 统一字段：
+
+```yaml
+spec_id: ""
+scope: project  # project | module | file
+stage_hooks: []  # ship-tech-discovery | ship-frontend-design | ship-backend-design | ship-build | ship-handoff
+stack_tags: []
+domains: []
+applies_to: []
+last_updated: ""
+```
+
+匹配规则：
+
+- `ship-tech-discovery`：按 `stage_hooks + stack_tags` 匹配，`domains` 为空表示全局规范
+- `ship-frontend-design / ship-backend-design`：按 `stage_hooks + stack_tags + domains` 匹配
+- `ship-build`：按 `stage_hooks=ship-build` 且 `applies_to` 对任务文件清单做 glob 匹配；`stack_tags / domains` 为附加过滤
+- `ship-handoff`：以 `meta.yml.spec_context.referenced_spec_ids` 为基础生成 proposal，可附加全局规范扫描结果
+
+## 8. Testing / Handoff Ownership
 
 `verification.md` 是跨 13/14 两阶段共享的验收证据文件，ownership 分工如下：
 
@@ -131,7 +184,7 @@ conditions: []
 
 `ship-build` 只负责任务级验证与 plan 状态，不拥有 `verification.md`。
 
-## 8. Fast-Track Rules
+## 9. Fast-Track Rules
 
 fast-track 是受控子流程，不是“跳过流程直接编码”。
 
