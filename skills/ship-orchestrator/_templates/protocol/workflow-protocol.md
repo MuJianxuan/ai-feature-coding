@@ -126,16 +126,24 @@ conditions: []
   - `ask_on_parallel_stage`: 显式并行阶段前是否征询用户
   - `ask_on_assistive_node`: 辅助委派节点前是否征询用户
   - `node_overrides`: 节点级覆盖；key 使用 `stage` 或 `stage.substage`
+  - `node_overrides` 合法值：`current_context | assistive_subagent | parallel_subagent | gate_check_subagent`
 
 ## 7. Delegation Contract
 
 子代理不是额外 stage，而是 orchestrator 在阶段内部采用的执行策略。默认原则：**单一事实源不分叉，正式状态推进单线程，辅助工作可并行**。
+
+说明：
+
+- `Delegation Modes` 是节点能力分类，不是 `node_overrides` 的直接取值
+- `node_overrides` 记录的是运行时执行选择值
+- 节点是否合法解释某个 override 值，由该节点自己的运行时规则决定
 
 ### 7.1 Delegation Modes
 
 | Mode | 含义 | 允许行为 | 禁止行为 |
 |------|------|---------|---------|
 | `forbidden` | 不允许委派 | 无 | 不可启动子代理 |
+| `gate_check_switchable` | gate 检查执行者可切换 | 当前上下文或子代理都可执行质量门禁检查 | 子代理不可确认最终 gate 结果 |
 | `parallel_owned_outputs` | 允许并行拥有正式产物 | 子代理可直接产出自己拥有的正式文档 | 不可改别人的正式产物、不可推进 gate |
 | `assistive_only` | 只允许辅助委派 | 资料搜集、审计、测试分轨、证据整理 | 不可改 canonical artifact frontmatter、不可改 `meta.yml` |
 | `user_gate_only` | 用户独占决策点 | 用户确认通过/拒绝/继续/关闭 | 子代理不可替用户签字或拍板 |
@@ -145,15 +153,15 @@ conditions: []
 | Stage / Node | Delegation Mode | 说明 |
 |-------------|-----------------|------|
 | `ship-intake` | `assistive_only` | 仅资料索引、资源可访问性检查可委派；`requirements.md` 定稿仍由主上下文完成 |
-| `ship-intake-review` | `forbidden` + `user_gate_only` | 可做本地分析，但 gate 结论与签字不可委派 |
+| `ship-intake-review` | `gate_check_switchable` + `user_gate_only` | 质量检查可由当前上下文或子代理执行；最终 gate 结论和签字不可委派 |
 | `ship-tech-discovery.research` | `assistive_only` | 可委派资料搜集与证据初筛 |
 | `ship-tech-discovery.selection` | `forbidden` | 选型必须回指 research 证据，保持单一决策链 |
 | `ship-contract` | `forbidden` | 共享契约是前后端并行的单一基线，不分叉 |
 | `ship-frontend-design` | `parallel_owned_outputs` | 可与后端设计并行，拥有 `frontend-design.md` |
 | `ship-backend-design` | `parallel_owned_outputs` | 可与前端设计并行，拥有 `backend-design.md` |
-| `ship-design-review` | `forbidden` + `user_gate_only` | 三方交叉验证结论和签字不可委派 |
+| `ship-design-review` | `gate_check_switchable` + `user_gate_only` | 质量检查可由当前上下文或子代理执行；最终 gate 结论和签字不可委派 |
 | `ship-delivery-plan` | `forbidden` | 阶段内固定 `frontend -> backend -> sync` |
-| `ship-plan-review` | `assistive_only` + `user_gate_only` | DAG、覆盖、粒度审计可委派；最终评审结论不可委派 |
+| `ship-plan-review` | `gate_check_switchable` + `user_gate_only` | 质量检查可由当前上下文或子代理执行；最终评审结论和签字不可委派 |
 | `ship-build` | `assistive_only` + `user_gate_only` | 正式编码任务保持单 `DOING`；只读准备/验证支线可委派 |
 | `ship-verify` | `assistive_only` | 后端单测/集成/契约、前端组件/E2E 可分轨并行；`verification.md` 统一归档 |
 | `ship-handoff` | `assistive_only` + `user_gate_only` | 证据收集可委派；close/follow-up/proposal 取舍必须用户决定 |
@@ -163,6 +171,14 @@ conditions: []
 - 只有 `parallel_owned_outputs` 允许子代理直接拥有正式产物文件：
   - `ship-frontend-design` -> `frontend-design.md`
   - `ship-backend-design` -> `backend-design.md`
+- `gate_check_switchable` 允许子代理直接写正式 gate 文档草案：
+  - `ship-intake-review` -> `review-requirement.md`
+  - `ship-design-review` -> `review-design.md`
+  - `ship-plan-review` -> `review-plan.md`
+- 上述 gate 文档在子代理起草时必须保持：
+  - `review_status: pending`
+  - `user_sign_off: ""`
+  - `signed_at: ""`
 - `assistive_only` 子代理只能返回证据包、审计结果、测试结果或候选提案，正式文档合并由主上下文完成。
 - 任意模式下，只有 orchestrator 或当前主上下文可以：
   - 修改 `meta.yml`
@@ -170,7 +186,51 @@ conditions: []
   - 写入 `user_sign_off`、`signed_at`
   - 推进 `current_stage`
 
-### 7.4 User Decision Nodes
+### 7.4 Hard Gate Runtime Execution Modes
+
+以下三阶段进入时，orchestrator 必须按 delegation 配置自动解析本次质量门禁检查的执行者：
+
+- `ship-intake-review`
+- `ship-design-review`
+- `ship-plan-review`
+
+可选执行方式：
+
+- `current_context`
+  - 主代理直接执行 gate 检查并写正式 `review-*.md`
+- `gate_check_subagent`
+  - 子代理执行 gate 检查并直接写正式 `review-*.md` 草案
+  - 草案写入时 `review_status` 固定为 `pending`
+  - 主代理随后必须重新读取该文档、复核内容、确认质量检查结果
+
+解析顺序固定为：
+
+1. 先读取 `node_overrides[stage]`
+2. 若 override 缺失或不适用，再读取 `delegation.default_mode`
+3. 若仍无法解析，回退 `current_context`
+
+值映射规则：
+
+- `current_context` -> `current_context`
+- `gate_check_subagent` -> `gate_check_subagent`
+- `assistive_subagent` -> `gate_check_subagent`
+- `parallel_subagent` -> 对 hard gate 无效
+
+无效值处理：
+
+- 若 hard gate 上的 `node_overrides` 值无效（如 `parallel_subagent`），记录 warning 后回退到 `default_mode`
+- 若 `default_mode` 在 hard gate 上无法解析，也记录 warning，并最终回退 `current_context`
+
+固定收口流程：
+
+1. 基于 delegation 配置解析本次 gate 的执行方式
+2. 产出正式 `review-*.md` 草案
+3. 主代理复核该草案并按需要修订
+4. 主代理设置最终 `review_status`
+5. 若主代理判断可通过，再向用户请求明确批准
+6. 只有用户明确批准后，主代理才能写入 `user_sign_off` 与 `signed_at`
+
+### 7.5 User Decision Nodes
 
 以下节点允许 orchestrator 询问“当前上下文执行，还是启用子代理策略”：
 
@@ -183,8 +243,16 @@ conditions: []
 默认策略：
 
 - 若 `delegation.default_mode = current_context`，则默认不启动子代理
-- 若 `delegation.default_mode = assistive_subagent`，则只在 `assistive_only` 节点默认启用辅助委派
+- 若 `delegation.default_mode = assistive_subagent`，则按节点规则解释：
+  - 在 `assistive_only` 节点，表示默认启用辅助委派
+  - 在三个 hard gate 节点，映射为 `gate_check_subagent`
 - `parallel_owned_outputs` 阶段默认仍应询问用户，除非 `ask_on_parallel_stage = false`
+- 三个 hard gate 的执行方式复用 `node_overrides` 与 `default_mode`，不再每次进入都单独询问
+- `node_overrides` 的值语义固定为：
+  - `current_context`: 当前上下文执行
+  - `assistive_subagent`: 辅助委派执行
+  - `parallel_subagent`: 并行拥有正式产物的子代理执行
+  - `gate_check_subagent`: hard gate 检查子代理执行
 - 节点级覆盖只影响当前节点，不自动改写全局默认
 
 ## 8. Spec Hook Contract

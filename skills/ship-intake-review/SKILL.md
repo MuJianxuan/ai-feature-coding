@@ -76,9 +76,23 @@ description: "ShipKit hard gate. Reviews requirements for completeness and corre
 
 ## Delegation Boundary
 
-本阶段不允许委派 gate 裁决。
+本阶段的质量门禁检查执行者由 orchestrator 基于 delegation 配置决定：
 
-- 可在当前上下文中整理问题清单和证据，但 `review-requirement.md` 的最终结论、`review_status`、`user_sign_off`、`signed_at` 必须由主上下文统一写入
+- `current_context`：主代理直接执行需求评审并写 `review-requirement.md`
+- `gate_check_subagent`：子代理执行需求评审并直接写正式 `review-requirement.md` 草案
+
+配置解释：
+
+- `node_overrides[ship-intake-review]` 优先于 `delegation.default_mode`
+- `assistive_subagent` 在本阶段解释为 `gate_check_subagent`
+- `parallel_subagent` 在本阶段无效；记录 warning 后回退到 `default_mode`，仍无法解析则回退 `current_context`
+
+约束：
+
+- 若由子代理起草，frontmatter 中的 `review_status` 必须保持 `pending`
+- 若由子代理起草，`user_sign_off`、`signed_at` 必须保持为空
+- 主代理必须重新读取正式草案、复核检查结果并按需要修订
+- 只有主代理可以把 `review_status` 改成 `approved / rejected / revision_needed`
 - 子代理不可替用户做 `approved / rejected / revision_needed` 决策
 
 ## Review Checklist (评审清单详细说明)

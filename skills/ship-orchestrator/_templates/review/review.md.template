@@ -1,13 +1,13 @@
 ---
 stage: <ship-intake-review | ship-design-review | ship-plan-review>
 gate_type: hard
-review_status: pending          # pending | approved | rejected | revision_needed
-reviewer: ""                    # 用户身份/姓名
+review_status: pending          # pending | approved | rejected | revision_needed；子代理起草正式草案时必须保持 pending
+reviewer: ""                    # 评审执行者；当前上下文或子代理身份
 reviewed_at: ""                 # ISO8601 时间戳
 reviewed_documents: []          # 此次评审涉及的文档清单
 revision_count: 0               # 第几轮评审
-user_sign_off: ""               # 用户原话；仅 approved 时必填
-signed_at: ""                   # ISO8601 时间戳；仅 approved 时必填
+user_sign_off: ""               # 用户原话；子代理起草时必须为空；仅 approved 时由主代理填写
+signed_at: ""                   # ISO8601 时间戳；子代理起草时必须为空；仅 approved 时由主代理填写
 conditions: []                  # revision_needed 时列出必须解决的条件
 ---
 
@@ -16,6 +16,7 @@ conditions: []                  # revision_needed 时列出必须解决的条件
 ## 1. 评审摘要
 
 > 一句话结论：approved / rejected / 需要 N 处修改
+> 若由子代理起草，可在正文中写建议结论，但 frontmatter 中的 `review_status` 必须仍为 `pending`。
 
 ## 2. 评审范围
 
@@ -72,6 +73,7 @@ conditions: []                  # revision_needed 时列出必须解决的条件
 
 > 用户的原话摘要。仅在 review_status 为 approved 时必填。
 > 必须由用户主动确认，不允许 agent 代签。
+> 子代理起草正式 gate 草案时，本节保持空白或占位，等待主代理复核后再补齐。
 
 ```
 用户原话: "<完整引用用户的批准/拒绝原话>"

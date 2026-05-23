@@ -30,7 +30,7 @@ delegation:
   default_mode: current_context   # current_context | assistive_subagent
   ask_on_parallel_stage: true     # 在显式并行阶段前是否询问用户
   ask_on_assistive_node: true     # 在辅助委派节点前是否询问用户
-  node_overrides: {}              # 例: { ship-frontend-design: parallel_subagent, ship-verify.backend-contract-tests: current_context }
+  node_overrides: {}              # 例: { ship-frontend-design: parallel_subagent, ship-verify.backend-contract-tests: assistive_subagent, ship-plan-review: gate_check_subagent }
 
 # 技术栈（在 ship-tech-discovery 阶段填写后冻结）
 tech_stack:

@@ -48,6 +48,8 @@ def validate_meta_template() -> None:
         "ask_on_parallel_stage: true",
         "ask_on_assistive_node: true",
         "node_overrides: {}",
+        "parallel_subagent",
+        "gate_check_subagent",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
 
@@ -65,6 +67,19 @@ def validate_protocol_doc() -> None:
     require("`ship-spec` 是 workflow utility" in text, f"{path}: missing ship-spec utility wording")
     require("spec_context" in text, f"{path}: missing spec_context references")
     require("parallel_owned_outputs" in text, f"{path}: missing delegation mode wording")
+    require("parallel_subagent" in text, f"{path}: missing parallel_subagent wording")
+    require("gate_check_switchable" in text, f"{path}: missing hard-gate execution mode wording")
+    require("gate_check_subagent" in text, f"{path}: missing gate_check_subagent wording")
+    require("Delegation Modes` 是节点能力分类" in text or "Delegation Modes` 是节点能力分类，不是 `node_overrides` 的直接取值" in text, f"{path}: missing node_overrides semantics wording")
+    for snippet in (
+        "先读取 `node_overrides[stage]`",
+        "若 override 缺失或不适用，再读取 `delegation.default_mode`",
+        "`assistive_subagent` -> `gate_check_subagent`",
+        "`parallel_subagent` -> 对 hard gate 无效",
+        "记录 warning 后回退到 `default_mode`",
+        "在三个 hard gate 节点，映射为 `gate_check_subagent`",
+    ):
+        require(snippet in text, f"{path}: missing `{snippet}`")
     require("单 `DOING`" in text, f"{path}: missing build delegation constraint")
     for stage in CANONICAL_STAGE_ORDER:
         macro = macro_stage_for(stage)
@@ -131,6 +146,39 @@ def validate_stage_delegation_boundaries() -> None:
         text = read_text(path)
         require("## Delegation Boundary" in text, f"{path}: missing `## Delegation Boundary`")
 
+    gate_skill_paths = [
+        ROOT / "skills/ship-intake-review/SKILL.md",
+        ROOT / "skills/ship-design-review/SKILL.md",
+        ROOT / "skills/ship-plan-review/SKILL.md",
+    ]
+    for path in gate_skill_paths:
+        text = read_text(path)
+        for snippet in (
+            "由 orchestrator 基于 delegation 配置决定",
+            "gate_check_subagent",
+            "`node_overrides[",
+            "`assistive_subagent` 在本阶段解释为 `gate_check_subagent`",
+            "`parallel_subagent` 在本阶段无效",
+            "`review_status` 必须保持 `pending`",
+            "`user_sign_off`、`signed_at` 必须保持为空",
+            "主代理必须重新读取正式草案",
+            "只有主代理可以把 `review_status` 改成",
+        ):
+            require(snippet in text, f"{path}: missing `{snippet}`")
+
+
+def validate_review_template_delegation() -> None:
+    path = ROOT / "skills/ship-orchestrator/_templates/review/review.md.template"
+    text = read_text(path)
+    for snippet in (
+        "子代理起草正式草案时必须保持 pending",
+        "子代理起草时必须为空",
+        "由主代理填写",
+        "frontmatter 中的 `review_status` 必须仍为 `pending`",
+        "子代理起草正式 gate 草案时",
+    ):
+        require(snippet in text, f"{path}: missing `{snippet}`")
+
 
 def validate_orchestrator_doc() -> None:
     path = ROOT / "skills/ship-orchestrator/SKILL.md"
@@ -142,6 +190,16 @@ def validate_orchestrator_doc() -> None:
     require("spec_context" in text, f"{path}: missing spec_context references")
     require("delegation" in text, f"{path}: missing delegation references")
     require("ship-build 正式任务保持单 `DOING`" in text, f"{path}: missing build delegation wording")
+    require("parallel_subagent" in text, f"{path}: missing parallel_subagent wording")
+    require("gate_check_switchable" in text, f"{path}: missing gate_check_switchable wording")
+    require("gate_check_subagent" in text, f"{path}: missing gate_check_subagent wording")
+    for snippet in (
+        "先读 `node_overrides[stage]`，再读 `default_mode`，最后回退 `current_context`",
+        "`assistive_subagent` 解释为 `gate_check_subagent`",
+        "`parallel_subagent` 是无效值；记录 warning 后回退",
+        "三个 hard gate 的执行方式复用 `node_overrides` 与 `default_mode`",
+    ):
+        require(snippet in text, f"{path}: missing `{snippet}`")
 
 
 def validate_ship_spec_doc() -> None:
@@ -184,6 +242,7 @@ def main() -> int:
         validate_readmes,
         validate_stage_reference_templates,
         validate_stage_delegation_boundaries,
+        validate_review_template_delegation,
         validate_orchestrator_doc,
         validate_ship_spec_doc,
         validate_root_readme_commands,
