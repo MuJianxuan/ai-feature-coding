@@ -80,6 +80,30 @@ def validate_readmes() -> None:
         require(snippet in templates_text, f"{templates_readme}: missing `{snippet}`")
 
 
+def validate_stage_reference_templates() -> None:
+    skill_templates = {
+        ROOT / "skills/ship-contract/SKILL.md": (
+            ROOT / "skills/ship-contract/references/api-contract-template.md",
+            "references/api-contract-template.md",
+        ),
+        ROOT / "skills/ship-frontend-design/SKILL.md": (
+            ROOT / "skills/ship-frontend-design/references/frontend-design-template.md",
+            "references/frontend-design-template.md",
+        ),
+        ROOT / "skills/ship-backend-design/SKILL.md": (
+            ROOT / "skills/ship-backend-design/references/backend-design-template.md",
+            "references/backend-design-template.md",
+        ),
+    }
+    for skill_path, (template_path, relative_ref) in skill_templates.items():
+        require(template_path.exists(), f"{template_path}: missing stage reference template")
+        skill_text = read_text(skill_path)
+        require(relative_ref in skill_text, f"{skill_path}: missing template reference `{relative_ref}`")
+        template_text = read_text(template_path)
+        for snippet in ("这是一份写作引导模板，不是固定格式。", "## 必答问题", "## 推荐写法", "## 常见空话警报"):
+            require(snippet in template_text, f"{template_path}: missing `{snippet}`")
+
+
 def validate_orchestrator_doc() -> None:
     path = ROOT / "skills/ship-orchestrator/SKILL.md"
     text = read_text(path)
@@ -128,6 +152,7 @@ def main() -> int:
         validate_meta_template,
         validate_protocol_doc,
         validate_readmes,
+        validate_stage_reference_templates,
         validate_orchestrator_doc,
         validate_ship_spec_doc,
         validate_root_readme_commands,

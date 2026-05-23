@@ -57,6 +57,7 @@ npx skills add MuJianxuan/ai-feature-coding
 - `skills/README.md`：默认用户视图，重点讲 4 个大阶段
 - `skills/ship-orchestrator/`：统一入口与路由规则
 - `skills/ship-orchestrator/_templates/`：协议与模板
+- `skills/ship-*/references/`：阶段内参考模板，不属于共享协议
 - `.docs/`：feature 运行时产物和规范沉淀
 
 ## 维护

@@ -169,6 +169,13 @@ pages      → HomePage / TodoListPage
 
 ## Output: frontend-design.md
 
+编写前先读取 [`references/frontend-design-template.md`](./references/frontend-design-template.md)。
+
+使用规则：
+- 模板是写作引导，不是 rigid schema；章节顺序可调整，不适用章节可裁剪
+- 模板中的“必答问题”必须被显式回答；若当前项目不适用，需写明原因
+- `frontend-design.md` 仍以本文件定义的 frontmatter、stage_status 和 verification 要求为准
+
 ### Frontmatter
 
 ```yaml
@@ -183,7 +190,9 @@ spec_warnings: []
 ---
 ```
 
-### 核心章节
+### 推荐覆盖点
+
+以下内容是推荐覆盖点，不要求固定章节顺序；可按项目复杂度合并或拆分，但需确保模板中的必答问题有对应答案。
 
 #### 1. 前端架构概览
 - 框架选择（React / Vue / Svelte）及版本

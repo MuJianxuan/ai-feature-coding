@@ -64,6 +64,11 @@
 
 这类调用保留给高级用户、诊断场景和精确恢复场景，不作为默认使用路径。
 
+补充说明：
+
+- `ship-contract`、`ship-frontend-design`、`ship-backend-design` 各自维护独立的 `references/` 目录
+- 这些目录中的模板属于阶段内参考资产，用于帮助 agent 产出更完整的设计文档，不属于 workflow 共享协议
+
 ## 内部阶段映射
 
 对外是 4 阶段，内部仍然是 12 个 canonical stages：
