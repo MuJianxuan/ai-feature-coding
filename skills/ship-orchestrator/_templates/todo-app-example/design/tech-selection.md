@@ -1,5 +1,6 @@
 ---
-stage: ship-stack
+stage: ship-tech-discovery
+artifact_role: selection
 stage_status: ready
 updated_at: "2026-05-22T11:00:00+08:00"
 evidence_complete: true

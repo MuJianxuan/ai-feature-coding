@@ -23,6 +23,7 @@ npx skills add MuJianxuan/ai-feature-coding
 - 对内不降级：Contract-First、前后端分离、三道硬门禁、验证与交付都保留
 - 可恢复：`meta.yml.current_stage` 继续记录内部 canonical stage id
 - 可诊断：需要时可展开到具体 `ship-*` 阶段
+- 更精简：内部 canonical stages 从 14 个收敛到 12 个，保留双产物但减少阶段切换
 
 ## 文档入口
 

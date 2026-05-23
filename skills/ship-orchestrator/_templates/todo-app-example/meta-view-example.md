@@ -52,14 +52,12 @@ upstream_ready:
 |-----------------|-----------------------|----------|
 | `ship-intake` | `define` | `Define` |
 | `ship-intake-review` | `define` | `Define` |
-| `ship-research` | `design` | `Design` |
-| `ship-stack` | `design` | `Design` |
+| `ship-tech-discovery` | `design` | `Design` |
 | `ship-contract` | `design` | `Design` |
 | `ship-frontend-design` | `design` | `Design` |
 | `ship-backend-design` | `design` | `Design` |
 | `ship-design-review` | `design` | `Design` |
-| `ship-frontend-plan` | `build` | `Build` |
-| `ship-backend-plan` | `build` | `Build` |
+| `ship-delivery-plan` | `build` | `Build` |
 | `ship-plan-review` | `build` | `Build` |
 | `ship-build` | `build` | `Build` |
 | `ship-verify` | `build` | `Build` |

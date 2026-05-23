@@ -1,6 +1,6 @@
 ---
 name: ship-build
-description: "ShipKit stage. Executes coding tasks from ship-frontend-plan and ship-backend-plan one at a time. Use after ship-plan-review gate passes."
+description: "ShipKit stage. Executes coding tasks from the `ship-delivery-plan` outputs one at a time. Use after ship-plan-review gate passes."
 ---
 
 # 编码执行 (Implementation)

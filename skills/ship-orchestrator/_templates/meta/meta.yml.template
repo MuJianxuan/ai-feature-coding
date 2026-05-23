@@ -8,7 +8,7 @@ created_at: ""                # ISO8601 时间戳
 updated_at: ""                # ISO8601 时间戳，每次更新文档同步刷新
 
 # 当前所处阶段（必须使用 canonical stage id）
-current_stage: ""             # ship-intake | ship-intake-review | ship-research | ship-stack | ship-contract | ship-frontend-design | ship-backend-design | ship-design-review | ship-frontend-plan | ship-backend-plan | ship-plan-review | ship-build | ship-verify | ship-handoff
+current_stage: ""             # ship-intake | ship-intake-review | ship-tech-discovery | ship-contract | ship-frontend-design | ship-backend-design | ship-design-review | ship-delivery-plan | ship-plan-review | ship-build | ship-verify | ship-handoff
 
 # 默认对外展示的大阶段视图
 macro_stage:
@@ -25,7 +25,7 @@ pipeline_mode: standard       # standard | fast-track
 project_context: unknown      # unknown | new_project | existing_project
 project_context_evidence: ""  # 一句话证据，例: "已有 package.json 且 src/ 下有源码"
 
-# 技术栈（在 ship-stack 阶段填写后冻结）
+# 技术栈（在 ship-tech-discovery 阶段填写后冻结）
 tech_stack:
   frontend: ""                # 例: "React 18 + Vite 5 + TypeScript 5"
   backend: ""                 # 例: "Node 20 + Express 4 + Prisma 5"
@@ -43,12 +43,10 @@ stages:
     status: pending           # pending | in_progress | approved | rejected | revision_needed
     approved: false           # 由 review_status 派生的便捷索引
     approved_at: ""
-  ship-research:
+  ship-tech-discovery:
     status: pending           # pending | in_progress | ready | blocked | completed
     evidence_complete: false
-  ship-stack:
-    status: pending           # pending | in_progress | ready | blocked | completed
-    evidence_complete: false
+    current_part: research    # research | selection
   ship-contract:
     status: pending           # pending | in_progress | ready | blocked | completed
     evidence_complete: false
@@ -62,14 +60,13 @@ stages:
     status: pending           # pending | in_progress | approved | rejected | revision_needed
     approved: false           # 由 review_status 派生的便捷索引
     approved_at: ""
-  ship-frontend-plan:
+  ship-delivery-plan:
     status: pending           # pending | in_progress | ready | blocked | completed
     evidence_complete: false
-    task_count: 0
-  ship-backend-plan:
-    status: pending           # pending | in_progress | ready | blocked | completed
-    evidence_complete: false
-    task_count: 0
+    current_part: frontend    # frontend | backend | sync
+    frontend_task_count: 0
+    backend_task_count: 0
+    total_task_count: 0
   ship-plan-review:
     status: pending           # pending | in_progress | approved | rejected | revision_needed
     approved: false           # 由 review_status 派生的便捷索引
@@ -105,7 +102,7 @@ domain_index: []
 risks: []
 # 示例:
 # - id: R-001
-#   stage: ship-stack
+#   stage: ship-tech-discovery
 #   description: "Prisma 在 SQLite 下不支持 enum"
 #   severity: minor
 #   mitigation: "用 string + zod 校验替代"

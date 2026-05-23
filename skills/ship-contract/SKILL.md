@@ -1,6 +1,6 @@
 ---
 name: ship-contract
-description: "ShipKit stage. Designs API contracts as the shared agreement between frontend and backend. Use after ship-stack completes."
+description: "ShipKit stage. Designs API contracts as the shared agreement between frontend and backend. Use after ship-tech-discovery completes."
 ---
 
 # 接口规约设计 (API Contract Design)
@@ -19,14 +19,14 @@ description: "ShipKit stage. Designs API contracts as the shared agreement betwe
 
 ## When to Use
 
-- tech-selection.md 已完成且 stage_status 为 ready
+- `ship-tech-discovery` 已完成，且 `tech-selection.md.stage_status = ready`
 - 项目采用前后端分离架构，需要明确接口契约
 - 多团队并行开发，需要接口作为协作基准
 - 需要生成 Mock 数据供前端独立开发
 
 ## When NOT to Use
 
-- tech-selection.md 尚未完成 —— 技术栈未定无法确定 API 风格
+- `ship-tech-discovery` 尚未完成 —— 技术栈未定无法确定 API 风格
 - 纯前端项目（无后端交互）—— 无需接口规约
 - 使用 BFF 且前后端同一人开发 —— 可简化为内部接口文档
 - 纯后端批处理/定时任务 —— 使用后端设计阶段直接定义

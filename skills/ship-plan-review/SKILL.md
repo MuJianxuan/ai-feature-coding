@@ -1,6 +1,6 @@
 ---
 name: ship-plan-review
-description: "ShipKit hard gate. Reviews implementation plans for completeness and feasibility. Produces review-plan.md. Use after ship-frontend-plan and ship-backend-plan complete."
+description: "ShipKit hard gate. Reviews implementation plans for completeness and feasibility. Produces review-plan.md. Use after ship-delivery-plan completes."
 ---
 
 # 计划评审 (Plan Review)

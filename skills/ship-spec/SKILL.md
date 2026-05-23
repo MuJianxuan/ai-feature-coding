@@ -14,7 +14,7 @@ description: "ShipKit utility. Manages and evolves project coding specifications
 ## When to Use
 
 - 新项目初始化时，建立基础规范
-- tech-selection 完成后，根据技术栈生成对应规范
+- `ship-tech-discovery` 完成后，根据技术栈生成对应规范
 - `ship-build` 开始前，确认 agent 已加载相关规范
 - `ship-handoff` 完成后，沉淀新发现的模式
 - code review 中发现重复问题时
@@ -76,7 +76,7 @@ last_updated: ""
 ### 2. 消费规范
 
 在以下阶段自动加载相关规范：
-- **ship-stack**：读取 INDEX.md，确认选型不与已有规范冲突
+- **ship-tech-discovery**：读取 INDEX.md，确认选型不与已有规范冲突
 - **ship-frontend-design / ship-backend-design**：加载对应技术栈的规范
 - **ship-build**：每个任务开始前加载 `applies_to` 匹配的规范，并在任务描述中记录引用的 `spec_id`
 

@@ -24,6 +24,7 @@ todo-app-example/
 ├── requirements/
 │   └── requirements.md          # 需求清单范本
 ├── design/
+│   ├── tech-research.md         # 技术调研
 │   ├── tech-selection.md        # 技术选型 + ADR
 │   ├── api-contract.md          # 接口规约
 │   ├── frontend-design.md       # 前端方案
@@ -48,8 +49,8 @@ todo-app-example/
 | 默认视图 | 内部事实源 |
 |----------|------------|
 | `Define` | `ship-intake`, `ship-intake-review` |
-| `Design` | `ship-research`, `ship-stack`, `ship-contract`, `ship-frontend-design`, `ship-backend-design`, `ship-design-review` |
-| `Build` | `ship-frontend-plan`, `ship-backend-plan`, `ship-plan-review`, `ship-build`, `ship-verify` |
+| `Design` | `ship-tech-discovery`, `ship-contract`, `ship-frontend-design`, `ship-backend-design`, `ship-design-review` |
+| `Build` | `ship-delivery-plan`, `ship-plan-review`, `ship-build`, `ship-verify` |
 | `Close` | `ship-handoff` |
 
 如果你想看 `meta.yml` 里的实际索引结构，参考 [meta-view-example.md](/Users/rao/AiDoWork/ai-feature-coding/skills/ship-orchestrator/_templates/todo-app-example/meta-view-example.md:1)。

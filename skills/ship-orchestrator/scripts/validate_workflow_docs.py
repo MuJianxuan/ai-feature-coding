@@ -35,6 +35,10 @@ def validate_meta_template() -> None:
         'label: ""',
         'summary: ""',
         'next_user_decision: ""',
+        "ship-tech-discovery:",
+        "current_part: research",
+        "ship-delivery-plan:",
+        "current_part: frontend",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
 
@@ -84,7 +88,7 @@ def validate_orchestrator_doc() -> None:
 
 
 def validate_stage_map_script() -> None:
-    require(len(CANONICAL_STAGE_ORDER) == 14, "stage map: expected 14 canonical stages")
+    require(len(CANONICAL_STAGE_ORDER) == 12, "stage map: expected 12 canonical stages")
     for stage in CANONICAL_STAGE_ORDER:
         macro = macro_stage_for(stage)
         require(macro.current in {"define", "design", "build", "close"}, f"invalid macro current for {stage}")

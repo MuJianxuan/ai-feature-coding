@@ -10,18 +10,16 @@
 |------|----------|---------|
 | 01 | `ship-intake` | `requirements.md` |
 | 02 | `ship-intake-review` | `review-requirement.md` |
-| 03 | `ship-research` | `tech-research.md` |
-| 04 | `ship-stack` | `tech-selection.md` |
-| 05 | `ship-contract` | `api-contract.md` |
-| 06 | `ship-frontend-design` | `frontend-design.md` |
-| 07 | `ship-backend-design` | `backend-design.md` |
-| 08 | `ship-design-review` | `review-design.md` |
-| 09 | `ship-frontend-plan` | `frontend-plan.md` |
-| 10 | `ship-backend-plan` | `backend-plan.md` |
-| 11 | `ship-plan-review` | `review-plan.md` |
-| 12 | `ship-build` | 代码 + 任务状态 |
-| 13 | `ship-verify` | `verification.md`（测试章节） |
-| 14 | `ship-handoff` | `verification.md`（验收结论）+ `handoff.md` |
+| 03 | `ship-tech-discovery` | `tech-research.md` + `tech-selection.md` |
+| 04 | `ship-contract` | `api-contract.md` |
+| 05 | `ship-frontend-design` | `frontend-design.md` |
+| 06 | `ship-backend-design` | `backend-design.md` |
+| 07 | `ship-design-review` | `review-design.md` |
+| 08 | `ship-delivery-plan` | `frontend-plan.md` + `backend-plan.md` |
+| 09 | `ship-plan-review` | `review-plan.md` |
+| 10 | `ship-build` | 代码 + 任务状态 |
+| 11 | `ship-verify` | `verification.md`（测试章节） |
+| 12 | `ship-handoff` | `verification.md`（验收结论）+ `handoff.md` |
 
 禁止在 `current_stage`、`meta.yml.stages.*`、门禁协议、路由规则中混用 `requirement-intake`、`api-contract-design`、`implementation`、`acceptance` 等别名。
 
@@ -32,8 +30,8 @@
 | Macro Stage | 展示标签 | 包含的 Canonical Stage IDs |
 |-------------|----------|----------------------------|
 | `define` | `Define` | `ship-intake`, `ship-intake-review` |
-| `design` | `Design` | `ship-research`, `ship-stack`, `ship-contract`, `ship-frontend-design`, `ship-backend-design`, `ship-design-review` |
-| `build` | `Build` | `ship-frontend-plan`, `ship-backend-plan`, `ship-plan-review`, `ship-build`, `ship-verify` |
+| `design` | `Design` | `ship-tech-discovery`, `ship-contract`, `ship-frontend-design`, `ship-backend-design`, `ship-design-review` |
+| `build` | `Build` | `ship-delivery-plan`, `ship-plan-review`, `ship-build`, `ship-verify` |
 | `close` | `Close` | `ship-handoff` |
 
 使用规则：
@@ -55,6 +53,7 @@
 ```yaml
 ---
 stage: <canonical-stage-id>
+artifact_role: ""  # 仅双产物阶段必填，如 research / selection / frontend-plan / backend-plan
 stage_status: draft  # draft / ready / complete（按阶段适用）
 updated_at: ""
 evidence_complete: false
@@ -66,6 +65,7 @@ evidence_complete: false
 - `draft`：产物尚未完成，或证据/前置条件不足。
 - `ready`：允许进入下一阶段，但不代表所有最终验收已结束。
 - `complete`：仅用于最终态产物，如 `verification.md` 在 `ship-handoff` 完成后。
+- `artifact_role`：仅在 `ship-tech-discovery` 和 `ship-delivery-plan` 中使用，用于区分双产物角色。
 
 ## 5. Review Gate Contract
 
@@ -111,6 +111,9 @@ conditions: []
 - 阶段产物达到可推进条件时：`ready` 或评审结果状态
 - orchestrator 成功完成阶段切换后：上一阶段记为 `completed`，下一阶段写入 `current_stage`
 - 每次 `current_stage` 变化时，同步刷新 `macro_stage.current`、`macro_stage.label`、`macro_stage.summary`、`macro_stage.next_user_decision`
+- 对双产物阶段记录 `current_part`，用于阶段内恢复：
+  - `ship-tech-discovery.current_part`: `research | selection`
+  - `ship-delivery-plan.current_part`: `frontend | backend | sync`
 
 ## 7. Testing / Handoff Ownership
 

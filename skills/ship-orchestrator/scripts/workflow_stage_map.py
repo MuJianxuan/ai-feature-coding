@@ -29,14 +29,12 @@ class StageView:
 CANONICAL_STAGE_ORDER: tuple[str, ...] = (
     "ship-intake",
     "ship-intake-review",
-    "ship-research",
-    "ship-stack",
+    "ship-tech-discovery",
     "ship-contract",
     "ship-frontend-design",
     "ship-backend-design",
     "ship-design-review",
-    "ship-frontend-plan",
-    "ship-backend-plan",
+    "ship-delivery-plan",
     "ship-plan-review",
     "ship-build",
     "ship-verify",
@@ -54,15 +52,10 @@ STAGE_VIEW_MAP: dict[str, StageView] = {
         summary="Requirements are ready and waiting for the first hard-gate review.",
         next_user_decision="Approve or reject the requirement review result.",
     ),
-    "ship-research": StageView(
+    "ship-tech-discovery": StageView(
         macro=MacroStage("design", "Design"),
-        summary="Technical research is collecting source-backed inputs for solution design.",
-        next_user_decision="Confirm whether the research coverage is sufficient to move into stack decisions.",
-    ),
-    "ship-stack": StageView(
-        macro=MacroStage("design", "Design"),
-        summary="Technology and architecture decisions are being locked with explicit tradeoffs.",
-        next_user_decision="Review the stack decisions before contract and detailed design proceed.",
+        summary="Source-backed research and stack decisions are being consolidated into a single technical discovery stage.",
+        next_user_decision="Review whether research coverage and stack decisions are both ready before contract design starts.",
     ),
     "ship-contract": StageView(
         macro=MacroStage("design", "Design"),
@@ -84,15 +77,10 @@ STAGE_VIEW_MAP: dict[str, StageView] = {
         summary="Contract, frontend, and backend designs are waiting for the design hard gate.",
         next_user_decision="Approve or reject the design review before planning starts.",
     ),
-    "ship-frontend-plan": StageView(
+    "ship-delivery-plan": StageView(
         macro=MacroStage("build", "Build"),
-        summary="Frontend implementation tasks are being decomposed into executable slices.",
-        next_user_decision="Confirm the frontend task plan before coding starts.",
-    ),
-    "ship-backend-plan": StageView(
-        macro=MacroStage("build", "Build"),
-        summary="Backend implementation tasks are being decomposed into executable slices.",
-        next_user_decision="Confirm the backend task plan before coding starts.",
+        summary="Frontend and backend implementation plans are being decomposed and cross-checked in one delivery planning stage.",
+        next_user_decision="Review whether both frontend and backend plans are ready before implementation starts.",
     ),
     "ship-plan-review": StageView(
         macro=MacroStage("build", "Build"),

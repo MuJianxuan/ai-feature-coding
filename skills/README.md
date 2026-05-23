@@ -21,7 +21,7 @@
 默认原则：
 
 - 用户默认只和 `ship-orchestrator` 交互
-- 状态默认显示大阶段，不要求记住 14 个内部阶段名
+- 状态默认显示大阶段，不要求记住 12 个内部阶段名
 - 只有在恢复断点、排查阻塞、直接调用某阶段时，才展开内部细阶段
 
 ## 为什么这样设计
@@ -65,13 +65,13 @@
 
 ## 内部阶段映射
 
-对外是 4 阶段，内部仍然是 14 个 canonical stages：
+对外是 4 阶段，内部仍然是 12 个 canonical stages：
 
 | 大阶段 | 内部阶段 |
 |--------|----------|
 | `Define` | `ship-intake`, `ship-intake-review` |
-| `Design` | `ship-research`, `ship-stack`, `ship-contract`, `ship-frontend-design`, `ship-backend-design`, `ship-design-review` |
-| `Build` | `ship-frontend-plan`, `ship-backend-plan`, `ship-plan-review`, `ship-build`, `ship-verify` |
+| `Design` | `ship-tech-discovery`, `ship-contract`, `ship-frontend-design`, `ship-backend-design`, `ship-design-review` |
+| `Build` | `ship-delivery-plan`, `ship-plan-review`, `ship-build`, `ship-verify` |
 | `Close` | `ship-handoff` |
 
 说明：
@@ -91,7 +91,7 @@
 ### 2. Progressive Disclosure
 
 - 首屏只讲一个入口和四个大阶段
-- 14 个细阶段只在高级模式或内部协议中展开
+- 12 个细阶段只在高级模式或内部协议中展开
 - 用户默认看到“当前目标”和“下一次需要决策的动作”，而不是一长串阶段名
 
 ### 3. 三道硬门禁
@@ -142,7 +142,7 @@
 
 以下内容属于内部实现或高级使用方式：
 
-- 完整 14 阶段路由顺序
+- 完整 12 阶段路由顺序
 - `meta.yml` 细阶段状态维护
 - 各阶段 SKILL 的详细输入输出
 - review gate frontmatter 协议

@@ -18,6 +18,7 @@ _templates/
     ├── requirements/
     │   └── requirements.md
     ├── design/
+    │   ├── tech-research.md
     │   ├── tech-selection.md
     │   ├── api-contract.md
     │   ├── frontend-design.md

@@ -1,5 +1,6 @@
 ---
-stage: ship-frontend-plan
+stage: ship-delivery-plan
+artifact_role: frontend-plan
 stage_status: ready
 updated_at: "2026-05-22T15:00:00+08:00"
 evidence_complete: true
