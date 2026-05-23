@@ -112,6 +112,26 @@ def validate_stage_reference_templates() -> None:
             require(snippet in template_text, f"{template_path}: missing `{snippet}`")
 
 
+def validate_stage_delegation_boundaries() -> None:
+    stage_skill_paths = [
+        ROOT / "skills/ship-intake/SKILL.md",
+        ROOT / "skills/ship-intake-review/SKILL.md",
+        ROOT / "skills/ship-tech-discovery/SKILL.md",
+        ROOT / "skills/ship-contract/SKILL.md",
+        ROOT / "skills/ship-frontend-design/SKILL.md",
+        ROOT / "skills/ship-backend-design/SKILL.md",
+        ROOT / "skills/ship-design-review/SKILL.md",
+        ROOT / "skills/ship-delivery-plan/SKILL.md",
+        ROOT / "skills/ship-plan-review/SKILL.md",
+        ROOT / "skills/ship-build/SKILL.md",
+        ROOT / "skills/ship-verify/SKILL.md",
+        ROOT / "skills/ship-handoff/SKILL.md",
+    ]
+    for path in stage_skill_paths:
+        text = read_text(path)
+        require("## Delegation Boundary" in text, f"{path}: missing `## Delegation Boundary`")
+
+
 def validate_orchestrator_doc() -> None:
     path = ROOT / "skills/ship-orchestrator/SKILL.md"
     text = read_text(path)
@@ -163,6 +183,7 @@ def main() -> int:
         validate_protocol_doc,
         validate_readmes,
         validate_stage_reference_templates,
+        validate_stage_delegation_boundaries,
         validate_orchestrator_doc,
         validate_ship_spec_doc,
         validate_root_readme_commands,
