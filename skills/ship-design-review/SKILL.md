@@ -46,6 +46,13 @@ pending → revision_needed  (存在 Major 问题，需修改后重审)
 revision_needed → pending  (修改完成，重新提交评审)
 ```
 
+## Delegation Boundary
+
+本阶段不允许委派 gate 裁决。
+
+- 可在当前上下文内部并行做阅读和比对，但 `review-design.md` 的正式结论、问题分级、`review_status`、`user_sign_off`、`signed_at` 必须由主上下文统一写入
+- 子代理不可替用户做 `approved / rejected / revision_needed` 决策
+
 ## Cross-Validation Protocol (三方交叉验证)
 
 ### 验证维度

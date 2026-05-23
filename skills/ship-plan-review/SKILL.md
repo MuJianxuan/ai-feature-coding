@@ -47,6 +47,20 @@ pending → revision_needed  (存在问题，需修改后重审)
 revision_needed → pending  (修改完成，重新提交评审)
 ```
 
+## Delegation Boundary
+
+本阶段只允许**分析型辅助委派**，不允许把评审裁决本身委派出去。
+
+允许委派的子任务：
+- 构建 Task DAG
+- AC ↔ Task 覆盖审计
+- 任务粒度、估时、依赖关系检查
+
+禁止委派的动作：
+- 直接写入 `review-plan.md` 的最终 frontmatter
+- 替用户决定 `approved / rejected / revision_needed`
+- 推进到 `ship-build`
+
 ## Review Checklist
 
 评审时必须逐项检查：

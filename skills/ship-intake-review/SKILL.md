@@ -74,6 +74,13 @@ description: "ShipKit hard gate. Reviews requirements for completeness and corre
 3. **不可自动通过**：即使 checklist 全部通过，仍需用户明确确认
 4. **修改必须重审**：revision_needed 修改后必须从头执行完整评审流程
 
+## Delegation Boundary
+
+本阶段不允许委派 gate 裁决。
+
+- 可在当前上下文中整理问题清单和证据，但 `review-requirement.md` 的最终结论、`review_status`、`user_sign_off`、`signed_at` 必须由主上下文统一写入
+- 子代理不可替用户做 `approved / rejected / revision_needed` 决策
+
 ## Review Checklist (评审清单详细说明)
 
 逐条检查，每条必须给出明确的 通过/不通过 判定及理由：

@@ -55,6 +55,22 @@ description: "ShipKit stage. Runs frontend and backend tests to verify implement
 2. **前端聚合**：前端 E2E 集中跑，避免每改一处就跑全套
 3. **契约统一**：前后端对契约的理解必须由独立的契约测试验证
 
+## Delegation Boundary
+
+本阶段适合按测试轨道做**辅助并行委派**。
+
+可并行的测试轨道：
+- backend unit
+- backend integration
+- backend contract
+- frontend component
+- frontend E2E
+
+约束：
+- 子代理可以各自运行测试、整理失败分类和覆盖率结果
+- `verification.md` 仍由主上下文统一更新
+- 只有主上下文可以决定 `verification.md.stage_status = ready | draft`
+
 ## Backend Testing (单元/集成/契约)
 
 ### 单元测试 (Unit Tests)

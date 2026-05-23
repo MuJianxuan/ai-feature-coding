@@ -84,6 +84,15 @@ task_count: 0
    verify: 两份文档 frontmatter 和 meta 索引一致
 ```
 
+## Delegation Boundary
+
+本阶段不允许把两份正式计划并行定稿。
+
+- 阶段内固定顺序保持 `frontend -> backend -> sync`
+- 可在当前上下文中参考前一份计划来完善后一份计划，但不得让多个子代理各自产出未对齐的正式 plan
+- `sync` 子段是本阶段的核心收敛动作，必须由主上下文统一完成
+- 只有主上下文可以写回 task_count、`stage_status` 和阶段摘要
+
 ## Part 1: Frontend
 
 frontend 子段遵循前端计划规则：

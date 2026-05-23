@@ -118,6 +118,13 @@
 
 这条规则仍然是内部执行顺序的硬约束。
 
+### 5. 子代理委派是执行策略，不是新阶段
+
+- 默认流程不新增 stage，也不改变 12 个 canonical stages
+- 只有 `ship-frontend-design` 与 `ship-backend-design` 是显式并行阶段
+- research 取证、计划审计、测试分轨、证据整理等可以作为辅助委派
+- 所有硬门禁、`ship-build` 正式任务推进、最终 close 决策仍由主上下文与用户完成
+
 ## Feature 目录结构
 
 ```text

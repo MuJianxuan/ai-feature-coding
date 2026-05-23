@@ -73,6 +73,14 @@ Bounded Context → 业务域（与 requirements.md 的 Domain ID 对齐）
    verify: 缓存/限流/监控各至少一条
 ```
 
+## Delegation Boundary
+
+本阶段是少数允许**拥有正式产物**的并行阶段之一。
+
+- 当 `api-contract.md.stage_status = ready` 且 Domain ID 已稳定时，可由子代理独立拥有并产出 `backend-design.md`
+- 允许与 `ship-frontend-design` 并行执行，但两者只能共享 `api-contract.md`、`requirements.md` 和 `spec_context`，不可互改对方正式产物
+- 子代理仍不得推进 `ship-design-review`，正式阶段切换由 orchestrator 统一收口
+
 ### 步骤详解
 
 **Step 1: 架构模式选择**

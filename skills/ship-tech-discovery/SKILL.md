@@ -87,6 +87,14 @@ spec_warnings: []
    verify: 两份文档均无 TODO/待确认阻塞项
 ```
 
+## Delegation Boundary
+
+本阶段采用“`research` 可辅助委派，`selection` 不可分叉”的策略。
+
+- `research` 子段允许子代理协助做资料搜集、版本信息核验、对比矩阵初稿和来源清单整理
+- `selection` 子段必须由主上下文统一完成，因为每个 ADR 都必须能回指 `tech-research.md` 的证据链
+- 子代理不得直接把 `tech-selection.md.stage_status` 置为 `ready`，也不得跳过 spec compatibility check
+
 ## Part 1: Research
 
 research 子段遵循 Source-Driven 纪律：

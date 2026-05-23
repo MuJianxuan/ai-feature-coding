@@ -27,11 +27,12 @@ _templates/
 
 - `current_stage`：内部 canonical stage id，用于恢复和精确路由
 - `macro_stage`：默认对外展示的 4 大阶段摘要，用于状态列表和执行摘要
+- `delegation`：子代理偏好与节点级覆盖配置，用于决定“当前上下文 vs 辅助子代理”
 - `spec_context`：`ship-spec` 的摘要索引，用于恢复时快速知道最近一次规范解析结果、已引用规范和待沉淀 proposal
 
 ### protocol/workflow-protocol.md
 
-共享协议单源。凡是涉及 stage id、门禁字段、`verification.md` ownership、fast-track 规则、`ship-spec` hook 契约，都先对照此文档，再更新其他 SKILL。
+共享协议单源。凡是涉及 stage id、门禁字段、`verification.md` ownership、fast-track 规则、子代理委派边界、`ship-spec` hook 契约，都先对照此文档，再更新其他 SKILL。
 
 ### review/review.md.template
 

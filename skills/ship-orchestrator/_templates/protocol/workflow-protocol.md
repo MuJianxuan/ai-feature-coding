@@ -121,8 +121,73 @@ conditions: []
   - `referenced_spec_ids`: 本 feature 已留痕的规范集合
   - `warnings`: 最近一次 helper 解析的告警
   - `pending_proposals`: `ship-handoff` 生成、待用户确认的规范沉淀提案
+- `delegation` 记录本 feature 的子代理偏好：
+  - `default_mode`: `current_context | assistive_subagent`
+  - `ask_on_parallel_stage`: 显式并行阶段前是否征询用户
+  - `ask_on_assistive_node`: 辅助委派节点前是否征询用户
+  - `node_overrides`: 节点级覆盖；key 使用 `stage` 或 `stage.substage`
 
-## 7. Spec Hook Contract
+## 7. Delegation Contract
+
+子代理不是额外 stage，而是 orchestrator 在阶段内部采用的执行策略。默认原则：**单一事实源不分叉，正式状态推进单线程，辅助工作可并行**。
+
+### 7.1 Delegation Modes
+
+| Mode | 含义 | 允许行为 | 禁止行为 |
+|------|------|---------|---------|
+| `forbidden` | 不允许委派 | 无 | 不可启动子代理 |
+| `parallel_owned_outputs` | 允许并行拥有正式产物 | 子代理可直接产出自己拥有的正式文档 | 不可改别人的正式产物、不可推进 gate |
+| `assistive_only` | 只允许辅助委派 | 资料搜集、审计、测试分轨、证据整理 | 不可改 canonical artifact frontmatter、不可改 `meta.yml` |
+| `user_gate_only` | 用户独占决策点 | 用户确认通过/拒绝/继续/关闭 | 子代理不可替用户签字或拍板 |
+
+### 7.2 Stage Matrix
+
+| Stage / Node | Delegation Mode | 说明 |
+|-------------|-----------------|------|
+| `ship-intake` | `assistive_only` | 仅资料索引、资源可访问性检查可委派；`requirements.md` 定稿仍由主上下文完成 |
+| `ship-intake-review` | `forbidden` + `user_gate_only` | 可做本地分析，但 gate 结论与签字不可委派 |
+| `ship-tech-discovery.research` | `assistive_only` | 可委派资料搜集与证据初筛 |
+| `ship-tech-discovery.selection` | `forbidden` | 选型必须回指 research 证据，保持单一决策链 |
+| `ship-contract` | `forbidden` | 共享契约是前后端并行的单一基线，不分叉 |
+| `ship-frontend-design` | `parallel_owned_outputs` | 可与后端设计并行，拥有 `frontend-design.md` |
+| `ship-backend-design` | `parallel_owned_outputs` | 可与前端设计并行，拥有 `backend-design.md` |
+| `ship-design-review` | `forbidden` + `user_gate_only` | 三方交叉验证结论和签字不可委派 |
+| `ship-delivery-plan` | `forbidden` | 阶段内固定 `frontend -> backend -> sync` |
+| `ship-plan-review` | `assistive_only` + `user_gate_only` | DAG、覆盖、粒度审计可委派；最终评审结论不可委派 |
+| `ship-build` | `assistive_only` + `user_gate_only` | 正式编码任务保持单 `DOING`；只读准备/验证支线可委派 |
+| `ship-verify` | `assistive_only` | 后端单测/集成/契约、前端组件/E2E 可分轨并行；`verification.md` 统一归档 |
+| `ship-handoff` | `assistive_only` + `user_gate_only` | 证据收集可委派；close/follow-up/proposal 取舍必须用户决定 |
+
+### 7.3 Ownership Rules
+
+- 只有 `parallel_owned_outputs` 允许子代理直接拥有正式产物文件：
+  - `ship-frontend-design` -> `frontend-design.md`
+  - `ship-backend-design` -> `backend-design.md`
+- `assistive_only` 子代理只能返回证据包、审计结果、测试结果或候选提案，正式文档合并由主上下文完成。
+- 任意模式下，只有 orchestrator 或当前主上下文可以：
+  - 修改 `meta.yml`
+  - 改写正式产物 frontmatter 的 `stage_status / review_status / all_ac_verified`
+  - 写入 `user_sign_off`、`signed_at`
+  - 推进 `current_stage`
+
+### 7.4 User Decision Nodes
+
+以下节点允许 orchestrator 询问“当前上下文执行，还是启用子代理策略”：
+
+1. `ship-contract` 完成后、进入 `ship-frontend-design / ship-backend-design` 前
+2. `ship-plan-review` 通过后、进入 `ship-build` 前
+3. `ship-build` 每个 verified slice 完成后
+4. `ship-verify` 入口
+5. `ship-handoff` 收尾前（此处只问关闭/跟进决策，不问并行编码）
+
+默认策略：
+
+- 若 `delegation.default_mode = current_context`，则默认不启动子代理
+- 若 `delegation.default_mode = assistive_subagent`，则只在 `assistive_only` 节点默认启用辅助委派
+- `parallel_owned_outputs` 阶段默认仍应询问用户，除非 `ask_on_parallel_stage = false`
+- 节点级覆盖只影响当前节点，不自动改写全局默认
+
+## 8. Spec Hook Contract
 
 `ship-spec` 是 workflow utility，不参与 stage map，也不拥有 `current_stage`。它通过 hook 的方式接入以下阶段：
 
@@ -170,7 +235,7 @@ last_updated: ""
 - `ship-build`：按 `stage_hooks=ship-build` 且 `applies_to` 对任务文件清单做 glob 匹配；`stack_tags / domains` 为附加过滤
 - `ship-handoff`：以 `meta.yml.spec_context.referenced_spec_ids` 为基础生成 proposal，可附加全局规范扫描结果
 
-## 8. Testing / Handoff Ownership
+## 9. Testing / Handoff Ownership
 
 `verification.md` 是跨 13/14 两阶段共享的验收证据文件，ownership 分工如下：
 
@@ -186,7 +251,13 @@ last_updated: ""
 
 `ship-build` 只负责任务级验证与 plan 状态，不拥有 `verification.md`。
 
-## 9. Fast-Track Rules
+并行约束补充：
+
+- `ship-verify` 可把 backend unit / backend integration / backend contract / frontend component / frontend E2E 作为独立测试轨道并行执行
+- 并行执行不改变 `verification.md` ownership；测试结果必须由主上下文统一写回
+- `ship-handoff` 可并行收集 AC 证据、截图、命令输出和 proposal 候选，但残余风险分级与 `stage_status` 判定必须单线程完成
+
+## 10. Fast-Track Rules
 
 fast-track 是受控子流程，不是“跳过流程直接编码”。
 

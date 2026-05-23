@@ -143,6 +143,8 @@ ship-intake → ship-intake-review [硬门禁]
 - ship-frontend-design 和 ship-backend-design 可并行执行（共同依赖 05 的产出）
 - ship-tech-discovery 阶段内固定顺序：research → selection
 - ship-delivery-plan 阶段内固定顺序：frontend → backend → sync
+- ship-build 正式任务保持单 `DOING`；只读准备、验证和证据支线才允许辅助委派
+- ship-verify 可按 backend unit / backend integration / backend contract / frontend component / frontend E2E 分轨并行，但 `verification.md` 仍由主上下文统一归档
 
 Macro stage 映射：
 - `Define`：`ship-intake`, `ship-intake-review`
@@ -176,6 +178,7 @@ fast-track 模式：
 - current_stage：当前阶段标识
 - macro_stage：当前大阶段标识与摘要
 - pipeline_mode：standard / fast-track
+- delegation：当前 feature 的子代理偏好（default_mode / ask flags / node_overrides）
 - project_context：unknown / existing_project / new_project
 - tech_stack：已确定的技术栈信息（可能为空）
 - spec_context：最近一次规范解析结果摘要（index_status / referenced_spec_ids / warnings / pending_proposals）
@@ -190,6 +193,33 @@ fast-track 模式：
 - 同步刷新 `macro_stage.current`、`macro_stage.label`、`macro_stage.summary`、`macro_stage.next_user_decision`
 - 若发现 `meta.yml` 与产物 frontmatter 不一致，优先修正 `meta.yml`
 - 若进入 `ship-tech-discovery / ship-frontend-design / ship-backend-design / ship-build / ship-handoff`，先刷新 `meta.yml.spec_context` 再传递上下文
+- 若命中子代理决策节点，先读取 `meta.yml.delegation` 判定是否需要询问用户或套用节点覆盖
+
+### Delegation Model
+
+orchestrator 是唯一状态推进者。子代理只是执行策略，不是额外阶段。
+
+委派原则：
+
+- `parallel_owned_outputs`：只用于 `ship-frontend-design` / `ship-backend-design`
+- `assistive_only`：用于 research 取证、计划审计、测试分轨、证据整理等辅助工作
+- `forbidden`：共享契约、正式 gate、正式状态推进点不委派
+- `user_gate_only`：`approved / rejected / revision_needed`、`ship-build` 是否继续、`ship-handoff` 是否关闭等决策必须由用户作出
+
+节点级行为：
+
+1. `ship-contract` 完成后：默认询问是否并行启动前后端设计子代理
+2. `ship-plan-review` 通过后：默认询问是否开启 build 辅助委派模式
+3. `ship-build` 每个 verified slice 完成后：默认询问下一个正式任务继续由当前上下文执行，还是附带启动只读准备/验证子代理
+4. `ship-verify` 入口：默认询问是否按测试轨道分派子代理
+5. `ship-handoff` 收尾前：只询问 accept / follow-up / proposal 处理，不委派关闭判定
+
+写权限约束：
+
+- 子代理不得修改 `meta.yml`
+- 子代理不得写入任何 gate frontmatter 的最终结论
+- `assistive_only` 子代理不得直接改正式产物的 `stage_status` / `review_status`
+- 只有主上下文可以合并子代理结果并推进 `current_stage`
 
 ### Spec Hook Model
 
@@ -269,8 +299,9 @@ NEW_FEATURE 模式下的目录创建流程：
 6. 填充 meta.yml 初始字段：feature_name、feature_id、created_at、current_stage: ship-intake
 7. 初始化 `macro_stage.current: define`、`macro_stage.label: Define`
 8. 初始化 `macro_stage.summary` 与 `macro_stage.next_user_decision`
-9. 将所有阶段的 status 初始化为 pending
-10. 将控制权交给 ship-intake skill
+9. 初始化 `delegation.default_mode: current_context`、`ask_on_parallel_stage: true`、`ask_on_assistive_node: true`
+10. 将所有阶段的 status 初始化为 pending
+11. 将控制权交给 ship-intake skill
 
 短名生成规则：
 - 优先使用用户输入中的功能名词
@@ -308,6 +339,7 @@ NEW_FEATURE 模式下的目录创建流程：
 恢复时的上下文传递：
 - 将 feature 目录绝对路径作为 feature_dir 传递
 - 将 meta.yml 中的 tech_stack 和 project_context 作为环境信息传递
+- 将 meta.yml 中的 delegation 偏好透传给目标阶段 skill
 - 将当前阶段已有的文档内容作为续写上下文传递
 - 将 pipeline_mode 字段透传给目标阶段 skill
 - 若当前阶段为双产物阶段，将 `current_part` 一并透传给目标阶段 skill
@@ -357,6 +389,7 @@ INSPECT_FEATURES 模式输出规范：
 - [ ] INSPECT 模式：已扫描所有 feature 目录，已输出状态汇总
 - [ ] 路由目标阶段 skill 存在且可调用
 - [ ] 已将 feature_dir 和必要上下文传递给目标阶段 skill
+- [ ] 若命中委派决策节点，已按 `meta.yml.delegation` 执行询问或套用覆盖策略
 - [ ] meta.yml 的 current_stage 与 macro_stage 已同步更新为即将执行的阶段
 - [ ] 未跳过任何硬门禁
 - [ ] 软门禁跳过已记录到 meta.yml 的 skip_log（如有）

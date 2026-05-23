@@ -138,6 +138,25 @@ description: "ShipKit stage 1. Parses requirement materials (PRD, prototypes, UI
 | 性能指标 | 视情况 | 无明确要求时标注行业默认值 |
 | 权限/角色 | 是 | 安全相关，必须明确 |
 
+## Delegation Boundary
+
+本阶段只允许**辅助委派**，不允许把 `requirements.md` 的正式定稿分叉给多个子代理。
+
+允许委派的子任务：
+- 资料索引整理
+- 外部链接/截图/原型可访问性检查
+- 原始资料的初步摘录与证据归类
+
+禁止委派的动作：
+- 生成多个彼此独立的 Domain ID 体系
+- 直接改写 `requirements.md.stage_status`
+- 替用户回答“必须确认”的业务问题
+
+主上下文负责：
+- 统一需求理解
+- 建立唯一的 Domain ID 体系
+- 写出并定稿 `requirements.md`
+
 ## Output: requirements.md (产物结构说明)
 
 ### Frontmatter

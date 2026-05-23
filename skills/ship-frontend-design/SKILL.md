@@ -45,6 +45,14 @@ description: "ShipKit stage. Designs frontend architecture based on UI/UX protot
 2. 若用户表示"按你的理解做"，先产出线框图（wireframe）并获取确认
 3. 不可在没有任何视觉依据时直接开始组件设计
 
+## Delegation Boundary
+
+本阶段是少数允许**拥有正式产物**的并行阶段之一。
+
+- 当 `api-contract.md.stage_status = ready` 且 UI/UX 资料可访问时，可由子代理独立拥有并产出 `frontend-design.md`
+- 允许与 `ship-backend-design` 并行执行，但两者只能共享 `api-contract.md`、`requirements.md` 和 `spec_context`，不可互改对方正式产物
+- 子代理仍不得推进 `ship-design-review`，正式阶段切换由 orchestrator 统一收口
+
 ## Process
 
 ```

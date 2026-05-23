@@ -124,6 +124,21 @@ description: "ShipKit stage. Consumes verification.md from ship-verify, complete
 - `stage_status: complete` 仅当 Checklist 全部通过
 - 否则维持 `draft`，列出待补项
 
+## Delegation Boundary
+
+本阶段只允许**证据收集型辅助委派**。
+
+允许委派的子任务：
+- 按 AC 分组搜集测试证据、命令输出、截图和代码引用
+- 整理部署事项原材料
+- 梳理 spec proposal 候选
+
+禁止委派的动作：
+- 最终判定 AC 是 `PASS / FAIL / BLOCKED / N/A`
+- 最终判定 P0/P1/P2/P3 风险级别
+- 直接把 `verification.md.stage_status` 置为 `complete`
+- 替用户做 close / follow-up / proposal 取舍
+
 ## Verification Evidence Standards
 
 ### 证据类型与质量分级

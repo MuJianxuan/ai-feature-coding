@@ -25,6 +25,13 @@ pipeline_mode: standard       # standard | fast-track
 project_context: unknown      # unknown | new_project | existing_project
 project_context_evidence: ""  # 一句话证据，例: "已有 package.json 且 src/ 下有源码"
 
+# 子代理委派偏好（由 orchestrator 维护；正式状态推进仍由主上下文统一收口）
+delegation:
+  default_mode: current_context   # current_context | assistive_subagent
+  ask_on_parallel_stage: true     # 在显式并行阶段前是否询问用户
+  ask_on_assistive_node: true     # 在辅助委派节点前是否询问用户
+  node_overrides: {}              # 例: { ship-frontend-design: parallel_subagent, ship-verify.backend-contract-tests: current_context }
+
 # 技术栈（在 ship-tech-discovery 阶段填写后冻结）
 tech_stack:
   frontend: ""                # 例: "React 18 + Vite 5 + TypeScript 5"

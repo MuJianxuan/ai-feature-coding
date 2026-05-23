@@ -43,6 +43,11 @@ def validate_meta_template() -> None:
         "index_status: missing",
         "referenced_spec_ids: []",
         "pending_proposals: []",
+        "delegation:",
+        "default_mode: current_context",
+        "ask_on_parallel_stage: true",
+        "ask_on_assistive_node: true",
+        "node_overrides: {}",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
 
@@ -51,13 +56,16 @@ def validate_protocol_doc() -> None:
     path = ROOT / "skills/ship-orchestrator/_templates/protocol/workflow-protocol.md"
     text = read_text(path)
     require("## 2. Macro Stage View" in text, f"{path}: missing macro stage section")
-    require("## 7. Spec Hook Contract" in text, f"{path}: missing spec hook section")
+    require("## 7. Delegation Contract" in text, f"{path}: missing delegation section")
+    require("## 8. Spec Hook Contract" in text, f"{path}: missing spec hook section")
     require(
         "macro_stage.next_user_decision" in text,
         f"{path}: missing next_user_decision references",
     )
     require("`ship-spec` 是 workflow utility" in text, f"{path}: missing ship-spec utility wording")
     require("spec_context" in text, f"{path}: missing spec_context references")
+    require("parallel_owned_outputs" in text, f"{path}: missing delegation mode wording")
+    require("单 `DOING`" in text, f"{path}: missing build delegation constraint")
     for stage in CANONICAL_STAGE_ORDER:
         macro = macro_stage_for(stage)
         row = f"| `{macro.current}` | `{macro.label}` |"
@@ -76,7 +84,7 @@ def validate_readmes() -> None:
 
     templates_readme = ROOT / "skills/ship-orchestrator/_templates/README.md"
     templates_text = read_text(templates_readme)
-    for snippet in ("meta.yml.template", "review.md.template", "workflow-protocol.md", "spec_context"):
+    for snippet in ("meta.yml.template", "review.md.template", "workflow-protocol.md", "spec_context", "delegation"):
         require(snippet in templates_text, f"{templates_readme}: missing `{snippet}`")
 
 
@@ -112,6 +120,8 @@ def validate_orchestrator_doc() -> None:
     require("Define → Design → Build → Close" in text, f"{path}: missing default stage sequence")
     require("ship-spec" in text, f"{path}: missing ship-spec utility references")
     require("spec_context" in text, f"{path}: missing spec_context references")
+    require("delegation" in text, f"{path}: missing delegation references")
+    require("ship-build 正式任务保持单 `DOING`" in text, f"{path}: missing build delegation wording")
 
 
 def validate_ship_spec_doc() -> None:
