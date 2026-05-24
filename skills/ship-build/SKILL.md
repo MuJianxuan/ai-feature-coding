@@ -7,19 +7,20 @@ description: "ShipKit stage. Executes coding tasks from the `ship-delivery-plan`
 
 ## Overview
 
-编码执行阶段负责将 frontend-plan.md 和 backend-plan.md 中的任务逐一转化为可运行的代码。核心原则：**Contract-First Slicing** —— 先实现前后端接口对齐任务，再并行推进各端实现，且一次只执行一个任务，完成后停下等用户确认。
+编码执行阶段负责将 `ship-delivery-plan` 产出的任务逐一转化为可运行的代码。核心原则：**Contract-First Slicing** —— 先实现前后端接口对齐任务，再并行推进各端实现，且一次只执行一个任务，完成后停下等用户确认。
 
 核心目标：
 - 严格按 plan 中定义的任务顺序执行，一次一任务
 - 每个任务完成后必须通过验证（测试/构建/lint）
 - 保持 Scope Discipline，不修改 spec 之外的文件
+- 任务事实源随 `project_scope` / `pipeline_mode` 切换：standard 读双 plan，单侧 scope 读对应侧 plan，fast-track 读 lightweight task source
 - 通过 TODO → DOING → DONE 状态流转追踪进度
 
-产物：代码改动 + plan.md 中的任务状态更新
+产物：代码改动 + 任务事实源中的状态更新
 
 ## When to Use
 
-- frontend-plan.md 和 backend-plan.md 已通过 plan-review gate（`stage_status: ready`）
+- `ship-plan-review` 已通过（`stage_status: ready`）
 - api-contract.md 已定稿（Contract-First 的前提）
 - 开发环境已就绪（依赖安装、数据库初始化等）
 
@@ -39,8 +40,8 @@ Phase 1: 接口对齐 (Contract Layer) ── 必须最先完成
 └── 验证：前后端类型定义与 api-contract.md 完全一致
 
 Phase 2: 前后端并行实现
-├── 后端：按 backend-plan.md 任务顺序逐一实现（业务逻辑 + 数据层）
-├── 前端：按 frontend-plan.md 任务顺序逐一实现（组件/页面 + 状态管理）
+├── 后端：按后端任务事实源顺序逐一实现（业务逻辑 + 数据层）
+├── 前端：按前端任务事实源顺序逐一实现（组件/页面 + 状态管理）
 └── 两端可并行，但每端内部仍是一次一任务
 
 Phase 3: 集成联调
@@ -73,6 +74,24 @@ Phase 3: 集成联调
 - 子代理不得并行推进多个正式编码任务，不得自行把任务状态从 `TODO/DOING` 改为 `DONE/BLOCKED`
 - 子代理只返回检查结果、引用建议或证据包，不直接编辑正式 plan / 代码任务记录的 canonical 状态或正文
 - 每个 verified slice 完成后，是否继续下一个正式任务仍由用户决定
+
+## Scope Adaptation
+
+本阶段根据 `project_scope` 和 `pipeline_mode` 调整任务事实源：
+
+| project_scope / pipeline_mode | 任务事实源 | 说明 |
+|------------------------------|-----------|------|
+| `fullstack` / `standard` | `frontend-plan.md` + `backend-plan.md` | 双侧任务顺序都必须遵守 |
+| `backend_only` / `standard` | `backend-plan.md` | 只读后端任务事实源 |
+| `frontend_only` / `standard` | `frontend-plan.md` | 只读前端任务事实源 |
+| 任意 scope / `fast-track` | lightweight task source | 读取受控轻量任务源，不直接回退到双 plan |
+
+适配规则：
+
+- `standard` 读对应计划文档；`fast-track` 读轻量任务源，不能把 `plan.md` 误当作唯一事实源
+- `fullstack` 下同一时刻全局只允许一个 `DOING`
+- `backend_only` 和 `frontend_only` 只允许对应侧任务进入 `DOING`
+- 文档/配置类变更保持最小验证闭环，不因为体量小而省略验证
 
 ## Process (单任务执行循环)
 
@@ -107,7 +126,7 @@ Phase 3: 集成联调
 │   置DONE                                             │
 │      │                                               │
 │      ▼                                               │
-│  8. 在 plan.md 更新状态、追加完成证据链接              │
+│  8. 在当前事实源更新状态、追加完成证据链接            │
 │      │                                               │
 │      ▼                                               │
 │  9. 停下，向用户报告并等待确认                         │
@@ -121,7 +140,7 @@ Phase 3: 集成联调
 ### 步骤详解
 
 **Step 1-2: 任务选取与状态置位**
-- 从 plan.md 的 TODO 列表选择第一个不被 blocked 的任务
+- 从当前事实源的 TODO 列表选择第一个不被 blocked 的任务
 - 立即将该任务的 status 改为 DOING
 - 同一 plan 中只能有一个任务处于 DOING（DOING 唯一性）
 
@@ -144,7 +163,7 @@ Phase 3: 集成联调
 - 同一错误重复出现 2 次以上，必须停下分析根因
 
 **Step 8: 状态更新与证据留存**
-- 在 plan.md 中将任务 status 改为 DONE
+- 在当前事实源中将任务 status 改为 DONE
 - 追加完成证据：测试输出、构建日志、关键文件路径
 
 **Step 9-10: 停下汇报**
@@ -179,7 +198,7 @@ Phase 3: 集成联调
 
 ### 状态记录格式
 
-在 plan.md 中每个任务条目使用 frontmatter 或 inline 标注：
+在当前事实源中每个任务条目使用 frontmatter 或 inline 标注：
 
 ```markdown
 ### Task FE-001: 实现登录页面骨架
@@ -236,7 +255,7 @@ Phase 3: 集成联调
 
 当会话中断（用户切走、上下文压缩、流程被打断）后恢复执行时：
 
-1. **读取 plan.md** 找到当前 DOING 任务
+1. **读取当前事实源** 找到当前 DOING 任务
 2. **读取该任务的最近一次 evidence**，确认实际进展到哪一步
 3. **运行验证**，确认环境状态与文件状态一致
 4. **不要凭印象继续**：如果验证显示部分代码已改但测试未跑，先把验证补齐再继续
@@ -274,7 +293,7 @@ Phase 3: 集成联调
 - [ ] 自动化验证（test / build / lint / typecheck）全部通过
 - [ ] 改动文件在任务清单范围内
 - [ ] 关键改动有对应的测试覆盖
-- [ ] plan.md 中状态已更新为 DONE，evidence 已填写
+- [ ] 当前事实源中状态已更新为 DONE，evidence 已填写
 - [ ] 任务条目已记录 `spec_refs`（无匹配规范时显式写明）
 - [ ] 无未提交的临时调试代码（console.log / TODO 占位）
 - [ ] 无 spec 之外的"顺手改动"
@@ -285,7 +304,7 @@ Phase 3: 集成联调
 - [ ] backend-plan.md 中所有任务为 DONE
 - [ ] Phase 1（契约层）实现与 api-contract.md 一致
 - [ ] 端到端关键路径已跑通（即使是手动验证）
-- [ ] 已知的偏离/妥协已记录在 plan.md 的 notes 字段
+- [ ] 已知的偏离/妥协已记录在当前事实源的 notes 字段
 - [ ] 相关规范已加载并在任务证据中留痕（如适用）
 - [ ] 准备进入 `ship-verify` 阶段（或 `ship-verify` 已与 `ship-build` 同步完成）
 ```

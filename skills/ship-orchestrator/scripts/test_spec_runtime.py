@@ -14,10 +14,15 @@ from feature_meta_runtime import (
     CURRENT_CONTEXT,
     GATE_CHECK_SUBAGENT,
     PARALLEL_SUBAGENT,
+    advance_stage,
     clear_delegation_warning_log,
+    create_feature_meta,
     record_delegation_warning,
+    record_skip,
+    record_spec_proposal,
     resolve_delegation,
     set_default_delegation_mode,
+    set_lifecycle_status,
     set_node_override,
     sync_spec_context,
 )
@@ -64,7 +69,7 @@ last_updated: "2026-05-23T10:00:00+08:00"
         self.tempdir.cleanup()
 
     def test_scan_specs_returns_ready_for_valid_spec(self) -> None:
-        result = scan_specs(self.spec_root)
+        result = scan_specs(self.spec_root, project_root=self.root)
         self.assertEqual(result["index_status"], "ready")
         self.assertEqual(result["warnings"], [])
         self.assertEqual(result["specs"][0]["spec_id"], "react-query-data-fetching")
@@ -81,7 +86,7 @@ last_updated: ""
 ---
 """,
         )
-        result = scan_specs(self.spec_root)
+        result = scan_specs(self.spec_root, project_root=self.root)
         self.assertEqual(result["index_status"], "invalid")
         self.assertTrue(any("invalid spec frontmatter" in warning for warning in result["warnings"]))
 
@@ -92,6 +97,7 @@ last_updated: ""
             stack_tags=["react"],
             domains=["todo"],
             files=["src/features/todo/list/TodoList.tsx"],
+            project_root=self.root,
         )
         self.assertEqual(result["matched_spec_ids"], ["react-query-data-fetching"])
 
@@ -101,6 +107,7 @@ last_updated: ""
             stack_tags=["vue"],
             domains=["todo"],
             files=["src/features/todo/list/TodoList.tsx"],
+            project_root=self.root,
         )
         self.assertEqual(miss["matched_spec_ids"], [])
         self.assertTrue(any("no matching specs found" in warning for warning in miss["warnings"]))
@@ -139,6 +146,26 @@ last_updated: ""
         self.assertEqual(saved["delegation"]["node_overrides"], {})
         self.assertEqual(saved["delegation"]["warnings"], [])
 
+    def test_scan_specs_uses_project_root_for_custom_spec_root_paths(self) -> None:
+        custom_root = self.root / "custom-spec"
+        self.write_text(
+            custom_root / "x.md",
+            """---
+spec_id: custom
+scope: project
+stage_hooks:
+  - ship-build
+last_updated: ""
+---
+
+# Custom
+""",
+        )
+
+        result = scan_specs(custom_root, project_root=self.root)
+
+        self.assertEqual(result["specs"][0]["path"], "custom-spec/x.md")
+
 
 class DelegationRuntimeTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -168,6 +195,17 @@ class DelegationRuntimeTest(unittest.TestCase):
     def test_resolve_delegation_rejects_unknown_node_id(self) -> None:
         with self.assertRaisesRegex(ValueError, "unknown delegation node_id"):
             resolve_delegation("ship-verify.unknown-track", {})
+
+    def test_discover_and_shape_are_assistive_delegation_nodes(self) -> None:
+        for node_id in ("ship-discover", "ship-shape"):
+            result = resolve_delegation(
+                node_id,
+                {
+                    "default_mode": ASSISTIVE_SUBAGENT,
+                    "ask_on_assistive_node": False,
+                },
+            )
+            self.assertEqual(result["resolved_mode"], ASSISTIVE_SUBAGENT)
 
     def test_forbidden_node_override_falls_back_to_current_context(self) -> None:
         result = resolve_delegation(
@@ -278,6 +316,147 @@ class DelegationRuntimeTest(unittest.TestCase):
             saved["delegation"]["node_overrides"]["ship-verify.backend-contract"],
             ASSISTIVE_SUBAGENT,
         )
+
+
+class FeatureMetaRuntimeTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.root = Path(self.tempdir.name)
+
+    def tearDown(self) -> None:
+        self.tempdir.cleanup()
+
+    def load_meta(self, feature_dir: Path) -> dict:
+        return yaml.safe_load((feature_dir / "meta.yml").read_text(encoding="utf-8"))
+
+    def test_create_feature_meta_initializes_greenfield_at_discover(self) -> None:
+        feature_dir = self.root / "greenfield"
+        create_feature_meta(
+            feature_dir=feature_dir,
+            feature_name="Greenfield",
+            feature_id="feature-greenfield",
+            pipeline_mode="standard",
+            project_context="new_project",
+            project_scope="fullstack",
+            scenario="greenfield",
+        )
+
+        saved = self.load_meta(feature_dir)
+        self.assertEqual(saved["scenario"], "greenfield")
+        self.assertEqual(saved["current_stage"], "ship-discover")
+        self.assertEqual(saved["macro_stage"]["current"], "discover")
+        self.assertEqual(saved["stages"]["ship-discover"]["discovery_mode"], "greenfield")
+        self.assertEqual(saved["stages"]["ship-define"]["generation_mode"], "interview")
+        self.assertEqual(saved["lifecycle_status"], "active")
+        self.assertEqual(saved["skip_log"], [])
+
+    def test_create_feature_meta_initializes_prd_direct_at_define_and_skips_discover(self) -> None:
+        feature_dir = self.root / "prd-direct"
+        create_feature_meta(
+            feature_dir=feature_dir,
+            feature_name="PRD Direct",
+            feature_id="feature-prd-direct",
+            pipeline_mode="standard",
+            project_context="existing_project",
+            project_scope="fullstack",
+            scenario="prd_direct",
+        )
+
+        saved = self.load_meta(feature_dir)
+        self.assertEqual(saved["scenario"], "prd_direct")
+        self.assertEqual(saved["current_stage"], "ship-define")
+        self.assertEqual(saved["macro_stage"]["current"], "define")
+        self.assertEqual(saved["stages"]["ship-discover"]["status"], "skipped")
+        self.assertEqual(saved["stages"]["ship-shape"]["status"], "skipped")
+        self.assertEqual(saved["stages"]["ship-define"]["generation_mode"], "prd_direct")
+
+    def test_create_feature_meta_backend_only_sets_delivery_plan_part(self) -> None:
+        feature_dir = self.root / "backend-only"
+        create_feature_meta(
+            feature_dir=feature_dir,
+            feature_name="Backend Only",
+            feature_id="feature-backend-only",
+            pipeline_mode="standard",
+            project_context="existing_project",
+            project_scope="backend_only",
+            scenario="product_provided",
+        )
+
+        saved = self.load_meta(feature_dir)
+        self.assertEqual(saved["stages"]["ship-frontend-design"]["status"], "skipped")
+        self.assertEqual(saved["stages"]["ship-delivery-plan"]["current_part"], "backend")
+
+    def test_record_spec_proposal_only_allows_handoff_source(self) -> None:
+        feature_dir = self.root / "proposal"
+        create_feature_meta(
+            feature_dir=feature_dir,
+            feature_name="Proposal",
+            feature_id="feature-proposal",
+            pipeline_mode="standard",
+            project_context="existing_project",
+            project_scope="fullstack",
+            scenario="product_provided",
+        )
+        meta_path = feature_dir / "meta.yml"
+
+        with self.assertRaisesRegex(ValueError, "ship-handoff"):
+            record_spec_proposal(
+                meta_path=meta_path,
+                proposal_id="proposal-001",
+                title="Too early",
+                source_stage="ship-build",
+                target_spec_id="error-handling",
+                summary="early proposal",
+            )
+
+        proposal = record_spec_proposal(
+            meta_path=meta_path,
+            proposal_id="proposal-001",
+            title="Handoff proposal",
+            source_stage="ship-handoff",
+            target_spec_id="error-handling",
+            summary="handoff proposal",
+        )
+        self.assertEqual(proposal["source_stage"], "ship-handoff")
+
+    def test_record_skip_lifecycle_and_advance_stage(self) -> None:
+        feature_dir = self.root / "advance"
+        create_feature_meta(
+            feature_dir=feature_dir,
+            feature_name="Advance",
+            feature_id="feature-advance",
+            pipeline_mode="standard",
+            project_context="new_project",
+            project_scope="fullstack",
+            scenario="greenfield",
+        )
+        meta_path = feature_dir / "meta.yml"
+
+        skip = record_skip(
+            meta_path=meta_path,
+            from_stage="ship-discover",
+            to_stage="ship-define",
+            gate_type="soft",
+            reason="user requested direct define",
+            user_sign_off="skip discover",
+        )
+        self.assertEqual(skip["from_stage"], "ship-discover")
+
+        lifecycle = set_lifecycle_status(meta_path, "blocked")
+        self.assertEqual(lifecycle["lifecycle_status"], "blocked")
+
+        payload = advance_stage(
+            meta_path=meta_path,
+            from_stage="ship-discover",
+            to_stage="ship-define",
+        )
+        self.assertEqual(payload["current_stage"], "ship-define")
+
+        saved = self.load_meta(feature_dir)
+        self.assertEqual(saved["stages"]["ship-discover"]["status"], "completed")
+        self.assertEqual(saved["stages"]["ship-define"]["status"], "pending")
+        self.assertEqual(saved["macro_stage"]["current"], "define")
+        self.assertEqual(saved["skip_log"][0]["reason"], "user requested direct define")
         self.assertEqual(saved["delegation"]["default_mode"], CURRENT_CONTEXT)
 
 

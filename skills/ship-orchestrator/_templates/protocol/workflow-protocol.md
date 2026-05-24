@@ -32,7 +32,7 @@
 
 ## 2. Macro Stage View
 
-对外默认展示四个大阶段；它们是展示层和索引层概念，不替代 Canonical Stage IDs。
+对外默认展示五个大阶段（Discover 可选）；它们是展示层和索引层概念，不替代 Canonical Stage IDs。
 
 | Macro Stage | 展示标签 | 包含的 Canonical Stage IDs |
 |-------------|----------|----------------------------|
@@ -132,6 +132,15 @@ conditions: []
   - `referenced_spec_ids`: 本 feature 已留痕的规范集合
   - `warnings`: 最近一次 helper 解析的告警
   - `pending_proposals`: `ship-handoff` 生成、待用户确认的规范沉淀提案
+- `skip_log` 记录用户显式强制跳过门禁或默认前置阶段的事实留痕：
+  - 每条记录至少包含 `at / from_stage / to_stage / gate_type / reason / user_sign_off`
+  - 仅用于审计和回放，不改变 stage status 的语义
+  - 若跳过行为影响后续决策，下游阶段必须显式引用该记录作为风险或假设来源
+- `lifecycle_status` 是 feature 级状态，不是 stage status：
+  - `active`: 正常推进
+  - `blocked`: 当前 feature 无法继续推进
+  - `completed`: feature 已完成
+  - `abandoned`: feature 被明确终止或废弃
 - `delegation` 记录本 feature 的子代理偏好：
   - `default_mode`: `current_context | assistive_subagent`
   - `ask_on_parallel_stage`: 显式并行阶段前是否征询用户

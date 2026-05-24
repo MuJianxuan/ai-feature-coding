@@ -71,7 +71,14 @@ def _normalize_string_list(value: Any, field_name: str) -> tuple[str, ...]:
     return tuple(result)
 
 
-def _parse_spec(path: Path, spec_root: Path) -> SpecRecord:
+def _relative_to_project(path: Path, project_root: Path) -> str:
+    try:
+        return str(path.relative_to(project_root))
+    except ValueError:
+        return str(path)
+
+
+def _parse_spec(path: Path, spec_root: Path, project_root: Path) -> SpecRecord:
     data = _load_frontmatter(path)
 
     spec_id = data.get("spec_id")
@@ -99,7 +106,7 @@ def _parse_spec(path: Path, spec_root: Path) -> SpecRecord:
 
     return SpecRecord(
         spec_id=spec_id.strip(),
-        path=str(path.relative_to(spec_root.parent.parent)),
+        path=_relative_to_project(path, project_root),
         scope=scope,
         stage_hooks=stage_hooks,
         stack_tags=stack_tags,
@@ -109,10 +116,11 @@ def _parse_spec(path: Path, spec_root: Path) -> SpecRecord:
     )
 
 
-def scan_specs(spec_root: Path) -> dict[str, Any]:
+def scan_specs(spec_root: Path, project_root: Path | None = None) -> dict[str, Any]:
     warnings: list[str] = []
     records: list[SpecRecord] = []
     spec_root = spec_root.resolve()
+    project_root = (project_root or Path.cwd()).resolve()
 
     if not spec_root.exists():
         return {
@@ -132,7 +140,7 @@ def scan_specs(spec_root: Path) -> dict[str, Any]:
         if path.name == "INDEX.md":
             continue
         try:
-            record = _parse_spec(path, spec_root)
+            record = _parse_spec(path, spec_root, project_root)
         except ValueError as exc:
             warnings.append(f"{path}: invalid spec frontmatter: {exc}")
             continue
@@ -209,11 +217,12 @@ def resolve_specs(
     stack_tags: list[str] | None = None,
     domains: list[str] | None = None,
     files: list[str] | None = None,
+    project_root: Path | None = None,
 ) -> dict[str, Any]:
     if stage_hook not in VALID_STAGE_HOOKS:
         raise ValueError(f"invalid stage hook: {stage_hook}")
 
-    scan_result = scan_specs(spec_root)
+    scan_result = scan_specs(spec_root, project_root=project_root)
     stack_tag_set = _normalize_requested_tags(stack_tags)
     domain_set = _normalize_requested_tags(domains)
     file_list = [value for value in (files or []) if value]
@@ -266,6 +275,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=".docs/spec",
         help="Spec root directory",
     )
+    scan_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="Project root used for stable relative paths",
+    )
 
     resolve_parser = subparsers.add_parser("resolve", help="Resolve matching specs for a stage hook")
     resolve_parser.add_argument("stage_hook", choices=VALID_STAGE_HOOKS)
@@ -273,6 +287,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--spec-root",
         default=".docs/spec",
         help="Spec root directory",
+    )
+    resolve_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="Project root used for stable relative paths",
     )
     resolve_parser.add_argument(
         "--stack-tag",
@@ -301,7 +320,7 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv[1:])
 
     if args.command == "scan":
-        payload = scan_specs(Path(args.spec_root))
+        payload = scan_specs(Path(args.spec_root), project_root=Path(args.project_root))
         print(json.dumps(payload, ensure_ascii=True, indent=2))
         return 0
 
@@ -312,6 +331,7 @@ def main(argv: list[str]) -> int:
             stack_tags=args.stack_tag,
             domains=args.domain,
             files=args.file,
+            project_root=Path(args.project_root),
         )
         print(json.dumps(payload, ensure_ascii=True, indent=2))
         return 0

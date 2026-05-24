@@ -151,7 +151,7 @@
 
 ### 2. Progressive Disclosure
 
-- 首屏只讲一个入口和四个大阶段
+- 首屏只讲一个入口和五个大阶段（Discover 可选）
 - 14 个细阶段（前 2 个条件性）只在高级模式或内部协议中展开
 - 用户默认看到“当前目标”和“下一次需要决策的动作”，而不是一长串阶段名
 
@@ -175,7 +175,7 @@
 
 ### 5. 子代理委派是执行策略，不是新阶段
 
-- 默认流程不新增 stage，也不改变 12 个 canonical stages
+- 默认流程不新增 stage，也不改变 14 个 canonical stages
 - 只有 `ship-frontend-design` 与 `ship-backend-design` 是显式并行阶段
 - research 取证、计划审计、测试分轨、证据整理等可以作为辅助委派
 - hard gate 可由子代理起草正式 `review-*.md` 草案，但最终 `review_status`、`user_sign_off`、`signed_at` 仍由主上下文与用户完成
@@ -222,7 +222,7 @@
 
 以下内容属于内部实现或高级使用方式：
 
-- 完整 12 阶段路由顺序
+- 完整 14 阶段路由顺序（前 2 个为条件性 Discover 前置阶段）
 - `meta.yml` 细阶段状态维护
 - `ship-spec` hook 契约与 `spec_context` 摘要字段
 - 各阶段 SKILL 的详细输入输出

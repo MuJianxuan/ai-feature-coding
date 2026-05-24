@@ -2,7 +2,8 @@
 """Validate workflow documentation consistency.
 
 This checks that the executable stage mapping, protocol docs, meta template,
-and primary workflow docs all describe the same 4-stage default view.
+and primary workflow docs all describe the same 5-stage default view with
+conditional Discover, plus the shared runtime/schema invariants.
 """
 
 from __future__ import annotations
@@ -44,6 +45,8 @@ def validate_meta_template() -> None:
         "index_status: missing",
         "referenced_spec_ids: []",
         "pending_proposals: []",
+        "lifecycle_status: active",
+        "skip_log: []",
         "delegation:",
         "default_mode: current_context",
         "ask_on_parallel_stage: true",
@@ -53,6 +56,8 @@ def validate_meta_template() -> None:
         "parallel_subagent",
         "gate_check_subagent",
         "ship-verify.backend-contract: assistive_subagent",
+        "scenario: \"\"",
+        "project_scope: fullstack",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
 
@@ -69,6 +74,9 @@ def validate_protocol_doc() -> None:
     )
     require("`ship-spec` 是 workflow utility" in text, f"{path}: missing ship-spec utility wording")
     require("spec_context" in text, f"{path}: missing spec_context references")
+    require("skip_log" in text, f"{path}: missing skip_log references")
+    require("lifecycle_status" in text, f"{path}: missing lifecycle_status references")
+    require("scenario" in text, f"{path}: missing scenario references")
     require("parallel_owned_outputs" in text, f"{path}: missing delegation mode wording")
     require("parallel_subagent" in text, f"{path}: missing parallel_subagent wording")
     require("gate_check_switchable" in text, f"{path}: missing hard-gate execution mode wording")
@@ -96,6 +104,8 @@ def validate_protocol_doc() -> None:
         macro = macro_stage_for(stage)
         row = f"| `{macro.current}` | `{macro.label}` |"
         require(row in text, f"{path}: missing macro row for {macro.current}/{macro.label}")
+    require("5 个大阶段" in text or "五个大阶段" in text, f"{path}: missing 5-stage wording")
+    require("4 个大阶段" not in text and "4 大阶段" not in text, f"{path}: contains legacy 4-stage wording")
 
 
 def validate_readmes() -> None:
@@ -105,8 +115,9 @@ def validate_readmes() -> None:
     ]
     for path in workflow_readme_paths:
         text = read_text(path)
-        require("Define" in text and "Design" in text and "Build" in text and "Close" in text, f"{path}: missing 4-stage view")
+        require("Discover" in text and "Define" in text and "Design" in text and "Build" in text and "Close" in text, f"{path}: missing 5-stage view")
         require("ship-spec" in text, f"{path}: missing ship-spec mention")
+        require("4 个大阶段" not in text and "4 大阶段" not in text, f"{path}: contains legacy 4-stage wording")
 
     templates_readme = ROOT / "skills/ship-orchestrator/_templates/README.md"
     templates_text = read_text(templates_readme)
@@ -216,6 +227,16 @@ def validate_stage_delegation_boundaries() -> None:
         ):
             require(snippet in text, f"{path}: missing `{snippet}`")
 
+    # Scope-aware adapters must exist for the stages that vary by project_scope.
+    scope_adapted_paths = {
+        ROOT / "skills/ship-design-review/SKILL.md",
+        ROOT / "skills/ship-delivery-plan/SKILL.md",
+        ROOT / "skills/ship-plan-review/SKILL.md",
+        ROOT / "skills/ship-verify/SKILL.md",
+    }
+    for path in scope_adapted_paths:
+        require("## Scope Adaptation" in read_text(path), f"{path}: missing `## Scope Adaptation`")
+
 
 def validate_review_template_delegation() -> None:
     path = ROOT / "skills/ship-orchestrator/_templates/review/review.md.template"
@@ -255,6 +276,8 @@ def validate_orchestrator_doc() -> None:
         "ship-verify.backend-contract",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
+    require("5 个大阶段" in text or "五个大阶段" in text, f"{path}: missing 5-stage wording")
+    require("14 个内部阶段名" in text, f"{path}: missing 14-stage wording")
 
 
 def validate_ship_spec_doc() -> None:
@@ -270,6 +293,7 @@ def validate_ship_spec_doc() -> None:
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
     require("不是 canonical stage" in text, f"{path}: missing non-stage wording")
+    require("ship-handoff" in text, f"{path}: missing handoff proposal wording")
 
 
 def validate_stage_map_script() -> None:
@@ -284,9 +308,10 @@ def validate_root_readme_commands() -> None:
     path = ROOT / "README.md"
     text = read_text(path)
     require("ship-orchestrator" in text, f"{path}: missing ship-orchestrator entry")
-    require("4 大阶段" in text or "4 个大阶段" in text or "4 个大阶段" in text, f"{path}: missing 4-stage wording")
+    require("5 大阶段" in text or "五个大阶段" in text, f"{path}: missing 5-stage wording")
     require("feature_meta_runtime.py" in text, f"{path}: missing feature_meta_runtime helper command")
     require("spec_runtime.py" in text, f"{path}: missing spec_runtime helper command")
+    require("14 个 canonical" in text or "14 个内部阶段名" in text or "14 个阶段" in text, f"{path}: missing 14-stage wording")
 
 
 def main() -> int:

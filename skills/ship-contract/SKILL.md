@@ -12,7 +12,7 @@ description: "ShipKit stage. Designs API contracts as the shared agreement betwe
 核心目标：
 - 产出前后端并行开发的"契约"，消除前后端联调时的认知差异
 - 定义完整的请求/响应结构、错误码体系和数据模型
-- 确保每个接口可追溯到具体的验收标准（AC ID）和前端页面
+- 确保每个接口可追溯到具体的验收标准（AC ID）和 consumer / entrypoint
 - 建立统一的 API 风格规范，保证接口一致性
 
 产出物：`api-contract.md`
@@ -27,7 +27,7 @@ description: "ShipKit stage. Designs API contracts as the shared agreement betwe
 ## When NOT to Use
 
 - `ship-tech-discovery` 尚未完成 —— 技术栈未定无法确定 API 风格
-- 纯前端项目（无后端交互）—— 无需接口规约
+- 纯前端且无任何外部 API / worker / batch 交互 —— 可产出显式 empty/internal contract，并说明原因
 - 使用 BFF 且前后端同一人开发 —— 可简化为内部接口文档
 - 纯后端批处理/定时任务 —— 使用后端设计阶段直接定义
 
@@ -213,7 +213,7 @@ evidence_complete: false
 #### POST /api/v1/resource
 - **描述**：创建资源
 - **关联 AC**：AC-XXX-001, AC-XXX-002
-- **关联页面**：CreateResourcePage
+- **关联 consumer / entrypoint**：CreateResourcePage / route action / background worker
 - **请求参数**：
   | 位置 | 字段 | 类型 | 必填 | 校验规则 | 说明 |
   |------|------|------|------|----------|------|

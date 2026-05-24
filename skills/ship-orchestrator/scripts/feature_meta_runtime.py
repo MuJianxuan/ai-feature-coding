@@ -23,7 +23,7 @@ ROOT = SCRIPT_DIR.parents[2]
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from spec_runtime import VALID_STAGE_HOOKS, resolve_specs  # noqa: E402
-from workflow_stage_map import stage_view_for  # noqa: E402
+from workflow_stage_map import CANONICAL_STAGE_ORDER, stage_view_for  # noqa: E402
 
 
 META_TEMPLATE_PATH = ROOT / "skills/ship-orchestrator/_templates/meta/meta.yml.template"
@@ -60,6 +60,10 @@ VALID_DELEGATION_MODES: tuple[str, ...] = (
 )
 
 VALID_PROJECT_SCOPES: tuple[str, ...] = ("fullstack", "backend_only", "frontend_only")
+VALID_SCENARIOS: tuple[str, ...] = ("greenfield", "product_provided", "prd_direct", "evolve")
+DISCOVER_SCENARIOS: frozenset[str] = frozenset({"greenfield", "evolve"})
+DEFINE_SCENARIOS: frozenset[str] = frozenset({"product_provided", "prd_direct"})
+VALID_LIFECYCLE_STATUSES: tuple[str, ...] = ("active", "blocked", "completed", "abandoned")
 
 SCOPE_SKIP_MAP: dict[str, list[str]] = {
     "fullstack": [],
@@ -77,6 +81,18 @@ class DelegationNodeSpec:
 
 
 CANONICAL_DELEGATION_NODES: dict[str, DelegationNodeSpec] = {
+    "ship-discover": DelegationNodeSpec(
+        node_id="ship-discover",
+        delegation_mode=ASSISTIVE_ONLY,
+        ask_flag=ASK_ON_ASSISTIVE_NODE,
+        allowed_execution_modes=(CURRENT_CONTEXT, ASSISTIVE_SUBAGENT),
+    ),
+    "ship-shape": DelegationNodeSpec(
+        node_id="ship-shape",
+        delegation_mode=ASSISTIVE_ONLY,
+        ask_flag=ASK_ON_ASSISTIVE_NODE,
+        allowed_execution_modes=(CURRENT_CONTEXT, ASSISTIVE_SUBAGENT),
+    ),
     "ship-define": DelegationNodeSpec(
         node_id="ship-define",
         delegation_mode=ASSISTIVE_ONLY,
@@ -321,6 +337,20 @@ def ensure_delegation(data: dict) -> dict:
     delegation.setdefault("ask_on_assistive_node", True)
     delegation.setdefault("node_overrides", {})
     delegation.setdefault("warnings", [])
+    return data
+
+
+def ensure_skip_log(data: dict) -> dict:
+    skip_log = data.setdefault("skip_log", [])
+    if not isinstance(skip_log, list):
+        raise ValueError("skip_log must be a list")
+    return data
+
+
+def ensure_lifecycle_status(data: dict) -> dict:
+    lifecycle_status = data.setdefault("lifecycle_status", "active")
+    if lifecycle_status not in VALID_LIFECYCLE_STATUSES:
+        raise ValueError(f"invalid lifecycle_status: {lifecycle_status}")
     return data
 
 
@@ -642,6 +672,36 @@ def apply_scope_skips(data: dict) -> None:
     for stage_id in SCOPE_SKIP_MAP.get(scope, []):
         if stage_id in stages:
             stages[stage_id]["status"] = "skipped"
+    delivery_plan = stages.get("ship-delivery-plan")
+    if isinstance(delivery_plan, dict):
+        if scope == "backend_only":
+            delivery_plan["current_part"] = "backend"
+        elif scope in {"fullstack", "frontend_only"}:
+            delivery_plan["current_part"] = "frontend"
+
+
+def apply_scenario_initial_state(data: dict, scenario: str) -> None:
+    if scenario not in VALID_SCENARIOS:
+        raise ValueError(f"invalid scenario: {scenario}")
+
+    stages = data.setdefault("stages", {})
+    data["scenario"] = scenario
+
+    discover = stages.setdefault("ship-discover", {})
+    shape = stages.setdefault("ship-shape", {})
+    define = stages.setdefault("ship-define", {})
+
+    if scenario in DISCOVER_SCENARIOS:
+        data["current_stage"] = "ship-discover"
+        discover["status"] = "pending"
+        discover["discovery_mode"] = scenario
+        shape.setdefault("status", "pending")
+        define["generation_mode"] = "interview"
+    else:
+        data["current_stage"] = "ship-define"
+        discover["status"] = "skipped"
+        shape["status"] = "skipped"
+        define["generation_mode"] = "prd_direct" if scenario == "prd_direct" else "interview"
 
 
 def create_feature_meta(
@@ -651,7 +711,11 @@ def create_feature_meta(
     pipeline_mode: str,
     project_context: str,
     project_scope: str = "fullstack",
+    scenario: str = "",
 ) -> Path:
+    if scenario not in VALID_SCENARIOS:
+        raise ValueError(f"invalid scenario: {scenario}")
+
     feature_dir.mkdir(parents=True, exist_ok=True)
     resource_dir = feature_dir / "resource"
     resource_dir.mkdir(parents=True, exist_ok=True)
@@ -666,14 +730,17 @@ def create_feature_meta(
     data["feature_id"] = feature_id
     data["created_at"] = data.get("created_at") or now
     data["updated_at"] = now
-    data["current_stage"] = "ship-define"
     data["pipeline_mode"] = pipeline_mode
     data["project_context"] = project_context
     data["project_scope"] = project_scope
+    data["lifecycle_status"] = "active"
+    apply_scenario_initial_state(data, scenario)
     apply_scope_skips(data)
     ensure_macro_stage(data)
     ensure_spec_context(data)
     ensure_delegation(data)
+    ensure_skip_log(data)
+    ensure_lifecycle_status(data)
     save_meta(meta_path, data)
     return meta_path
 
@@ -683,6 +750,8 @@ def refresh_feature_meta(meta_path: Path) -> None:
     ensure_macro_stage(data)
     ensure_spec_context(data)
     ensure_delegation(data)
+    ensure_skip_log(data)
+    ensure_lifecycle_status(data)
     save_meta(meta_path, data)
 
 
@@ -697,12 +766,15 @@ def sync_spec_context(
     data = load_meta(meta_path)
     ensure_spec_context(data)
     ensure_delegation(data)
+    ensure_skip_log(data)
+    ensure_lifecycle_status(data)
     result = resolve_specs(
         spec_root=spec_root,
         stage_hook=stage_hook,
         stack_tags=stack_tags,
         domains=domains,
         files=files,
+        project_root=Path.cwd(),
     )
 
     spec_context = data["spec_context"]
@@ -727,9 +799,14 @@ def record_spec_proposal(
     target_spec_id: str,
     summary: str,
 ) -> dict:
+    if source_stage != "ship-handoff":
+        raise ValueError("spec proposals must be recorded from ship-handoff")
+
     data = load_meta(meta_path)
     ensure_spec_context(data)
     ensure_delegation(data)
+    ensure_skip_log(data)
+    ensure_lifecycle_status(data)
     pending_proposals = [
         proposal
         for proposal in data["spec_context"].get("pending_proposals", [])
@@ -750,6 +827,82 @@ def record_spec_proposal(
     return pending_proposals[-1]
 
 
+def record_skip(
+    meta_path: Path,
+    from_stage: str,
+    to_stage: str,
+    gate_type: str,
+    reason: str,
+    user_sign_off: str,
+) -> dict:
+    if from_stage not in CANONICAL_STAGE_ORDER:
+        raise ValueError(f"invalid from_stage: {from_stage}")
+    if to_stage not in CANONICAL_STAGE_ORDER:
+        raise ValueError(f"invalid to_stage: {to_stage}")
+    if not reason.strip():
+        raise ValueError("skip reason must be non-empty")
+    if not user_sign_off.strip():
+        raise ValueError("user_sign_off must be non-empty")
+
+    data = load_meta(meta_path)
+    ensure_skip_log(data)
+    ensure_lifecycle_status(data)
+    entry = {
+        "at": iso_now(),
+        "from_stage": from_stage,
+        "to_stage": to_stage,
+        "gate_type": gate_type,
+        "reason": reason,
+        "user_sign_off": user_sign_off,
+    }
+    data["skip_log"].append(entry)
+    _save_meta_with_updated_at(meta_path, data)
+    return entry
+
+
+def set_lifecycle_status(meta_path: Path, lifecycle_status: str) -> dict:
+    if lifecycle_status not in VALID_LIFECYCLE_STATUSES:
+        raise ValueError(f"invalid lifecycle_status: {lifecycle_status}")
+
+    data = load_meta(meta_path)
+    data["lifecycle_status"] = lifecycle_status
+    _save_meta_with_updated_at(meta_path, data)
+    return {"lifecycle_status": lifecycle_status}
+
+
+def advance_stage(
+    meta_path: Path,
+    from_stage: str,
+    to_stage: str,
+    completed_status: str = "completed",
+) -> dict:
+    if from_stage not in CANONICAL_STAGE_ORDER:
+        raise ValueError(f"invalid from_stage: {from_stage}")
+    if to_stage not in CANONICAL_STAGE_ORDER:
+        raise ValueError(f"invalid to_stage: {to_stage}")
+
+    data = load_meta(meta_path)
+    if data.get("current_stage") != from_stage:
+        raise ValueError(f"current_stage is {data.get('current_stage')}, expected {from_stage}")
+
+    stages = data.setdefault("stages", {})
+    stages.setdefault(from_stage, {})["status"] = completed_status
+    stages.setdefault(to_stage, {})["status"] = "pending"
+    data["current_stage"] = to_stage
+    ensure_macro_stage(data)
+    ensure_spec_context(data)
+    ensure_delegation(data)
+    ensure_skip_log(data)
+    ensure_lifecycle_status(data)
+    save_meta(meta_path, data)
+    return {
+        "from_stage": from_stage,
+        "to_stage": to_stage,
+        "current_stage": data["current_stage"],
+        "macro_stage": data["macro_stage"],
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Ship feature meta runtime helper")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -758,6 +911,12 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("feature_dir", help="Feature directory path")
     init_parser.add_argument("--feature-name", required=True, help="Human-readable feature name")
     init_parser.add_argument("--feature-id", required=True, help="Stable feature id")
+    init_parser.add_argument(
+        "--scenario",
+        required=True,
+        choices=VALID_SCENARIOS,
+        help="Entry scenario: greenfield, product_provided, prd_direct, or evolve",
+    )
     init_parser.add_argument(
         "--pipeline-mode",
         default="standard",
@@ -792,9 +951,27 @@ def build_parser() -> argparse.ArgumentParser:
     proposal_parser.add_argument("meta_path", help="Path to meta.yml")
     proposal_parser.add_argument("--proposal-id", required=True, help="Stable proposal identifier")
     proposal_parser.add_argument("--title", required=True, help="Proposal title")
-    proposal_parser.add_argument("--source-stage", required=True, choices=VALID_STAGE_HOOKS)
+    proposal_parser.add_argument("--source-stage", required=True, choices=("ship-handoff",))
     proposal_parser.add_argument("--target-spec-id", required=True, help="Target spec id")
     proposal_parser.add_argument("--summary", required=True, help="Proposal summary")
+
+    skip_parser = subparsers.add_parser("record-skip", help="Record a user-approved skip")
+    skip_parser.add_argument("meta_path", help="Path to meta.yml")
+    skip_parser.add_argument("--from-stage", required=True, choices=CANONICAL_STAGE_ORDER)
+    skip_parser.add_argument("--to-stage", required=True, choices=CANONICAL_STAGE_ORDER)
+    skip_parser.add_argument("--gate-type", required=True, help="Gate type or skip category")
+    skip_parser.add_argument("--reason", required=True, help="Reason for the skip")
+    skip_parser.add_argument("--user-sign-off", required=True, help="User sign-off text")
+
+    lifecycle_parser = subparsers.add_parser("set-lifecycle", help="Set feature lifecycle status")
+    lifecycle_parser.add_argument("meta_path", help="Path to meta.yml")
+    lifecycle_parser.add_argument("--status", required=True, choices=VALID_LIFECYCLE_STATUSES)
+
+    advance_parser = subparsers.add_parser("advance-stage", help="Advance current_stage")
+    advance_parser.add_argument("meta_path", help="Path to meta.yml")
+    advance_parser.add_argument("--from-stage", required=True, choices=CANONICAL_STAGE_ORDER)
+    advance_parser.add_argument("--to-stage", required=True, choices=CANONICAL_STAGE_ORDER)
+    advance_parser.add_argument("--completed-status", default="completed", help="Status to set on from-stage")
 
     return parser
 
@@ -812,6 +989,7 @@ def main(argv: list[str]) -> int:
             pipeline_mode=args.pipeline_mode,
             project_context=args.project_context,
             project_scope=args.project_scope,
+            scenario=args.scenario,
         )
         print(meta_path)
         return 0
@@ -829,6 +1007,33 @@ def main(argv: list[str]) -> int:
             stack_tags=args.stack_tag,
             domains=args.domain,
             files=args.file,
+        )
+        print(json.dumps(payload, ensure_ascii=True, indent=2))
+        return 0
+
+    if args.command == "record-skip":
+        payload = record_skip(
+            meta_path=Path(args.meta_path),
+            from_stage=args.from_stage,
+            to_stage=args.to_stage,
+            gate_type=args.gate_type,
+            reason=args.reason,
+            user_sign_off=args.user_sign_off,
+        )
+        print(json.dumps(payload, ensure_ascii=True, indent=2))
+        return 0
+
+    if args.command == "set-lifecycle":
+        payload = set_lifecycle_status(Path(args.meta_path), args.status)
+        print(json.dumps(payload, ensure_ascii=True, indent=2))
+        return 0
+
+    if args.command == "advance-stage":
+        payload = advance_stage(
+            meta_path=Path(args.meta_path),
+            from_stage=args.from_stage,
+            to_stage=args.to_stage,
+            completed_status=args.completed_status,
         )
         print(json.dumps(payload, ensure_ascii=True, indent=2))
         return 0

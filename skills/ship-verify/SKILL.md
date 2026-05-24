@@ -15,6 +15,7 @@ description: "ShipKit stage. Runs frontend and backend tests to verify implement
 - 契约测试验证前后端对 api-contract.md 的实现一致性
 - 输出可审计的测试结果，创建或更新 `verification.md` 的测试章节
 - 自动化验证通过后，将 `verification.md.stage_status` 置为 `ready`，交由 `ship-handoff` 完成最终验收
+- `verification.md` 的测试章节是本阶段事实源，不把 `plan.md` 当作唯一输入
 
 产物：测试代码 + 测试报告 + `verification.md`（测试章节）
 
@@ -78,6 +79,24 @@ description: "ShipKit stage. Runs frontend and backend tests to verify implement
 - `verification.md` 仍由主上下文统一更新
 - 只有主上下文可以决定 `verification.md.stage_status = ready | draft`
 - 子代理只返回测试结果与失败归类，不直接编辑 `verification.md` 正文或 frontmatter
+
+## Scope Adaptation
+
+本阶段根据 `project_scope` 裁剪测试轨道：
+
+| project_scope | 需要执行的轨道 | 说明 |
+|---------------|---------------|------|
+| `fullstack` | backend unit / backend integration / backend contract / frontend component / frontend E2E | 完整执行所有轨道 |
+| `backend_only` | backend unit / backend integration / backend contract | 跳过前端轨道 |
+| `frontend_only` | frontend component / frontend E2E | 跳过后端轨道 |
+
+适配规则：
+
+- `backend_only`：`verification.md` 只记录后端轨道结果，`frontend-*` 轨道标记为 `na`
+- `frontend_only`：`verification.md` 只记录前端轨道结果，`backend-*` 轨道标记为 `na`
+- `fullstack`：所有轨道都必须在 `verification.md` 中有对应结果
+- 无论哪种 scope，`verification.md` 的测试章节都必须保留完整的命令、结果和失败分类
+- 文档/配置类变更仍必须写入测试命令和人工验证记录，不因为 scope 缩小而省略证据
 
 ## Backend Testing (单元/集成/契约)
 
@@ -195,7 +214,7 @@ E2E 路径选择原则：
 │              测试执行流程                          │
 ├──────────────────────────────────────────────────┤
 │                                                  │
-│  1. 读取 plan.md，识别已 DONE 的任务              │
+│  1. 读取当前事实源，识别已 DONE 的任务            │
 │         │                                        │
 │         ▼                                        │
 │  2. 检查每个 DONE 任务的测试是否已编写            │

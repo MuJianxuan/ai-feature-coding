@@ -9,7 +9,7 @@ _templates/
 ├── meta/
 │   └── meta.yml.template          # feature 级索引模板（恢复 / 汇总 / 路由）
 ├── review/
-│   └── review.md.template         # 硬门禁评审记录模板（02/08/11 阶段共用）
+│   └── review.md.template         # 硬门禁评审记录模板（define/design/plan 三个 hard gate 共用）
 ├── protocol/
 │   └── workflow-protocol.md       # 共享协议单源（阶段 id / 门禁 / 状态机）
 └── README.md                      # 当前说明文档
@@ -26,7 +26,7 @@ _templates/
 `meta.yml` 同时维护两层视图：
 
 - `current_stage`：内部 canonical stage id，用于恢复和精确路由
-- `macro_stage`：默认对外展示的 4 大阶段摘要，用于状态列表和执行摘要
+- `macro_stage`：默认对外展示的 5 大阶段摘要（Discover 可选），用于状态列表和执行摘要
 - `delegation`：子代理偏好、节点级覆盖与 delegation warning，用于决定“当前上下文 vs 子代理策略”
 - `spec_context`：`ship-spec` 的摘要索引，用于恢复时快速知道最近一次规范解析结果、已引用规范和待沉淀 proposal
 

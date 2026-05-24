@@ -6,6 +6,7 @@ feature_name: ""              # 例: "用户 TODO 管理"
 feature_id: ""                # 例: "feature-20260522-todo-app"
 created_at: ""                # ISO8601 时间戳
 updated_at: ""                # ISO8601 时间戳，每次更新文档同步刷新
+lifecycle_status: active      # active | blocked | completed | abandoned（feature 级状态，不是 stage status）
 
 # 当前所处阶段（必须使用 canonical stage id）
 current_stage: ""             # ship-discover | ship-shape | ship-define | ship-define-review | ship-tech-discovery | ship-contract | ship-frontend-design | ship-backend-design | ship-design-review | ship-delivery-plan | ship-plan-review | ship-build | ship-verify | ship-handoff
@@ -35,6 +36,16 @@ project_context_evidence: ""  # 一句话证据，例: "已有 package.json 且 
 # 项目范围（决定哪些阶段被跳过）
 project_scope: fullstack          # fullstack | backend_only | frontend_only
 project_scope_evidence: ""        # 例: "用户声明纯后端 API 项目" 或 "tech_stack.frontend 为空"
+
+# 用户确认的跳过/强制推进记录
+skip_log: []
+# 示例:
+# - at: "2026-05-24T20:00:00+08:00"
+#   from_stage: ship-discover
+#   to_stage: ship-define
+#   gate_type: soft
+#   reason: "用户明确跳过 Discover"
+#   user_sign_off: "确认跳过探索，直接进入需求定义"
 
 # 子代理委派偏好（由 orchestrator 维护；正式状态推进仍由主上下文统一收口）
 delegation:
@@ -126,14 +137,14 @@ stages:
 # AC ID 索引（所有 AC 的快速查找表，避免重复扫 requirements.md）
 ac_index: []
 # 示例:
-# - id: AC-001
-#   domain: TODO
+# - id: AC-TODO-001
+#   domain: D-TODO-001
 #   summary: "用户能创建一条 TODO"
 
 # Domain ID 索引（业务域快速查找表）
 domain_index: []
 # 示例:
-# - id: TODO
+# - id: D-TODO-001
 #   name: "TODO 管理"
 #   description: "TODO 的增删改查"
 

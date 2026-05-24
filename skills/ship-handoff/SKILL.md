@@ -14,6 +14,7 @@ description: "ShipKit stage. Consumes verification.md from ship-verify, complete
 - 残余风险显式登记：FAIL / BLOCKED 项不能藏起来
 - 交付边界清晰：变更范围、部署事项、后续建议形成可移交文档
 - 规范沉淀闭环：汇总本次引用过的规范，并以 Proposal-First 方式记录新增规范建议
+- `verification.md` 是本阶段的事实源，`complete` 代表交付关闭，不代表所有 AC 必须 PASS
 
 产物：
 - `verification.md` —— 共享验收证据文件；本阶段补齐 AC 映射、手工验证、残余风险与最终结论
@@ -39,6 +40,7 @@ description: "ShipKit stage. Consumes verification.md from ship-verify, complete
 2. **证据不空**：每条 AC 必须至少绑定一项可追溯证据（测试 ID、命令输出、截图、代码引用）
 3. **结果分级**：PASS / FAIL / BLOCKED / N/A 四态显式标注，禁止灰色"基本可用"
 4. **N/A 必须解释**：出现 N/A 时必须写明原因（例如 AC 涉及尚未上线的依赖）
+5. **风险可签字关闭**：FAIL / BLOCKED AC 只要已与用户对齐并明确接受风险，仍可在 handoff 中关闭交付
 
 ### AC ID 引用规则
 
@@ -121,7 +123,7 @@ description: "ShipKit stage. Consumes verification.md from ship-verify, complete
 
 **Step 8-9: 自检与状态设定**
 - 完成 Verification Checklist
-- `stage_status: complete` 仅当 Checklist 全部通过
+- `stage_status: complete` 仅当 AC 全部有结果、FAIL/BLOCKED 已登记并与用户对齐、风险接受结论明确
 - 否则维持 `draft`，列出待补项
 
 ## Delegation Boundary
@@ -144,6 +146,22 @@ description: "ShipKit stage. Consumes verification.md from ship-verify, complete
 - 直接把 `verification.md.stage_status` 置为 `complete`
 - 替用户做 close / follow-up / proposal 取舍
 - 不直接编辑 `handoff.md` / `verification.md` 正文或 frontmatter
+
+## Scope Adaptation
+
+本阶段根据 `project_scope` 调整验收聚焦点：
+
+| project_scope | 重点 | 说明 |
+|---------------|------|------|
+| `fullstack` | 全量 AC 映射 + 全量风险登记 | 前后端都必须有证据 |
+| `backend_only` | 后端 AC 与部署事项 | 前端 AC 标记为 `na` |
+| `frontend_only` | 前端 AC 与部署事项 | 后端 AC 标记为 `na` |
+
+适配规则：
+
+- 不存在对应范围的 AC，必须在 `verification.md` 中标 `N/A` 并解释
+- 不因为 scope 变小就省略 `handoff.md` 的变更范围、部署事项、后续建议章节
+- 若存在 FAIL / BLOCKED，但用户已明确接受风险，仍可推进到 `complete`
 
 ## Verification Evidence Standards
 
