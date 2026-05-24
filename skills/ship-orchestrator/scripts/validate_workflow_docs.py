@@ -140,8 +140,8 @@ def validate_stage_reference_templates() -> None:
 
 def validate_stage_delegation_boundaries() -> None:
     stage_skill_paths = [
-        ROOT / "skills/ship-intake/SKILL.md",
-        ROOT / "skills/ship-intake-review/SKILL.md",
+        ROOT / "skills/ship-define/SKILL.md",
+        ROOT / "skills/ship-define-review/SKILL.md",
         ROOT / "skills/ship-tech-discovery/SKILL.md",
         ROOT / "skills/ship-contract/SKILL.md",
         ROOT / "skills/ship-frontend-design/SKILL.md",
@@ -166,7 +166,7 @@ def validate_stage_delegation_boundaries() -> None:
         require(snippet in text, f"{path}: missing `{snippet}`")
 
     assistive_only_expectations = {
-        ROOT / "skills/ship-intake/SKILL.md": "不直接编辑 `requirements.md` 正文或 frontmatter",
+        ROOT / "skills/ship-define/SKILL.md": "不直接编辑 `requirements.md` 正文或 frontmatter",
         ROOT / "skills/ship-tech-discovery/SKILL.md": "不直接编辑 `tech-research.md` / `tech-selection.md` 正文或 frontmatter",
         ROOT / "skills/ship-build/SKILL.md": "不直接编辑正式 plan / 代码任务记录的 canonical 状态或正文",
         ROOT / "skills/ship-verify/SKILL.md": "不直接编辑 `verification.md` 正文或 frontmatter",
@@ -197,7 +197,7 @@ def validate_stage_delegation_boundaries() -> None:
         require(node_id in handoff_text, f"ship-handoff/SKILL.md: missing runtime node_id `{node_id}`")
 
     gate_skill_paths = [
-        ROOT / "skills/ship-intake-review/SKILL.md",
+        ROOT / "skills/ship-define-review/SKILL.md",
         ROOT / "skills/ship-design-review/SKILL.md",
         ROOT / "skills/ship-plan-review/SKILL.md",
     ]
@@ -273,11 +273,11 @@ def validate_ship_spec_doc() -> None:
 
 
 def validate_stage_map_script() -> None:
-    require(len(CANONICAL_STAGE_ORDER) == 12, "stage map: expected 12 canonical stages")
+    require(len(CANONICAL_STAGE_ORDER) == 14, "stage map: expected 14 canonical stages (incl. ship-discover / ship-shape)")
     for stage in CANONICAL_STAGE_ORDER:
         macro = macro_stage_for(stage)
-        require(macro.current in {"define", "design", "build", "close"}, f"invalid macro current for {stage}")
-        require(macro.label in {"Define", "Design", "Build", "Close"}, f"invalid macro label for {stage}")
+        require(macro.current in {"discover", "define", "design", "build", "close"}, f"invalid macro current for {stage}")
+        require(macro.label in {"Discover", "Define", "Design", "Build", "Close"}, f"invalid macro label for {stage}")
 
 
 def validate_root_readme_commands() -> None:

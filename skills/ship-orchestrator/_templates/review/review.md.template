@@ -1,5 +1,5 @@
 ---
-stage: <ship-intake-review | ship-design-review | ship-plan-review>
+stage: <ship-define-review | ship-design-review | ship-plan-review>
 gate_type: hard
 review_status: pending          # pending | approved | rejected | revision_needed；子代理起草正式草案时必须保持 pending
 reviewer: ""                    # 评审执行者；当前上下文或子代理身份

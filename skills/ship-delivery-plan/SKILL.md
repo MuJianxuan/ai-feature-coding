@@ -93,6 +93,29 @@ task_count: 0
 - `sync` 子段是本阶段的核心收敛动作，必须由主上下文统一完成
 - 只有主上下文可以写回 task_count、`stage_status` 和阶段摘要
 
+## Scope Adaptation
+
+本阶段根据 `project_scope` 调整产物和子段序列：
+
+| project_scope | 产物 | 子段序列 | current_part 值域 |
+|---------------|------|---------|------------------|
+| `fullstack` | frontend-plan.md + backend-plan.md | frontend → backend → sync | frontend / backend / sync |
+| `backend_only` | backend-plan.md | backend | backend |
+| `frontend_only` | frontend-plan.md | frontend | frontend |
+
+退出条件调整：
+
+- `fullstack`：两份 plan 均 ready + sync 完成
+- `backend_only`：`backend-plan.md` ready（无 sync 需求）
+- `frontend_only`：`frontend-plan.md` ready（无 sync 需求）
+
+单侧模式下：
+
+- 不产出缺失侧的 plan 文件
+- 不执行 sync 子段（无双侧对齐需求）
+- `meta.yml` 中缺失侧的 task_count 保持 0
+- Delegation 仍为 `forbidden`（单侧计划仍由主上下文统一完成）
+
 ## Part 1: Frontend
 
 frontend 子段遵循前端计划规则：

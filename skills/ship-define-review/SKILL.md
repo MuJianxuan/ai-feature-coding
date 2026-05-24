@@ -1,6 +1,6 @@
 ---
-name: ship-intake-review
-description: "ShipKit hard gate. Reviews requirements for completeness and correctness. Produces review-requirement.md. Use after ship-intake completes."
+name: ship-define-review
+description: "ShipKit hard gate. Reviews requirements for completeness and correctness. Produces review-define.md. Use after ship-define completes."
 ---
 
 # 需求评审 (Requirement Review)
@@ -13,20 +13,20 @@ description: "ShipKit hard gate. Reviews requirements for completeness and corre
 - 逐条检查需求的完整性、一致性、可验证性
 - 发现并分级问题（Critical / Major / Minor）
 - 确保所有 Critical 问题在通过前修复
-- 产出 `review-requirement.md` 作为硬门禁产物
+- 产出 `review-define.md` 作为硬门禁产物
 - 用户必须明确批准才能放行
 
 **硬门禁含义**：此阶段不可跳过、不可自动通过。必须有用户明确的"通过/批准/approved"才能标记为 approved，进入下一阶段。
 
 ## When to Use
 
-- `requirements.md` 的 `stage_status` 为 `ready`，需求录入已完成
+- `requirements.md` 的 `stage_status` 为 `ready`，需求定义已完成
 - 需求变更后需要重新评审
 - 从 revision_needed 状态修改后重新提交评审
 
 ## When NOT to Use
 
-- `requirements.md` 尚未完成（`stage_status: draft`）—— 先完成需求录入
+- `requirements.md` 尚未完成（`stage_status: draft`）—— 先完成需求定义
 - 已通过评审且无变更 —— 直接进入下一阶段
 - 纯技术调研阶段的问题 —— 使用 tech-research 流程
 
@@ -50,7 +50,7 @@ description: "ShipKit hard gate. Reviews requirements for completeness and corre
 │    用户说"通过" → approved   │         │                    │
 │    用户说"不通过" → rejected │         │                    │
 │                              ▼         ▼                    │
-│                    返回 ship-intake 修改            │
+│                    返回 ship-define 修改            │
 │                    修改完成后重新进入本阶段评审                  │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -78,12 +78,12 @@ description: "ShipKit hard gate. Reviews requirements for completeness and corre
 
 本阶段的质量门禁检查执行者由 orchestrator 基于 delegation 配置决定：
 
-- `current_context`：主代理直接执行需求评审并写 `review-requirement.md`
-- `gate_check_subagent`：子代理执行需求评审并直接写正式 `review-requirement.md` 草案
+- `current_context`：主代理直接执行需求评审并写 `review-define.md`
+- `gate_check_subagent`：子代理执行需求评审并直接写正式 `review-define.md` 草案
 
 配置解释：
 
-- `node_overrides[ship-intake-review]` 优先于 `delegation.default_mode`
+- `node_overrides[ship-define-review]` 优先于 `delegation.default_mode`
 - `assistive_subagent` 在本阶段解释为 `gate_check_subagent`
 - `parallel_subagent` 在本阶段无效；记录 warning 后回退到 `default_mode`，仍无法解析则回退 `current_context`
 
@@ -141,6 +141,15 @@ description: "ShipKit hard gate. Reviews requirements for completeness and corre
 
 ## Process (评审流程)
 
+### 模式判定
+
+评审开始前，检查 `requirements.md` 的 `generation_mode` 字段：
+
+- `generation_mode: prd_direct` → 执行 **PRD Direct 评审流程**（含 PRD 源文件质量审核 + 提取准确性审核 + 标准 Checklist）
+- 其他（无此字段或 `interview`）→ 执行标准评审流程
+
+### 标准评审流程
+
 ```
 1. 读取 requirements.md，确认 stage_status 为 ready
    verify: 文件存在且 frontmatter 完整
@@ -150,12 +159,73 @@ description: "ShipKit hard gate. Reviews requirements for completeness and corre
    verify: 每个问题有分级和修改建议
 4. 汇总评审结果，撰写评审摘要
    verify: 摘要准确反映整体质量
-5. 写入 review-requirement.md
+5. 写入 review-define.md
    verify: frontmatter 和所有章节完整
 6. 向用户呈现评审结果，等待用户决定
    verify: 用户给出明确的通过/不通过/需修改
 7. 根据用户决定更新 review_status
    verify: 状态与用户决定一致
+```
+
+### PRD Direct 评审流程
+
+当 `generation_mode: prd_direct` 时，评审分三个阶段执行：
+
+```
+Phase 1: PRD 源文件质量审核
+  ↓
+Phase 2: 提取准确性审核
+  ↓
+Phase 3: 标准 Checklist（8 项）
+  ↓
+汇总 → 呈现 → 用户确认
+```
+
+#### Phase 1: PRD 源文件质量审核
+
+读取 `source_documents` 中列出的所有源文件，逐项检查：
+
+| # | 检查项 | 通过标准 | 不通过标准 |
+|---|--------|----------|-----------|
+| P1-1 | 材料齐全性 | PRD + 原型/设计稿均存在且可读 | 缺少关键文件（如有原型但无 PRD） |
+| P1-2 | 功能覆盖完整性 | PRD 覆盖了原型中所有可见页面/功能 | 原型中有页面但 PRD 未提及 |
+| P1-3 | 内容无歧义 | 同一功能在 PRD 和原型中描述一致 | PRD 文字与原型交互存在矛盾 |
+| P1-4 | 非功能需求可执行 | 有量化指标或明确的技术约束 | 仅有"要快"/"要安全"等模糊表述 |
+| P1-5 | 角色/权限明确 | 角色定义清晰，权限边界可判定 | 角色描述模糊或权限未覆盖关键操作 |
+
+Phase 1 发现的问题归入 Critical 或 Major（视影响范围）。
+
+#### Phase 2: 提取准确性审核
+
+对照 PRD 源文件，检查 requirements.md 中的提取结果：
+
+| # | 检查项 | 通过标准 | 不通过标准 |
+|---|--------|----------|-----------|
+| P2-1 | Domain ID 映射准确 | 每个 Domain ID 对应 PRD 中一个明确的功能模块 | Domain ID 与 PRD 模块不对应或遗漏模块 |
+| P2-2 | AC 忠实反映需求 | AC 的 Given/When/Then 准确表达了 PRD 中的需求条目 | AC 曲解或遗漏了 PRD 中的关键需求 |
+| P2-3 | 引用位置正确 | 标注的"PRD §X.X"/"原型 page-N"与实际位置对应 | 引用位置错误或不存在 |
+| P2-4 | [GAP] 标记合理 | 标记的缺口确实在 PRD 中找不到对应信息 | 将 PRD 中已有的信息误标为 [GAP] |
+| P2-5 | 无遗漏提取 | PRD 中的所有功能需求都有对应的 Domain ID 和 AC | PRD 中有需求但 requirements.md 中未体现 |
+
+Phase 2 发现的问题归入 Major（提取错误）或 Minor（引用位置偏差）。
+
+#### Phase 3: 标准 Checklist
+
+执行与 interview 模式相同的 8 项 Checklist（见上方 Review Checklist 章节）。prd_direct 模式下的适配说明：
+
+- Checklist 第 8 项"需求资料与文档内容一致"：重点检查引用是否准确，而非内容是否完整复制
+- 若 requirements.md 中存在 `[GAP]` 标记，对应 Checklist 项按"已标注缺口"处理，不自动判定为不通过
+
+### PRD Direct 修订回路
+
+当 prd_direct 模式评审结果为 `revision_needed` 时：
+
+```
+1. 区分问题来源：
+   - PRD 源文件质量问题 → 用户需补充/修改 PRD 源文件，然后重新执行 ship-define（prd_direct 模式）
+   - 提取准确性问题 → 直接修改 requirements.md 或重新执行 ship-define（prd_direct 模式）
+2. 修改完成后重新进入 ship-define-review，执行完整评审流程
+3. 不可只检查"修改的部分"，必须全量重审
 ```
 
 ## Severity Classification (问题分级标准)
@@ -184,23 +254,24 @@ description: "ShipKit hard gate. Reviews requirements for completeness and corre
 - 术语使用不一致但含义明确
 - 资料索引不完整但核心资料已覆盖
 
-## Output: review-requirement.md (产物结构)
+## Output: review-define.md (产物结构)
 
 ### Frontmatter
 
 ```yaml
 ---
-stage: ship-intake-review
+stage: ship-define-review
 gate_type: hard
 review_status: pending  # pending / approved / rejected / revision_needed
 reviewer: ""  # 用户身份
 reviewed_at: ""
-reviewed_documents: ["requirements.md"]
+reviewed_documents: ["requirements.md"]  # prd_direct 模式下追加源文件: ["requirements.md", "resource/prd.docx", "resource/prototype.html"]
 revision_count: 0
 user_sign_off: ""
 signed_at: ""
 conditions: []
 requirement_version: ""  # 对应 requirements.md 的版本/更新时间
+generation_mode: ""  # 从 requirements.md 继承: interview | prd_direct
 ---
 ```
 
@@ -254,12 +325,24 @@ requirement_version: ""  # 对应 requirements.md 的版本/更新时间
 
 当 `review_status` 为 `revision_needed` 或 `rejected` 时：
 
+### Interview 模式（默认）
+
 ```
-1. 将问题清单传递给 ship-intake 阶段
+1. 将问题清单传递给 ship-define 阶段
 2. 在 requirements.md 中修复所有 Critical 问题（Major 视情况）
 3. 更新 requirements.md 的 updated_at 时间戳
-4. 重新进入 ship-intake-review，执行完整评审流程
+4. 重新进入 ship-define-review，执行完整评审流程
 5. 不可只检查"修改的部分"，必须全量重审
+```
+
+### PRD Direct 模式
+
+```
+1. 区分问题来源（见 PRD Direct 修订回路）
+2. PRD 质量问题 → 用户补充 PRD → 重新执行 ship-define（prd_direct 模式）
+3. 提取准确性问题 → 直接修改 requirements.md 或重新执行 ship-define（prd_direct 模式）
+4. 更新 requirements.md 的 updated_at 时间戳
+5. 重新进入 ship-define-review，执行完整评审流程
 ```
 
 ### 循环次数限制
@@ -298,10 +381,10 @@ requirement_version: ""  # 对应 requirements.md 的版本/更新时间
 - [ ] Review Checklist 8 项全部已检查（无跳过）
 - [ ] 每个不通过项有明确的问题分级（Critical/Major/Minor）
 - [ ] 每个问题有具体的修改建议
-- [ ] review-requirement.md 的 frontmatter 字段完整
+- [ ] review-define.md 的 frontmatter 字段完整
 - [ ] review_status 与用户明确表态一致
 - [ ] 如果 approved：无未解决的 Critical 问题
-- [ ] 如果 revision_needed：问题清单已明确传递给 `ship-intake`
+- [ ] 如果 revision_needed：问题清单已明确传递给 `ship-define`
 - [ ] 用户签字章节有用户原话记录
 ```
 

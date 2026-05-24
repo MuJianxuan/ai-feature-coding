@@ -18,13 +18,13 @@ description: "ShipKit hard gate. Reviews implementation plans for completeness a
 
 ## When to Use
 
-- `frontend-plan.md` 和 `backend-plan.md` 均已完成（stage_status: ready）
+- `project_scope` 对应的 plan 文档已完成（stage_status: ready）
 - 设计评审已通过（review-design.md 的 review_status: approved）
 - 准备进入实施阶段前的最后检查点
 
 ## When NOT to Use
 
-- 前端或后端计划尚未完成 —— 等待计划阶段完成
+- 计划文档尚未完成 —— 等待计划阶段完成
 - 设计评审未通过 —— 先完成 design-review
 - 仅调整单个任务的优先级 —— 直接修改 plan 文件
 - 需求或设计发生重大变更 —— 先更新设计文档并重新通过设计评审
@@ -68,6 +68,28 @@ revision_needed → pending  (修改完成，重新提交评审)
 - 主代理必须重新读取正式草案、复核检查结果并按需要修订
 - 只有主代理可以把 `review_status` 改成 `approved / rejected / revision_needed`
 - 子代理不可替用户做 `approved / rejected / revision_needed` 决策
+
+## Scope Adaptation
+
+本阶段根据 `project_scope` 调整评审范围：
+
+| project_scope | 评审文档 | 检查重点 |
+|---------------|---------|---------|
+| `fullstack` | frontend-plan.md + backend-plan.md | 双侧覆盖 + 依赖对齐 + checkpoint 一致 |
+| `backend_only` | backend-plan.md | 后端覆盖 + 依赖合理 + 粒度适中 |
+| `frontend_only` | frontend-plan.md | 前端覆盖 + 依赖合理 + 粒度适中 |
+
+入口条件调整：
+
+- `fullstack`：`frontend-plan.md` AND `backend-plan.md` 均 ready
+- `backend_only`：`backend-plan.md` ready
+- `frontend_only`：`frontend-plan.md` ready
+
+Review Checklist 调整：
+
+- 缺失侧的检查项标记为 `na`（不适用），不计入 pass/fail
+- 双侧对齐检查项（checkpoint 一致性、contract task 时间线对齐、循环依赖）在单侧模式下标记为 `na`
+- `reviewed_documents` 只列出实际评审的文档
 
 ## Review Checklist
 

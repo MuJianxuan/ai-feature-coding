@@ -38,7 +38,7 @@ _templates/
 
 ### review/review.md.template
 
-硬门禁阶段（ship-intake-review / ship-design-review / ship-plan-review）的产物模板。每次评审产生一份独立的 `review-<stage>.md` 文件，含：
+硬门禁阶段（ship-define-review / ship-design-review / ship-plan-review）的产物模板。每次评审产生一份独立的 `review-<stage>.md` 文件，含：
 
 - 评审 checklist 逐条打勾
 - 发现的问题（Critical / Major / Minor 三级）

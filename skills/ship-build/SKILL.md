@@ -26,7 +26,7 @@ description: "ShipKit stage. Executes coding tasks from the `ship-delivery-plan`
 ## When NOT to Use
 
 - plan 尚未通过评审 —— 回到 `ship-plan-review` 阶段
-- 发现需求有重大歧义 —— 回到 `ship-intake` 阶段
+- 发现需求有重大歧义 —— 回到 `ship-define` 阶段
 - 纯技术调研/方案验证 —— 使用 tech-research 阶段
 - 需要修改 API 契约 —— 回到 `ship-contract` 阶段
 

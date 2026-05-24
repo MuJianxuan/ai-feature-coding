@@ -1,6 +1,6 @@
 ---
 name: ship-tech-discovery
-description: "ShipKit stage. Combines source-driven research and stack decisions into one technical discovery stage. Use after ship-intake-review completes."
+description: "ShipKit stage. Combines source-driven research and stack decisions into one technical discovery stage. Use after ship-define-review completes."
 ---
 
 # 技术发现 (Tech Discovery)
@@ -19,13 +19,13 @@ description: "ShipKit stage. Combines source-driven research and stack decisions
 
 ## When to Use
 
-- `requirements.md` 已通过 `ship-intake-review` gate
+- `requirements.md` 已通过 `ship-define-review` gate
 - 需要确认最新技术信息并据此锁定技术栈
 - 项目即将进入 `ship-contract`
 
 ## When NOT to Use
 
-- `ship-intake-review` 尚未通过
+- `ship-define-review` 尚未通过
 - 技术栈已完全固定且本次无需重新验证
 - 仅是纯业务改动，无新技术引入、无架构决策
 

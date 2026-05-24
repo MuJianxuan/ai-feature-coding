@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Ship workflow stage mapping utilities.
 
-This module is the executable source of truth for the default 4-stage view.
+This module is the executable source of truth for the default 5-stage view
+(Discover is conditional and only appears in scenario A / C).
 It intentionally stays dependency-free so it can be used from validation
 scripts, runtime helpers, and shell commands without extra setup.
 """
@@ -27,8 +28,10 @@ class StageView:
 
 
 CANONICAL_STAGE_ORDER: tuple[str, ...] = (
-    "ship-intake",
-    "ship-intake-review",
+    "ship-discover",
+    "ship-shape",
+    "ship-define",
+    "ship-define-review",
     "ship-tech-discovery",
     "ship-contract",
     "ship-frontend-design",
@@ -41,13 +44,26 @@ CANONICAL_STAGE_ORDER: tuple[str, ...] = (
     "ship-handoff",
 )
 
+# Stages that are conditional (only active in scenario A/C)
+CONDITIONAL_STAGES: frozenset[str] = frozenset({"ship-discover", "ship-shape"})
+
 STAGE_VIEW_MAP: dict[str, StageView] = {
-    "ship-intake": StageView(
+    "ship-discover": StageView(
+        macro=MacroStage("discover", "Discover"),
+        summary="Exploring requirements through structured discovery — producing a product brief from a rough idea or change request.",
+        next_user_decision="Select an approach from the proposed alternatives and confirm the product brief.",
+    ),
+    "ship-shape": StageView(
+        macro=MacroStage("discover", "Discover"),
+        summary="Designing visual direction and producing HTML wireframe prototypes with multiple variants.",
+        next_user_decision="Choose a design direction from the presented variants.",
+    ),
+    "ship-define": StageView(
         macro=MacroStage("define", "Define"),
         summary="Requirements are being structured into a verifiable feature brief.",
         next_user_decision="Review the requirements outcome before design work starts.",
     ),
-    "ship-intake-review": StageView(
+    "ship-define-review": StageView(
         macro=MacroStage("define", "Define"),
         summary="Requirements are ready and waiting for the first hard-gate review.",
         next_user_decision="Approve or reject the requirement review result.",

@@ -17,7 +17,7 @@ description: "ShipKit hard gate. Reviews technical design for consistency across
 
 ## When to Use
 
-- `frontend-design.md` 和 `backend-design.md` 均已完成（stage_status: ready）
+- `project_scope` 对应的设计文档已完成（stage_status: ready）
 - `api-contract.md` 已定稿
 - 准备进入实施计划阶段前的最后检查点
 
@@ -26,7 +26,7 @@ description: "ShipKit hard gate. Reviews technical design for consistency across
 - 前端或后端设计尚未完成 —— 等待设计阶段完成
 - 仅修改了一个接口的小变更 —— 使用轻量 diff review
 - 纯 UI 样式调整，不涉及接口变更 —— 无需本阶段
-- 需求尚未通过评审 —— 先完成 `ship-intake-review`
+- 需求尚未通过评审 —— 先完成 `ship-define-review`
 
 ## Gate Protocol
 
@@ -66,6 +66,28 @@ revision_needed → pending  (修改完成，重新提交评审)
 - 主代理必须重新读取正式草案、复核检查结果并按需要修订
 - 只有主代理可以把 `review_status` 改成 `approved / rejected / revision_needed`
 - 子代理不可替用户做 `approved / rejected / revision_needed` 决策
+
+## Scope Adaptation
+
+本阶段根据 `project_scope` 调整评审范围：
+
+| project_scope | 评审文档 | 交叉验证维度 |
+|---------------|---------|-------------|
+| `fullstack` | api-contract.md + frontend-design.md + backend-design.md | Contract↔Frontend, Contract↔Backend, Frontend↔Backend |
+| `backend_only` | api-contract.md + backend-design.md | Contract↔Backend only |
+| `frontend_only` | api-contract.md + frontend-design.md | Contract↔Frontend only |
+
+入口条件调整：
+
+- `fullstack`：`frontend-design.md` AND `backend-design.md` 均 `stage_status: ready`
+- `backend_only`：`backend-design.md` ready（`ship-frontend-design.status = skipped`）
+- `frontend_only`：`frontend-design.md` ready（`ship-backend-design.status = skipped`）
+
+Review Checklist 调整：
+
+- 缺失侧的检查项标记为 `na`（不适用），不计入 pass/fail
+- `reviewed_documents` 只列出实际评审的文档
+- 交叉验证从三方降为双方时，`Frontend ↔ Backend` 维度标记为 `na`
 
 ## Cross-Validation Protocol (三方交叉验证)
 

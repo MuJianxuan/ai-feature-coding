@@ -1,33 +1,45 @@
 # skills-new — 开发工作流技能套件
 
-> 一套从需求到交付的端到端开发工作流，把 PRD/原型/UI-UX 设计稿转化为可验证的可工作软件。对外默认只展示 4 个大阶段，内部仍保留严格的细阶段、门禁和产物。
+> 一套从需求到交付的端到端开发工作流，把 PRD/原型/UI-UX 设计稿转化为可验证的可工作软件。对外默认只展示 5 个大阶段（Discover 可选），内部仍保留严格的细阶段、门禁和产物。
 
 ## 默认视图
 
-日常使用时，只需要记住一个入口和四个阶段：
+日常使用时，只需要记住一个入口和五个阶段：
 
 - 入口：`ship-orchestrator`
-- 大阶段：`Define → Design → Build → Close`
+- 大阶段：`[Discover →] Define → Design → Build → Close`
 
-### 四阶段模型
+### 五阶段模型（Discover 可选）
 
-| 大阶段 | 目标 | 用户默认会看到什么 |
-|--------|------|--------------------|
-| `Define` | 把需求整理成可验证输入，并完成首道确认 | 当前目标、需求是否已明确、下一次确认点 |
-| `Design` | 完成调研、选型、接口契约、前后端方案，并通过设计评审 | 方案是否成形、是否需要你批准设计 |
-| `Build` | 完成实施计划、编码执行、自动化验证 | 是否可以开始编码、当前进展、下一次确认点 |
-| `Close` | 完成 AC 映射验收与交付总结 | 是否已可交付、残余风险、handoff 结论 |
+| 大阶段 | 目标 | 用户默认会看到什么 | 条件 |
+|--------|------|--------------------|------|
+| `Discover` | 把模糊想法或变更请求转化为结构化产品简报和 UIUX 原型 | 方案对比、设计方向选择、HTML 原型预览 | 仅场景 A/C 激活 |
+| `Define` | 把需求整理成可验证输入，并完成首道确认 | 当前目标、需求是否已明确、下一次确认点 | 始终 |
+| `Design` | 完成调研、选型、接口契约、前后端方案，并通过设计评审 | 方案是否成形、是否需要你批准设计 | 始终 |
+| `Build` | 完成实施计划、编码执行、自动化验证 | 是否可以开始编码、当前进展、下一次确认点 | 始终 |
+| `Close` | 完成 AC 映射验收与交付总结 | 是否已可交付、残余风险、handoff 结论 | 始终 |
+
+### 四种入口场景
+
+| 场景 | 描述 | 起点 | Discover |
+|------|------|------|----------|
+| A 零到一 | 只有一句话想法，无 PRD/原型/设计稿 | `ship-discover` (greenfield) | 激活 |
+| B 产品提供 | 已有完整 PRD/Figma/原型/UIUX | `ship-define` (interview mode) | 跳过 |
+| C 迭代增强 | 基于已有功能做修改/扩展，有旧代码但无新 PRD | `ship-discover` (evolve) | 激活 |
+| D PRD 直通 | 已有完整 PRD + 原型 + 设计稿，用户明确不需要需求录入 | `ship-define` (prd_direct mode) | 跳过 |
 
 默认原则：
 
 - 用户默认只和 `ship-orchestrator` 交互
-- 状态默认显示大阶段，不要求记住 12 个内部阶段名
+- orchestrator 自动识别场景（A/B/C）并路由到正确的起点
+- 状态默认显示大阶段，不要求记住内部阶段名
 - 只有在恢复断点、排查阻塞、直接调用某阶段时，才展开内部细阶段
 - `ship-spec` 作为 workflow utility 隐式接入，不作为单独阶段暴露给默认用户视图
 
 ## 为什么这样设计
 
-- **外部简单**：首屏只暴露 4 个阶段，降低学习成本
+- **外部简单**：首屏只暴露 5 个阶段（Discover 可选），降低学习成本
+- **场景自适应**：orchestrator 自动识别入口场景，无需用户手动选择流程
 - **内部严格**：三道硬门禁、Contract-First、前后端分离、测试与验收都保留
 - **恢复精确**：`meta.yml.current_stage` 仍然使用 canonical stage id，便于断点恢复和诊断
 - **展示收敛**：对外使用 `macro_stage` 摘要，不把所有细阶段名直接压给用户
@@ -36,17 +48,59 @@
 
 ### 新建 feature
 
+#### 场景 A：零到一（只有想法）
+
+```text
+启动 ship-orchestrator，我想做一个"<功能名>"：<一句话想法>
+```
+
+默认响应：
+- 识别为场景 A，起点 `ship-discover`（greenfield）
+- 当前处于 `Discover`
+- 系统将通过结构化提问探索需求，产出 product-brief.md
+- 若涉及 UI 且无设计稿，会进入 `ship-shape` 产出 HTML 原型
+- 下一次需要你的动作：确认产品方向和设计方向
+
+#### 场景 B：产品提供完整材料
+
 ```text
 启动 ship-orchestrator，为"<功能名>"开启完整工作流：<需求描述>
 
 附件资料：resource/<file>.md / Figma 链接 / ...
 ```
 
-默认响应应类似：
-
+默认响应：
+- 识别为场景 B，起点 `ship-define`（interview mode），跳过 Discover
 - 当前处于 `Define`
 - 系统正在整理需求并准备首道确认
 - 下一次需要你的动作：确认需求评审结论
+
+#### 场景 D：PRD 直通（不需要需求录入）
+
+```text
+启动 ship-orchestrator，为"<功能名>"开启完整工作流，PRD 已完整不需要需求录入：<需求描述>
+
+附件资料：resource/prd.docx / resource/prototype.html / ...
+```
+
+默认响应：
+- 识别为场景 D，起点 `ship-define`（prd_direct mode），跳过 Discover
+- 当前处于 `Define`
+- 系统正在从 PRD 和原型中提取结构化索引（零提问）
+- 产出的 requirements.md 为索引式（引用 PRD 来源位置，不复制原文）
+- 下一次需要你的动作：确认 PRD 质量 + 提取准确性评审结论
+
+#### 场景 C：迭代增强
+
+```text
+启动 ship-orchestrator，基于 .docs/feature-20260520-old-feature/ 的现有实现，<变更需求描述>
+```
+
+默认响应：
+- 识别为场景 C，起点 `ship-discover`（evolve）
+- 当前处于 `Discover`
+- 系统将扫描现有代码与文档，分析变更影响
+- 下一次需要你的动作：确认变更范围和影响分析
 
 ### 继续已有 feature
 
@@ -71,20 +125,21 @@
 
 ## 内部阶段映射
 
-对外是 4 阶段，内部仍然是 12 个 canonical stages：
+对外是 5 阶段（Discover 可选），内部是 14 个 canonical stages（前 2 个条件性）：
 
-| 大阶段 | 内部阶段 |
-|--------|----------|
-| `Define` | `ship-intake`, `ship-intake-review` |
-| `Design` | `ship-tech-discovery`, `ship-contract`, `ship-frontend-design`, `ship-backend-design`, `ship-design-review` |
-| `Build` | `ship-delivery-plan`, `ship-plan-review`, `ship-build`, `ship-verify` |
-| `Close` | `ship-handoff` |
+| 大阶段 | 内部阶段 | 条件 |
+|--------|----------|------|
+| `Discover` | `ship-discover`, `ship-shape` | 仅场景 A/C |
+| `Define` | `ship-define`, `ship-define-review` | 始终 |
+| `Design` | `ship-tech-discovery`, `ship-contract`, `ship-frontend-design`, `ship-backend-design`, `ship-design-review` | 始终 |
+| `Build` | `ship-delivery-plan`, `ship-plan-review`, `ship-build`, `ship-verify` | 始终 |
+| `Close` | `ship-handoff` | 始终 |
 
 说明：
 
 - 大阶段是展示层概念
 - 细阶段是协议层和路由层事实源
-- 三道硬门禁仍然存在：`ship-intake-review`、`ship-design-review`、`ship-plan-review`
+- 三道硬门禁仍然存在：`ship-define-review`、`ship-design-review`、`ship-plan-review`
 
 ## 核心设计原则
 
@@ -97,14 +152,14 @@
 ### 2. Progressive Disclosure
 
 - 首屏只讲一个入口和四个大阶段
-- 12 个细阶段只在高级模式或内部协议中展开
+- 14 个细阶段（前 2 个条件性）只在高级模式或内部协议中展开
 - 用户默认看到“当前目标”和“下一次需要决策的动作”，而不是一长串阶段名
 
 ### 3. 三道硬门禁
 
 | 门禁 | 所属大阶段 | 目的 |
 |------|------------|------|
-| `ship-intake-review` | `Define` | 确认需求清晰、AC 可验证、无歧义 |
+| `ship-define-review` | `Define` | 确认需求清晰、AC 可验证、无歧义 |
 | `ship-design-review` | `Design` | 交叉验证 contract ↔ frontend ↔ backend |
 | `ship-plan-review` | `Build` | 确认任务粒度合理、依赖正确、AC 全覆盖 |
 
@@ -131,8 +186,10 @@
 ```text
 .docs/feature-YYYYMMDD-<short-name>/
 ├── meta.yml
+├── product-brief.md           ← 仅场景 A/C（来自 ship-discover）
+├── design-brief.md            ← 仅场景 A/C 且涉及 UI（来自 ship-shape）
 ├── requirements.md
-├── review-requirement.md
+├── review-define.md
 ├── tech-research.md
 ├── tech-selection.md
 ├── api-contract.md
@@ -145,11 +202,19 @@
 ├── verification.md
 ├── handoff.md
 └── resource/
+    ├── wireframes/            ← 仅 ship-shape 激活时（HTML 原型 + 变体）
+    │   ├── index.html
+    │   ├── variant-conservative.html
+    │   ├── variant-neutral.html
+    │   └── variant-bold.html
+    ├── brand-spec.md          ← 仅走了 Core Asset Protocol 时
+    └── (其他原始资料：PRD / Figma 链接 / 截图 / ...)
 ```
 
 其中：
 
 - `current_stage` 记录内部细阶段
+- `scenario` 记录入口场景（greenfield / product_provided / evolve）
 - `macro_stage` 记录默认对外展示的大阶段摘要
 - `spec_context` 记录最近一次规范解析状态、已引用规范和待沉淀 proposal
 

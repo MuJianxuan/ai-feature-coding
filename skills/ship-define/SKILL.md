@@ -1,13 +1,13 @@
 ---
-name: ship-intake
-description: "ShipKit stage 1. Parses requirement materials (PRD, prototypes, UI/UX designs, Figma) into structured requirements. Use when starting a new feature or when requirement materials are provided."
+name: ship-define
+description: "ShipKit stage 1 (Define). Parses requirement materials (PRD, prototypes, UI/UX designs, Figma) into structured requirements. Use when starting a new feature or when requirement materials are provided."
 ---
 
-# 需求录入 (Requirement Intake)
+# 需求定义 (Requirement Define)
 
 ## Overview
 
-需求录入是开发工作流的第一个阶段，负责将用户提供的各类需求资料（PRD、原型图、UI/UX 设计稿、Figma 链接、墨刀链接、会议纪要等）解析为结构化的需求文档。
+需求定义是开发工作流的第一个阶段，负责将用户提供的各类需求资料（PRD、原型图、UI/UX 设计稿、Figma 链接、墨刀链接、会议纪要等）解析为结构化的需求文档。
 
 核心目标：
 - 消除需求模糊性，将"我大概想要..."转化为可验证的需求条目
@@ -33,6 +33,8 @@ description: "ShipKit stage 1. Parses requirement materials (PRD, prototypes, UI
 
 | 类型 | 格式 | 处理方式 |
 |------|------|----------|
+| product-brief.md | 来自 ship-discover | 直接采纳为业务背景、方案选择、范围、成功标准章节；跳过开放式探索 |
+| design-brief.md + resource/wireframes/ | 来自 ship-shape | 等同 Figma/原型输入；解析页面清单、用户流程、交互注释 |
 | PRD 文档 | .md / .docx / .pdf / .notion | 逐章节解析，提取功能点与验收标准 |
 | 原型图 | Figma / 墨刀 / Axure / 图片 | 逐页面解析交互流程与状态 |
 | UI/UX 设计稿 | Figma / Sketch / 图片 | 提取组件结构、交互规则、响应式断点 |
@@ -41,7 +43,42 @@ description: "ShipKit stage 1. Parses requirement materials (PRD, prototypes, UI
 | 竞品参考 | URL / 截图 | 标注"参考范围"与"差异点" |
 | 已有代码 | 仓库路径 | 分析现有实现，识别扩展点与约束 |
 
-## Process
+### 上游产物的短路逻辑
+
+当 feature 目录中存在 `product-brief.md` 或 `design-brief.md`（来自 ship-discover / ship-shape）时：
+
+- **直接采纳已结构化的部分**：问题陈述、方案选择、范围、成功标准、设计 token、页面清单等已在上游定稿，不再做开放式提问
+- **聚焦补全 define 特有的内容**：Domain ID 体系、AC（Given/When/Then）、非功能需求量化、约束的技术化展开
+- **保留上游 Open Questions**：将 product-brief 中未解决的非阻塞问题转化为 define 的"约束与假设"或新一轮提问的起点
+- **evolve 分支特殊处理**：若 product-brief.discovery_mode=evolve，将影响分析章节中的"受影响 AC"作为已有 AC 的修订基线，新增/修改/删除明确标注
+
+### 范围拆分规则
+
+`ship-define` 不应把多个独立项目硬塞进一份 `requirements.md`。在进入正式澄清前，先判断输入是否过大：
+
+- 若需求包含多个独立用户群、业务目标、数据模型、交付节奏或验收口径，必须先拆分 feature，或要求用户确认本次只定义其中一个子范围。
+- 若只是同一业务目标下的多个模块，可以保留在同一份 requirements.md，但必须通过 Domain ID 和 MoSCoW 标清模块边界。
+- 被拆出的内容写入 Out of Scope / Future Considerations，不得混入 Must 范围。
+
+## Execution Mode (执行模式)
+
+`ship-define` 支持两种执行模式，由 `meta.yml.scenario` 决定：
+
+| 模式 | 触发条件 | 行为 |
+|------|----------|------|
+| `interview`（默认） | scenario = greenfield / product_provided / evolve | 多轮采访 + 完整生成 requirements.md |
+| `prd_direct` | scenario = prd_direct；用户提供完整 PRD + 原型且明确表示不需要需求录入 | 零提问、纯提取、产出索引式 requirements.md |
+
+### 模式检测逻辑
+
+在 Process 开始前，检查 `meta.yml.scenario`：
+
+1. 若 `scenario: prd_direct` → 跳转到 [PRD Direct Mode](#prd-direct-mode) 执行
+2. 否则 → 走下方标准 interview 流程
+
+---
+
+## Process (Interview Mode)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -54,12 +91,12 @@ description: "ShipKit stage 1. Parses requirement materials (PRD, prototypes, UI
 │  3. 逐模块深度解析 ──→ 4. 识别信息缺口                    │
 │       │                    │                            │
 │       │              ┌─────┴─────┐                      │
-│       │              │ 缺口严重？  │                      │
+│       │              │ 阻塞缺口？  │                      │
 │       │              └─────┬─────┘                      │
 │       │               Y/  │  \N                         │
 │       │              ▼     │   ▼                        │
 │       │     5. 结构化提问  │  6. 标注假设                 │
-│       │         (≤3轮)    │                             │
+│       │   (按模块循环至阻塞缺口清零) │                   │
 │       │              │    │                             │
 │       │              ▼    ▼                             │
 │       └──────→ 7. 业务域建模 (Domain ID)                 │
@@ -84,14 +121,16 @@ description: "ShipKit stage 1. Parses requirement materials (PRD, prototypes, UI
 - 对图片/链接类资料进行可访问性验证
 
 **Step 3: 逐模块深度解析**
+- 若存在上游产物（product-brief.md / design-brief.md）：直接采纳已结构化的章节，跳过开放式探索；本步骤聚焦补全 define 特有的内容（Domain ID、AC、NFR 量化）
 - PRD：逐章节提取功能点，不能只看标题和摘要
-- 原型：逐页面分析交互流程、状态变化、异常路径
-- 设计稿：逐组件分析结构、交互规则、边界情况
+- 原型 / wireframes：逐页面分析交互流程、状态变化、异常路径
+- 设计稿 / design-brief.md：逐组件分析结构、交互规则、边界情况；design-brief 中的 Visual System token 作为前端设计约束传递给下游
 
 **Step 4-6: 信息缺口处理**
 - 识别缺失信息，区分"可合理假设"与"必须确认"
-- 严重缺口触发结构化提问（见下节）
-- 非严重缺口标注为假设，记入"约束与假设"章节
+- 阻塞性缺口触发结构化提问（见下节），按模块/流程循环，直到阻塞缺口清零
+- 非阻塞缺口可标注为假设，记入"约束与假设"章节，并说明依据、风险和影响范围
+- 不允许因为提问轮次、时间压力或问题较多而跳过核心需求澄清
 
 **Step 7: 业务域建模**
 - 为每个业务实体/模块分配 Domain ID
@@ -106,26 +145,57 @@ description: "ShipKit stage 1. Parses requirement materials (PRD, prototypes, UI
 
 ### 规则
 
-1. **最多 3 轮提问**，每轮 3-5 个问题
-2. **问题必须具体**，不能问"你还有什么要补充的吗？"
-3. **每个问题附带默认建议**，降低用户决策负担
-4. **按优先级排序**，最关键的问题排最前
+1. **完整性优先，不设固定轮次上限**：持续澄清，直到所有阻塞性需求缺口清零；不能用轮次限制替代需求完整性。
+2. **按模块/流程分批提问**：每轮聚焦一个业务模块、用户流程或风险主题，把该模块问完整；不要把多个无关模块混在一轮里。
+3. **复杂决策给出 2-3 个选项**：当业务规则、范围裁剪、异常处理或优先级存在多种合理解释时，提出 2-3 个实质不同的选项，说明 trade-off，并给出推荐理由。
+4. **问题必须具体**，不能问"你还有什么要补充的吗？"；每个问题必须指向明确的功能、规则、角色、状态、边界或验收结果。
+5. **每个问题附带默认建议**，降低用户决策负担；默认建议必须说明依据，不能替用户决定核心业务规则。
+6. **按风险优先级排序**：阻塞 `ready` 的问题优先，其次是会影响设计/开发拆分的问题，最后是可记录为低风险假设的问题。
+7. **每轮结束后更新缺口状态**：把已确认答案写入需求理解，把剩余问题标注为阻塞/非阻塞，并说明对 `stage_status` 的影响。
+
+### 完整性退出条件
+
+只有同时满足以下条件，interview 模式才能停止澄清并允许 `stage_status: ready`：
+
+- 每一项 In Scope 功能都有明确的业务规则、参与角色、主路径、关键异常路径和可验证 AC。
+- 权限/角色、安全、数据一致性、范围边界、外部系统依赖等高风险问题没有未确认阻塞项。
+- Domain ID 能覆盖所有功能模块，且每个 Domain ID 至少能绑定 1 条可测试 AC。
+- 非功能需求至少覆盖性能、安全、可用性；缺少明确指标时，已记录默认值、依据和风险。
+- 待确认问题清单中不存在阻塞项；剩余非阻塞问题均已标注假设、影响范围和后续确认方式。
+
+禁止以下行为：
+
+- 因为已经提问若干轮就停止澄清。
+- 将核心业务逻辑、权限、安全、数据一致性、范围边界等阻塞问题降级为假设。
+- 在阻塞问题未解决时把 `requirements.md.stage_status` 标记为 `ready`。
 
 ### 提问模板
 
 ```markdown
-## 需求澄清 - 第 N 轮 (共 M 个问题)
+## 需求澄清 - 第 N 轮：[本轮聚焦模块/流程]
 
-基于已有资料，我已理解：[简述已确认内容]
+基于已有资料，我已确认：
+- [已确认的关键需求事实]
 
-以下问题需要确认：
+本轮目标：
+- [说明本轮要清零的模块/流程缺口]
 
 ### Q1: [具体问题]
 - 背景：[为什么需要确认这个]
-- 建议：[你的默认建议及理由]
+- 选项：
+  - A. [选项名]：[适用场景 / 代价]
+  - B. [选项名]：[适用场景 / 代价]
+  - C. [可选]：[适用场景 / 代价]
+- 建议：[推荐选项及理由；若是核心业务规则，要求用户明确确认]
 - 影响范围：[如果不确认会影响什么]
+- 阻塞级别：[阻塞 ready / 影响设计 / 可作为低风险假设]
 
 ### Q2: ...
+
+回答后我会更新：
+- requirements.md 中的章节：[章节名]
+- 待确认问题清单：[会清零/新增/降级哪些问题]
+- stage_status 影响：[是否仍保持 draft，或满足 ready 条件]
 ```
 
 ### 提问触发条件
@@ -133,10 +203,35 @@ description: "ShipKit stage 1. Parses requirement materials (PRD, prototypes, UI
 | 缺失信息类型 | 是否必须提问 | 说明 |
 |-------------|-------------|------|
 | 核心业务逻辑 | 是 | 无法合理假设 |
-| 边界条件/异常处理 | 视情况 | 可标注假设，后续验收确认 |
-| UI 细节 | 否 | 可参考设计稿或行业惯例 |
-| 性能指标 | 视情况 | 无明确要求时标注行业默认值 |
+| 范围边界 | 是 | In Scope / Out of Scope 不清会导致需求蔓延 |
 | 权限/角色 | 是 | 安全相关，必须明确 |
+| 安全/合规 | 是 | 涉及数据、认证、授权、审计时不可假设 |
+| 数据一致性/状态流转 | 是 | 影响业务正确性和测试设计 |
+| 外部系统依赖 | 是 | 缺少接口/责任边界会阻塞设计 |
+| 验收标准缺失 | 是 | 无法验证则不能进入 ready |
+| 边界条件/异常处理 | 视情况 | 核心流程相关异常必须提问；低风险 UI/文案异常可标注假设 |
+| UI 细节 | 否 | 可参考设计稿或行业惯例，但影响主流程时必须提问 |
+| 性能指标 | 视情况 | 有业务承诺或高并发风险时必须提问；否则可标注默认值、依据和风险 |
+
+## Scope Control (YAGNI)
+
+- 未被用户明确要求、且没有业务目标或成功指标支撑的功能，不得写入 Must。
+- "以后可能需要"、"顺手做一下"、"看起来会有用"默认进入 Out of Scope / Future Considerations。
+- 若某个扩展功能会显著影响数据模型、接口、权限或交付节奏，必须单独确认是否纳入本次范围；未确认前保持 draft 或移出本次范围。
+- requirements.md 中的 Must 项必须能追溯到用户目标、输入材料或明确确认记录。
+
+## Incremental Confirmation (大型需求分段确认)
+
+当需求规模较大、涉及多个模块、或存在多个高风险业务规则时，不要等整份 requirements.md 写完才确认。按以下段落分批确认：
+
+1. **目标与范围**：业务目标、成功指标、In Scope / Out of Scope、MoSCoW。
+2. **核心流程与业务规则**：用户路径、关键状态、权限、异常路径、数据一致性。
+3. **AC / NFR / 约束**：Given/When/Then、性能/安全/可用性、外部依赖、假设。
+
+分段确认规则：
+- 每段只确认已经有证据支撑或用户已回答的内容。
+- 某段仍有阻塞问题时，继续围绕该段澄清；不要带着阻塞问题进入后续段落。
+- 小型需求可以跳过显式分段确认，但仍必须执行完整性退出条件和自检。
 
 ## Delegation Boundary
 
@@ -164,7 +259,7 @@ description: "ShipKit stage 1. Parses requirement materials (PRD, prototypes, UI
 
 ```yaml
 ---
-stage: ship-intake
+stage: ship-define
 stage_status: draft  # draft → 待确认问题未清零; ready → 可进入下一阶段
 updated_at: "2026-05-22T00:00:00+08:00"
 evidence_complete: false  # 所有资料是否已收集完整
@@ -290,8 +385,23 @@ D-ORD-001 (订单创建)
 - [ ] 待确认问题清单中无阻塞项（或已标注为 draft 状态）
 - [ ] 非功能需求已覆盖（性能/安全/可用性至少各一条）
 - [ ] 需求资料索引完整，所有引用资料可访问
+- [ ] Must 范围内无未确认的扩展功能或"以后可能需要"功能
+- [ ] 大型需求已完成目标与范围、核心流程与业务规则、AC/NFR/约束的分段确认
+- [ ] requirements.md 已通过自检（完整性、一致性、清晰度、范围、YAGNI）
 - [ ] Frontmatter 字段已正确填写
 ```
+
+### Requirements Self-Review
+
+写完 requirements.md 后，必须先自检并修正，再决定 `stage_status`：
+
+| 检查项 | 不通过标准 | 处理方式 |
+|--------|------------|----------|
+| 完整性 | 存在 TODO/TBD/空章节，或核心章节只有占位描述 | 补全内容；无法补全则加入待确认问题并保持 draft |
+| 一致性 | 目标、范围、AC、NFR、假设之间互相矛盾 | 修正冲突；无法判断时提问 |
+| 清晰度 | 实现者可能把同一条需求解释成两个不同结果 | 改写为可验证规则或 AC |
+| 范围 | 一份 requirements.md 覆盖多个独立交付项目 | 拆分 feature 或收窄本次 In Scope |
+| YAGNI | Must 中混入未请求、无成功指标支撑的扩展功能 | 移入 Out of Scope / Future Considerations |
 
 ### stage_status 判定规则
 
@@ -300,3 +410,149 @@ D-ORD-001 (订单创建)
 | 存在阻塞性待确认问题 | `draft` |
 | 所有阻塞问题已解决，非阻塞问题已标注假设 | `ready` |
 | 资料未收集完整 | `draft` + `evidence_complete: false` |
+
+---
+
+## PRD Direct Mode
+
+当 `meta.yml.scenario: prd_direct` 时激活此模式。适用于用户已有公司提供的完整 PRD + 原型 + 设计稿，不需要多轮采访的场景。
+
+### 核心原则
+
+1. **引用不复制**：requirements.md 中每个条目标注来源位置（"见 PRD §3.2" / "见原型 page-3"），不搬运 PRD 原文段落
+2. **结构化补全**：PRD 中没有的结构（Domain ID 编号体系、AC 的 Given/When/Then 格式化）由本阶段补全
+3. **缺口标记**：PRD 缺失的关键信息标记为 `[GAP]`，不自行编造内容
+4. **零提问**：不向用户发起结构化提问轮次；所有信息从材料中提取
+5. **适应不固定格式**：不假设 PRD 有固定模板结构，通过语义理解定位对应内容
+
+### PRD Direct 流程
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              PRD Direct 提取流程                          │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  1. 接收并索引所有材料（PRD / 原型 / 设计稿）              │
+│       │                                                 │
+│       ▼                                                 │
+│  2. 通读材料，建立功能模块清单                             │
+│       │                                                 │
+│       ▼                                                 │
+│  3. 推导 Domain ID 体系（从功能模块结构映射）              │
+│       │                                                 │
+│       ▼                                                 │
+│  4. 提取并格式化各章节（引用模式）                         │
+│       │                                                 │
+│       ▼                                                 │
+│  5. 标记缺口 [GAP]                                      │
+│       │                                                 │
+│       ▼                                                 │
+│  6. 产出 requirements.md + 自检                          │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 步骤详解
+
+**Step 1: 接收并索引材料**
+- 确认 `resource/` 目录下所有文件
+- 建立材料清单：PRD 文件路径、原型文件路径、设计稿路径
+- 验证文件可读性
+
+**Step 2: 通读材料，建立功能模块清单**
+- 通读 PRD 全文（逐章节，非仅标题）
+- 浏览原型所有页面
+- 列出功能模块清单，标注各模块在 PRD 中的章节位置
+
+**Step 3: 推导 Domain ID 体系**
+- 从功能模块清单推导 Domain ID（格式同 interview 模式：`D-{MODULE}-{NNN}`）
+- 标注每个 Domain ID 对应的 PRD 章节/原型页面
+
+**Step 4: 提取并格式化各章节**
+
+对 requirements.md 的每个核心章节，采用"引用 + 结构化"方式：
+
+| 章节 | 提取逻辑 |
+|------|----------|
+| 需求背景与目标 | 引用 PRD 背景章节位置，提取量化的成功指标 |
+| 用户故事/用户路径 | 从原型页面流程提取，转写为 User Story 格式，标注来源页面 |
+| 功能范围 | 引用 PRD 范围章节，整理为 In/Out of Scope + MoSCoW |
+| 业务域建模 | Step 3 产出的 Domain ID 体系 |
+| 验收标准 | 从 PRD 需求条目转写为 Given/When/Then，绑定 Domain ID，标注原文出处 |
+| 非功能需求 | 从 PRD 非功能章节提取，量化（若 PRD 未量化则标记 `[GAP]`） |
+| 约束与假设 | 引用 PRD 约束/依赖章节 |
+| 待确认问题 | 仅记录 `[GAP]` 项，标注影响和阻塞级别 |
+| 需求资料索引 | 列出所有源文件及其在 requirements.md 中被引用的位置 |
+
+**Step 5: 标记缺口**
+- 扫描所有章节，对 PRD 中确实缺失的关键信息标记 `[GAP]`
+- 每个 `[GAP]` 标注：缺失内容描述、影响范围、是否阻塞（阻塞 = 影响 stage_status）
+
+**Step 6: 产出与自检**
+- 执行 PRD Direct Verification Checklist（见下方）
+- 设置 frontmatter
+
+### PRD Direct Frontmatter
+
+```yaml
+---
+stage: ship-define
+stage_status: ready  # 若存在阻塞性 [GAP] 则为 draft
+generation_mode: prd_direct
+source_documents:
+  - path: "resource/prd.docx"
+    type: prd
+  - path: "resource/prototype.html"
+    type: prototype
+  - path: "resource/design.fig"
+    type: design
+extraction_gaps: []  # [GAP] 项汇总列表
+updated_at: ""
+evidence_complete: true
+---
+```
+
+### PRD Direct 产出格式示例
+
+```markdown
+#### 5. 验收标准
+
+| AC ID | Domain | 验收标准 | 来源 |
+|-------|--------|----------|------|
+| AC-AUTH-001 | D-AUTH-001 | Given 用户在登录页, When 输入正确凭证并提交, Then 跳转到首页且显示用户名 | PRD §4.1.2 |
+| AC-AUTH-002 | D-AUTH-001 | Given 用户在登录页, When 连续 5 次输入错误密码, Then 账户锁定 15 分钟 | PRD §4.1.3 |
+| AC-ORD-001 | D-ORD-001 | Given 用户已登录且购物车非空, When 点击"提交订单", Then 生成订单并跳转支付页 | 原型 page-7 |
+
+#### 6. 非功能需求
+
+| 类别 | 指标 | 来源 |
+|------|------|------|
+| 性能 | 页面首屏加载 < 2s (P95) | PRD §6.1 |
+| 性能 | API 响应 < 500ms (P95) | `[GAP]` PRD 未量化，建议补充 |
+| 安全 | 支持 OAuth 2.0 + JWT | PRD §6.2 |
+```
+
+### PRD Direct Verification Checklist
+
+```markdown
+## PRD Direct 退出检查
+
+- [ ] 所有源文件已通读（非仅标题级别）
+- [ ] Domain ID 列表完整，覆盖 PRD 中所有功能模块
+- [ ] 每个 Domain ID 至少有 1 条 AC，且标注了来源位置
+- [ ] AC 格式为 Given/When/Then，可直接转化为测试用例
+- [ ] 引用位置准确（章节号/页面号与源文件对应）
+- [ ] [GAP] 项已全部标记，阻塞性 GAP 影响 stage_status
+- [ ] 非功能需求已提取，未量化的标记 [GAP]
+- [ ] 用户路径覆盖主流程 + 关键异常流程
+- [ ] Frontmatter 字段已正确填写（generation_mode: prd_direct）
+- [ ] source_documents 列表与 resource/ 目录一致
+```
+
+### PRD Direct stage_status 判定规则
+
+| 条件 | status |
+|------|--------|
+| 存在阻塞性 `[GAP]`（核心业务逻辑缺失、安全需求未明确） | `draft` |
+| 无阻塞性 GAP，非阻塞 GAP 已标记 | `ready` |
+| 源文件不完整或不可读 | `draft` + `evidence_complete: false` |

@@ -59,6 +59,14 @@ VALID_DELEGATION_MODES: tuple[str, ...] = (
     ASSISTIVE_ONLY,
 )
 
+VALID_PROJECT_SCOPES: tuple[str, ...] = ("fullstack", "backend_only", "frontend_only")
+
+SCOPE_SKIP_MAP: dict[str, list[str]] = {
+    "fullstack": [],
+    "backend_only": ["ship-frontend-design"],
+    "frontend_only": ["ship-backend-design"],
+}
+
 
 @dataclass(frozen=True)
 class DelegationNodeSpec:
@@ -69,14 +77,14 @@ class DelegationNodeSpec:
 
 
 CANONICAL_DELEGATION_NODES: dict[str, DelegationNodeSpec] = {
-    "ship-intake": DelegationNodeSpec(
-        node_id="ship-intake",
+    "ship-define": DelegationNodeSpec(
+        node_id="ship-define",
         delegation_mode=ASSISTIVE_ONLY,
         ask_flag=ASK_ON_ASSISTIVE_NODE,
         allowed_execution_modes=(CURRENT_CONTEXT, ASSISTIVE_SUBAGENT),
     ),
-    "ship-intake-review": DelegationNodeSpec(
-        node_id="ship-intake-review",
+    "ship-define-review": DelegationNodeSpec(
+        node_id="ship-define-review",
         delegation_mode=GATE_CHECK_SWITCHABLE,
         ask_flag=None,
         allowed_execution_modes=(CURRENT_CONTEXT, GATE_CHECK_SUBAGENT),
@@ -229,7 +237,50 @@ def load_meta(meta_path: Path) -> dict:
         data = yaml.safe_load(handle) or {}
     if not isinstance(data, dict):
         raise ValueError(f"{meta_path} does not contain a YAML mapping")
+    migrate_legacy_stage_names(data)
     return data
+
+
+# ship-intake / ship-intake-review 已于改名为 ship-define / ship-define-review。
+# 旧 feature 目录的 meta.yml 仍可能写着旧 stage id，这里做读时迁移以保持兼容。
+LEGACY_STAGE_RENAMES: dict[str, str] = {
+    "ship-intake": "ship-define",
+    "ship-intake-review": "ship-define-review",
+}
+
+
+def migrate_legacy_stage_names(data: dict) -> bool:
+    changed = False
+
+    current_stage = data.get("current_stage")
+    if isinstance(current_stage, str) and current_stage in LEGACY_STAGE_RENAMES:
+        data["current_stage"] = LEGACY_STAGE_RENAMES[current_stage]
+        changed = True
+
+    stages = data.get("stages")
+    if isinstance(stages, dict):
+        for legacy_id, new_id in LEGACY_STAGE_RENAMES.items():
+            if legacy_id in stages and new_id not in stages:
+                stages[new_id] = stages.pop(legacy_id)
+                changed = True
+            elif legacy_id in stages:
+                # 已有新键时舍弃旧键，避免重复
+                stages.pop(legacy_id)
+                changed = True
+
+    delegation = data.get("delegation")
+    if isinstance(delegation, dict):
+        node_overrides = delegation.get("node_overrides")
+        if isinstance(node_overrides, dict):
+            for legacy_id, new_id in LEGACY_STAGE_RENAMES.items():
+                if legacy_id in node_overrides and new_id not in node_overrides:
+                    node_overrides[new_id] = node_overrides.pop(legacy_id)
+                    changed = True
+                elif legacy_id in node_overrides:
+                    node_overrides.pop(legacy_id)
+                    changed = True
+
+    return changed
 
 
 def save_meta(meta_path: Path, data: dict) -> None:
@@ -585,12 +636,21 @@ def feature_dir_for(feature_name: str) -> Path:
     return FEATURES_ROOT / feature_name
 
 
+def apply_scope_skips(data: dict) -> None:
+    scope = data.get("project_scope", "fullstack")
+    stages = data.get("stages", {})
+    for stage_id in SCOPE_SKIP_MAP.get(scope, []):
+        if stage_id in stages:
+            stages[stage_id]["status"] = "skipped"
+
+
 def create_feature_meta(
     feature_dir: Path,
     feature_name: str,
     feature_id: str,
     pipeline_mode: str,
     project_context: str,
+    project_scope: str = "fullstack",
 ) -> Path:
     feature_dir.mkdir(parents=True, exist_ok=True)
     resource_dir = feature_dir / "resource"
@@ -606,9 +666,11 @@ def create_feature_meta(
     data["feature_id"] = feature_id
     data["created_at"] = data.get("created_at") or now
     data["updated_at"] = now
-    data["current_stage"] = "ship-intake"
+    data["current_stage"] = "ship-define"
     data["pipeline_mode"] = pipeline_mode
     data["project_context"] = project_context
+    data["project_scope"] = project_scope
+    apply_scope_skips(data)
     ensure_macro_stage(data)
     ensure_spec_context(data)
     ensure_delegation(data)
@@ -708,6 +770,12 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("unknown", "new_project", "existing_project"),
         help="Project context to write into meta.yml",
     )
+    init_parser.add_argument(
+        "--project-scope",
+        default="fullstack",
+        choices=VALID_PROJECT_SCOPES,
+        help="Project scope: fullstack, backend_only, or frontend_only",
+    )
 
     refresh_parser = subparsers.add_parser("refresh", help="Refresh macro_stage from current_stage")
     refresh_parser.add_argument("meta_path", help="Path to meta.yml")
@@ -743,6 +811,7 @@ def main(argv: list[str]) -> int:
             feature_id=args.feature_id,
             pipeline_mode=args.pipeline_mode,
             project_context=args.project_context,
+            project_scope=args.project_scope,
         )
         print(meta_path)
         return 0
