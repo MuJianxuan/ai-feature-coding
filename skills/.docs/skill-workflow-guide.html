@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skill 工作流开发使用介绍图</title>
+  <style>
+    :root {
+      --ink: #18201f;
+      --muted: #64706d;
+      --paper: #f6f2ea;
+      --panel: #fffdf8;
+      --line: #d8d0c2;
+      --green: #17705b;
+      --teal: #0d7f89;
+      --blue: #315f9d;
+      --violet: #6954a6;
+      --red: #a8473e;
+      --amber: #a86e16;
+      --shadow: 0 18px 45px rgba(24, 32, 31, 0.09);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(24, 32, 31, 0.035) 1px, transparent 1px),
+        linear-gradient(rgba(24, 32, 31, 0.035) 1px, transparent 1px),
+        var(--paper);
+      background-size: 28px 28px;
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    .page {
+      width: min(1480px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 44px 0 56px;
+    }
+
+    .system-note {
+      margin-bottom: 28px;
+      padding: 14px 18px;
+      border: 1px solid var(--line);
+      background: rgba(255, 253, 248, 0.72);
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+      gap: 28px;
+      align-items: stretch;
+      margin-bottom: 28px;
+    }
+
+    .hero-main,
+    .hero-side,
+    .band,
+    .legend,
+    .evidence {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-main {
+      padding: 36px;
+      min-height: 360px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .eyebrow {
+      margin: 0 0 18px;
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 940px;
+      margin: 0;
+      font-size: clamp(42px, 5vw, 84px);
+      line-height: 0.98;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .hero-copy {
+      max-width: 760px;
+      margin: 28px 0 0;
+      color: var(--muted);
+      font-size: 20px;
+      line-height: 1.65;
+      text-wrap: pretty;
+    }
+
+    .hero-side {
+      padding: 24px;
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    .command {
+      padding: 16px;
+      border: 1px solid #cad9d4;
+      border-radius: 6px;
+      background: #eef7f3;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 15px;
+      line-height: 1.55;
+      color: #16483d;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .mini {
+      min-height: 92px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fbf8f0;
+    }
+
+    .mini strong,
+    .stage strong,
+    .artifact strong,
+    .gate strong,
+    .delegation-cell strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+
+    .mini span,
+    .artifact span,
+    .gate span,
+    .delegation-cell span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .band {
+      margin-top: 28px;
+      padding: 28px;
+    }
+
+    .band-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: end;
+      margin-bottom: 22px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 18px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 30px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .band-header p {
+      max-width: 660px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.65;
+      text-align: right;
+    }
+
+    .scenario-row,
+    .macro-flow,
+    .source-grid,
+    .gate-row,
+    .delegation-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .scenario-row {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .scenario {
+      min-height: 210px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbf8f0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .scenario:before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 6px;
+      background: var(--accent);
+    }
+
+    .scenario h3 {
+      margin: 0 0 10px;
+      padding-left: 8px;
+      font-size: 19px;
+    }
+
+    .scenario p {
+      margin: 0;
+      padding-left: 8px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      margin: 14px 0 0 8px;
+      padding: 0 9px;
+      border: 1px solid color-mix(in oklch, var(--accent), #ffffff 60%);
+      border-radius: 999px;
+      color: var(--accent);
+      background: color-mix(in oklch, var(--accent), #ffffff 88%);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .macro-flow {
+      grid-template-columns: 1.05fr 1fr 1.35fr 1.15fr 0.85fr;
+      align-items: stretch;
+    }
+
+    .stage {
+      min-height: 180px;
+      padding: 18px;
+      border: 2px solid var(--accent);
+      border-radius: 8px;
+      background: color-mix(in oklch, var(--accent), #ffffff 91%);
+      position: relative;
+    }
+
+    .stage:after {
+      content: "→";
+      position: absolute;
+      right: -18px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 25px;
+      font-weight: 900;
+    }
+
+    .stage:last-child:after { content: ""; }
+
+    .stage strong {
+      color: var(--accent);
+      font-size: 22px;
+    }
+
+    .stage p {
+      margin: 0;
+      color: var(--ink);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .stage small {
+      display: block;
+      margin-top: 12px;
+      color: var(--muted);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .track {
+      display: grid;
+      grid-template-columns: repeat(14, minmax(120px, 1fr));
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+
+    .node {
+      min-height: 142px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-top: 6px solid var(--accent);
+      border-radius: 8px;
+      background: #fffdf8;
+    }
+
+    .node .order {
+      color: var(--muted);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .node h3 {
+      margin: 8px 0;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .node p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .gate-mark {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: #fff2ef;
+      color: var(--red);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .source-grid {
+      grid-template-columns: 1.1fr 1fr 1fr;
+    }
+
+    .artifact,
+    .gate,
+    .delegation-cell {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbf8f0;
+    }
+
+    .artifact code,
+    .gate code,
+    .evidence code {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      color: #315f9d;
+    }
+
+    .gate-row {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .gate {
+      border-top: 6px solid var(--red);
+      background: #fff8f5;
+    }
+
+    .delegation-grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .delegation-cell {
+      min-height: 160px;
+      border-top: 6px solid var(--accent);
+    }
+
+    .evidence {
+      margin-top: 28px;
+      padding: 22px 28px;
+    }
+
+    .evidence h2 {
+      margin-bottom: 12px;
+      font-size: 24px;
+    }
+
+    .evidence ul {
+      margin: 0;
+      padding-left: 19px;
+      color: var(--muted);
+      line-height: 1.75;
+      font-size: 14px;
+    }
+
+    @media (max-width: 1100px) {
+      .hero,
+      .scenario-row,
+      .source-grid,
+      .gate-row,
+      .delegation-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .macro-flow {
+        grid-template-columns: 1fr;
+      }
+
+      .stage:after {
+        content: "↓";
+        right: 18px;
+        top: auto;
+        bottom: -24px;
+      }
+
+      .band-header {
+        display: block;
+      }
+
+      .band-header p {
+        margin-top: 12px;
+        text-align: left;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .page {
+        width: min(100vw - 24px, 1480px);
+        padding-top: 18px;
+      }
+
+      .hero-main,
+      .hero-side,
+      .band,
+      .evidence {
+        padding: 18px;
+      }
+
+      .mini-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Visual system: 84/42/30/22/15/13 type scale, warm paper background, restrained green/blue/red status colors, 8px cards, left-to-right workflow rhythm. -->
+  <main class="page">
+    <div class="system-note">
+      设计系统声明：本页是开发使用介绍图，不是营销页。布局采用信息图密度，颜色只表达工作流语义：green 表示入口与事实源，blue 表示设计/构建轨道，red 表示 hard gate。
+    </div>
+
+    <section class="hero">
+      <div class="hero-main">
+        <div>
+          <p class="eyebrow">ShipKit Skills Workflow</p>
+          <h1>一个入口，五个大阶段，十四个内部执行节点。</h1>
+          <p class="hero-copy">
+            当前项目是一套从需求到交付的 development workflow skills。默认使用者只需要面对
+            <strong>ship-orchestrator</strong> 和 <strong>[Discover →] Define → Design → Build → Close</strong>，
+            维护者则通过 canonical stage、frontmatter、hard gate 与 delegation contract 保持流程可恢复、可审计、可验证。
+          </p>
+        </div>
+      </div>
+      <aside class="hero-side">
+        <div class="command">启动 ship-orchestrator，我想做一个“功能名”：一句话想法</div>
+        <div class="mini-grid">
+          <div class="mini">
+            <strong>默认入口</strong>
+            <span>用户默认只和 ship-orchestrator 交互，由它识别 NEW / CONTINUE / INSPECT。</span>
+          </div>
+          <div class="mini">
+            <strong>事实源</strong>
+            <span>阶段文档 frontmatter 是事实源，meta.yml 是恢复与展示索引。</span>
+          </div>
+          <div class="mini">
+            <strong>三道硬门禁</strong>
+            <span>Define Review、Design Review、Plan Review 必须 approved + 用户签字。</span>
+          </div>
+          <div class="mini">
+            <strong>委派原则</strong>
+            <span>子代理是执行策略，不是新阶段；状态推进仍由主上下文收口。</span>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="band">
+      <div class="band-header">
+        <h2>使用者视图：四种入口场景</h2>
+        <p>NEW_FEATURE 先识别场景，再决定是否进入 Discover。场景 B/D 跳过 Discover，场景 A/C 激活 Discover。</p>
+      </div>
+      <div class="scenario-row">
+        <article class="scenario" style="--accent: var(--green)">
+          <h3>A 零到一</h3>
+          <p>只有一句话想法，无 PRD、原型、设计稿。先进入需求探索，必要时再进入 UIUX 原型设计。</p>
+          <span class="tag">start: ship-discover</span>
+        </article>
+        <article class="scenario" style="--accent: var(--teal)">
+          <h3>B 产品提供</h3>
+          <p>已有 PRD / Figma / prototype / UIUX 材料，但仍需要整理和采访确认。</p>
+          <span class="tag">start: ship-define</span>
+        </article>
+        <article class="scenario" style="--accent: var(--amber)">
+          <h3>C 迭代增强</h3>
+          <p>基于已有 feature 或代码路径做变更。先扫描现状、分析影响，再生成 product brief。</p>
+          <span class="tag">start: ship-discover</span>
+        </article>
+        <article class="scenario" style="--accent: var(--violet)">
+          <h3>D PRD 直通</h3>
+          <p>已有完整 PRD + 原型/设计稿，并明确不需要需求录入。ship-define 走 prd_direct。</p>
+          <span class="tag">start: ship-define</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="band-header">
+        <h2>使用者视图：五阶段模型</h2>
+        <p>默认展示 macro_stage，隐藏内部细节。用户只需要知道当前目标、下一次决策点和是否可推进。</p>
+      </div>
+      <div class="macro-flow">
+        <article class="stage" style="--accent: var(--green)">
+          <strong>Discover</strong>
+          <p>把模糊想法或迭代请求变成 product brief；有 UI 且缺设计稿时补 shape。</p>
+          <small>conditional: A / C only</small>
+        </article>
+        <article class="stage" style="--accent: var(--teal)">
+          <strong>Define</strong>
+          <p>把需求整理成 requirements.md，并通过需求质量评审。</p>
+          <small>gate: review-define.md</small>
+        </article>
+        <article class="stage" style="--accent: var(--blue)">
+          <strong>Design</strong>
+          <p>完成技术发现、API contract、前后端方案，并做三方一致性评审。</p>
+          <small>contract-first baseline</small>
+        </article>
+        <article class="stage" style="--accent: var(--violet)">
+          <strong>Build</strong>
+          <p>生成交付计划、评审任务粒度，按任务编码并完成验证。</p>
+          <small>single DOING task</small>
+        </article>
+        <article class="stage" style="--accent: var(--amber)">
+          <strong>Close</strong>
+          <p>映射 AC 证据、登记残余风险、产出 handoff。</p>
+          <small>handoff.md</small>
+        </article>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="band-header">
+        <h2>维护者视图：十四个 canonical stages</h2>
+        <p>current_stage 只能写 canonical stage id。ship-spec 是 utility hook，不进入 stage map。</p>
+      </div>
+      <div class="track" aria-label="canonical stages">
+        <article class="node" style="--accent: var(--green)"><span class="order">00a</span><h3>ship-discover</h3><p>product-brief.md</p></article>
+        <article class="node" style="--accent: var(--green)"><span class="order">00b</span><h3>ship-shape</h3><p>design-brief.md + wireframes</p></article>
+        <article class="node" style="--accent: var(--teal)"><span class="order">01</span><h3>ship-define</h3><p>requirements.md</p></article>
+        <article class="node" style="--accent: var(--red)"><span class="order">02</span><h3>ship-define-review</h3><p>review-define.md</p><span class="gate-mark">hard gate</span></article>
+        <article class="node" style="--accent: var(--blue)"><span class="order">03</span><h3>ship-tech-discovery</h3><p>tech-research.md + tech-selection.md</p></article>
+        <article class="node" style="--accent: var(--blue)"><span class="order">04</span><h3>ship-contract</h3><p>api-contract.md</p></article>
+        <article class="node" style="--accent: var(--blue)"><span class="order">05</span><h3>ship-frontend-design</h3><p>frontend-design.md</p></article>
+        <article class="node" style="--accent: var(--blue)"><span class="order">06</span><h3>ship-backend-design</h3><p>backend-design.md</p></article>
+        <article class="node" style="--accent: var(--red)"><span class="order">07</span><h3>ship-design-review</h3><p>review-design.md</p><span class="gate-mark">hard gate</span></article>
+        <article class="node" style="--accent: var(--violet)"><span class="order">08</span><h3>ship-delivery-plan</h3><p>frontend-plan.md + backend-plan.md</p></article>
+        <article class="node" style="--accent: var(--red)"><span class="order">09</span><h3>ship-plan-review</h3><p>review-plan.md</p><span class="gate-mark">hard gate</span></article>
+        <article class="node" style="--accent: var(--violet)"><span class="order">10</span><h3>ship-build</h3><p>代码 + task status</p></article>
+        <article class="node" style="--accent: var(--violet)"><span class="order">11</span><h3>ship-verify</h3><p>verification.md 测试章节</p></article>
+        <article class="node" style="--accent: var(--amber)"><span class="order">12</span><h3>ship-handoff</h3><p>verification.md 结论 + handoff.md</p></article>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="band-header">
+        <h2>状态事实源与推进规则</h2>
+        <p>这是恢复断点和避免多套状态冲突的核心。阶段产物决定状态，orchestrator 只缓存摘要并负责路由。</p>
+      </div>
+      <div class="source-grid">
+        <article class="artifact">
+          <strong>阶段文档 frontmatter</strong>
+          <span>非评审产物使用 <code>stage_status: draft | ready | complete</code>。达到 <code>ready</code> 才能通过 soft gate。</span>
+        </article>
+        <article class="artifact">
+          <strong>meta.yml</strong>
+          <span>保存 <code>current_stage</code>、<code>macro_stage</code>、<code>scenario</code>、<code>delegation</code>、<code>spec_context</code> 等恢复索引。</span>
+        </article>
+        <article class="artifact">
+          <strong>冲突处理</strong>
+          <span>如果 meta.yml 与产物 frontmatter 不一致，优先信任产物文档，再回写修正 meta.yml。</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="band-header">
+        <h2>三道 hard gate</h2>
+        <p>hard gate 不可跳过。只有 review_status approved 且 user_sign_off / signed_at 非空，才能继续。</p>
+      </div>
+      <div class="gate-row">
+        <article class="gate">
+          <strong>ship-define-review</strong>
+          <span>检查需求目标、用户路径、业务域、AC、非功能需求、约束和资料一致性。</span>
+        </article>
+        <article class="gate">
+          <strong>ship-design-review</strong>
+          <span>交叉验证 <code>api-contract.md</code>、<code>frontend-design.md</code>、<code>backend-design.md</code> 的接口、字段和数据流。</span>
+        </article>
+        <article class="gate">
+          <strong>ship-plan-review</strong>
+          <span>检查任务粒度、依赖关系、关键路径、前后端并行可行性和 AC 覆盖。</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="band-header">
+        <h2>子代理委派边界</h2>
+        <p>委派是执行策略，不改变 stage。只有主上下文能修改 meta.yml、写最终签字、推进 current_stage。</p>
+      </div>
+      <div class="delegation-grid">
+        <article class="delegation-cell" style="--accent: var(--muted)">
+          <strong>forbidden</strong>
+          <span>共享契约、技术选型收口、交付计划同步等节点不可委派，避免决策链分叉。</span>
+        </article>
+        <article class="delegation-cell" style="--accent: var(--teal)">
+          <strong>assistive_only</strong>
+          <span>可做资料搜集、审计、测试分轨、证据整理；不能直接改正式 frontmatter。</span>
+        </article>
+        <article class="delegation-cell" style="--accent: var(--blue)">
+          <strong>parallel_owned_outputs</strong>
+          <span>仅前端设计和后端设计可并行拥有正式产物。</span>
+        </article>
+        <article class="delegation-cell" style="--accent: var(--red)">
+          <strong>gate_check_switchable</strong>
+          <span>子代理可起草 review 文档，但必须保持 pending，最终结论由主上下文确认。</span>
+        </article>
+        <article class="delegation-cell" style="--accent: var(--amber)">
+          <strong>user_gate_only</strong>
+          <span>用户确认、继续/关闭、accept/follow-up/proposal 取舍不能委派。</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="evidence">
+      <h2>证据来源</h2>
+      <ul>
+        <li><code>README.md</code>：定义默认入口、五阶段模型、四种入口场景、Feature 目录结构。</li>
+        <li><code>ship-orchestrator/SKILL.md</code>：定义 NEW / CONTINUE / INSPECT、scenario detection、stage routing、pipeline modes、delegation model。</li>
+        <li><code>ship-orchestrator/_templates/protocol/workflow-protocol.md</code>：单一共享协议源，定义 canonical stage id、macro stage、frontmatter contract、hard gate、delegation contract。</li>
+        <li><code>ship-orchestrator/_templates/meta/meta.yml.template</code>：定义 feature 级 metadata、stage summary、spec_context、delegation 和风险索引字段。</li>
+        <li><code>ship-*/SKILL.md</code>：各阶段的输入、输出、退出条件与验证 checklist。</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
