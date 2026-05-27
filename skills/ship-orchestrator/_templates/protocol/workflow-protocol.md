@@ -126,6 +126,7 @@ conditions: []
 - 对双产物阶段记录 `current_part`，用于阶段内恢复：
   - `ship-tech-discovery.current_part`: `research | selection`
   - `ship-delivery-plan.current_part`: `frontend | backend | sync`
+- `stages.ship-define.block_reason` 记录需求定义阶段的阻塞原因；`awaiting_materials` 表示 feature 目录已创建，但仍等待用户把 PRD/原型/设计稿等资料写入 raw `requirements.md` inbox 或 `resource/`
 - `spec_context` 记录最近一次规范解析结果与本 feature 已引用规范摘要：
   - `index_status`: `missing | ready | invalid`
   - `last_checked_stage`: 最近一次消费规范的 hook 点
@@ -462,17 +463,18 @@ Discover 前置阶段在 fast-track 下的规则：
 | 场景 | 入口信号 | 起点 stage | Discover 大阶段 |
 |------|---------|------------|-----------------|
 | A 零到一 | 用户只有一句话想法、无附件 | `ship-discover`（greenfield 分支） | 激活 |
-| B 产品提供 | 用户附了 PRD/Figma/原型/UIUX 文档 | `ship-define`（interview mode） | 跳过（`stages.ship-discover.status / ship-shape.status = skipped`） |
+| B 产品提供 | 用户附了 PRD/Figma/原型/UIUX 文档，或选择先创建目录后补资料 | `ship-define`（interview mode） | 跳过（`stages.ship-discover.status / ship-shape.status = skipped`） |
 | C 迭代增强 | 用户引用已有 feature 目录或具体代码路径并描述变更 | `ship-discover`（evolve 分支） | 激活 |
-| D PRD 直通 | 用户附了完整 PRD + 原型/设计稿，且明确表示不需要需求录入 | `ship-define`（prd_direct mode） | 跳过（`stages.ship-discover.status / ship-shape.status = skipped`） |
+| D PRD 直通 | 用户附了完整 PRD + 原型/设计稿，或选择先创建目录粘贴完整 PRD，且明确表示不需要需求录入 | `ship-define`（prd_direct mode） | 跳过（`stages.ship-discover.status / ship-shape.status = skipped`） |
 
 判定规则：
 
 - 信号歧义时必须显式询问用户场景，不允许猜测
 - 场景 A/C 的 `ship-discover` 通过 frontmatter `discovery_mode: greenfield | evolve` 区分分支
 - 场景 A/C 在 `ship-discover` 完成后，若 feature 涉及 UI 且无外部 UIUX 材料，进入 `ship-shape`；否则跳过 `ship-shape` 直接进 `ship-define`
-- 场景 B 不进 Discover 大阶段；orchestrator 直接路由到 `ship-define`（interview mode）
-- 场景 D 不进 Discover 大阶段；orchestrator 直接路由到 `ship-define`（prd_direct mode）；`stages.ship-define.generation_mode` 设为 `prd_direct`
+- 场景 B 不进 Discover 大阶段；若资料已存在，orchestrator 路由到 `ship-define`（interview mode）；若用户选择先创建目录后补资料，则 `stages.ship-define.status: blocked` 且 `block_reason: awaiting_materials`
+- 场景 D 不进 Discover 大阶段；若资料已存在，orchestrator 路由到 `ship-define`（prd_direct mode）；若用户选择先创建目录后补资料，则 `stages.ship-define.status: blocked` 且 `block_reason: awaiting_materials`；`stages.ship-define.generation_mode` 设为 `prd_direct`
+- 场景 B/D 的 raw `requirements.md` inbox 只是原始资料入口，不是下游 contract；必须经 `ship-define` normalize 后才能进入 `ship-define-review`
 
 场景 B 与 D 的区分：
 

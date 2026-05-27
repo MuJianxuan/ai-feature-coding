@@ -36,6 +36,7 @@ description: "ShipKit stage 1 (Define). Parses requirement materials (PRD, proto
 | product-brief.md | 来自 ship-discover | 直接采纳为业务背景、方案选择、范围、成功标准章节；跳过开放式探索 |
 | design-brief.md + resource/wireframes/ | 来自 ship-shape | 等同 Figma/原型输入；解析页面清单、用户流程、交互注释 |
 | PRD 文档 | .md / .docx / .pdf / .notion | 逐章节解析，提取功能点与验收标准 |
+| raw requirements.md inbox | 用户直接粘贴完整 PRD 原文 | 先作为原始输入读取，normalize 后改写为结构化 requirements contract |
 | 原型图 | Figma / 墨刀 / Axure / 图片 | 逐页面解析交互流程与状态 |
 | UI/UX 设计稿 | Figma / Sketch / 图片 | 提取组件结构、交互规则、响应式断点 |
 | 会议纪要 | 文本 / 音频转录 | 提取决策点、待确认项、优先级信息 |
@@ -69,12 +70,15 @@ description: "ShipKit stage 1 (Define). Parses requirement materials (PRD, proto
 | `interview`（默认） | scenario = greenfield / product_provided / evolve | 多轮采访 + 完整生成 requirements.md |
 | `prd_direct` | scenario = prd_direct；用户提供完整 PRD + 原型且明确表示不需要需求录入 | 零提问、纯提取、产出索引式 requirements.md |
 
+`requirements.md` 在 PRD 直通和产品提供入口中可能先由 `ship-orchestrator` 初始化为 raw PRD inbox。该状态下它只是原始输入，不是下游 contract；本阶段必须先执行 normalize，将 raw PRD 原文迁移或保留到 `resource/raw-prd.md`，再把 `requirements.md` 改写为结构化需求文档。
+
 ### 模式检测逻辑
 
 在 Process 开始前，检查 `meta.yml.scenario`：
 
-1. 若 `scenario: prd_direct` → 跳转到 [PRD Direct Mode](#prd-direct-mode) 执行
-2. 否则 → 走下方标准 interview 流程
+1. 若 `requirements.md` 是 raw PRD inbox → 先执行 [Raw Inbox Normalize](#raw-inbox-normalize)
+2. 若 `scenario: prd_direct` → 跳转到 [PRD Direct Mode](#prd-direct-mode) 执行
+3. 否则 → 走下方标准 interview 流程
 
 ---
 
@@ -119,6 +123,7 @@ description: "ShipKit stage 1 (Define). Parses requirement materials (PRD, proto
 - 确认所有资料已收集完整
 - 按类型分类，建立 `resource/` 目录索引
 - 对图片/链接类资料进行可访问性验证
+- 若存在 raw `requirements.md` inbox，先完成 normalize，不允许把 raw PRD 原文直接当作已完成需求合同
 
 **Step 3: 逐模块深度解析**
 - 若存在上游产物（product-brief.md / design-brief.md）：直接采纳已结构化的章节，跳过开放式探索；本步骤聚焦补全 define 特有的内容（Domain ID、AC、NFR 量化）
@@ -261,6 +266,7 @@ description: "ShipKit stage 1 (Define). Parses requirement materials (PRD, proto
 ---
 stage: ship-define
 stage_status: draft  # draft → 待确认问题未清零; ready → 可进入下一阶段
+generation_mode: interview  # interview | prd_direct；raw_prd_input 只允许出现在 normalize 前
 updated_at: "2026-05-22T00:00:00+08:00"
 evidence_complete: false  # 所有资料是否已收集完整
 ---
@@ -413,6 +419,29 @@ D-ORD-001 (订单创建)
 
 ---
 
+## Raw Inbox Normalize
+
+当 `requirements.md` frontmatter 中出现 `generation_mode: raw_prd_input` 或 `input_kind: raw_prd` 时，说明该文件仍是用户粘贴完整 PRD 原文的 inbox。此时必须先 normalize，不能直接进入 review 或后续设计阶段。
+
+### Normalize 规则
+
+1. 读取 raw `requirements.md`，确认正文不是空模板。
+2. 将 raw PRD 原文迁移或保留到 `resource/raw-prd.md`。
+3. 建立 `resource/` 资料索引，将 `resource/raw-prd.md` 标记为 PRD source。
+4. 根据 `meta.yml.scenario` 决定后续生成方式：
+   - `prd_direct`：按 PRD Direct Mode 零提问提取，缺口标记为 `[GAP]`。
+   - `product_provided`：按 Interview Mode 解析资料，并对阻塞缺口发起结构化提问。
+5. 改写 `requirements.md` 为结构化 requirements contract，frontmatter 不再使用 `generation_mode: raw_prd_input`。
+
+### Normalize 后的约束
+
+- `requirements.md` 必须包含 Domain ID、Acceptance Criteria、In Scope / Out of Scope、NFR、约束与假设、待确认问题、资料索引。
+- 若仍存在阻塞缺口，`stage_status: draft`。
+- 只有无阻塞缺口，且资料索引完整时，才允许 `stage_status: ready`。
+- 下游阶段只能消费 normalize 后的 structured contract。
+
+---
+
 ## PRD Direct Mode
 
 当 `meta.yml.scenario: prd_direct` 时激活此模式。适用于用户已有公司提供的完整 PRD + 原型 + 设计稿，不需要多轮采访的场景。
@@ -456,6 +485,7 @@ D-ORD-001 (订单创建)
 
 **Step 1: 接收并索引材料**
 - 确认 `resource/` 目录下所有文件
+- 若 PRD 原文来自 raw `requirements.md` inbox，先按 Raw Inbox Normalize 迁移或保留到 `resource/raw-prd.md`
 - 建立材料清单：PRD 文件路径、原型文件路径、设计稿路径
 - 验证文件可读性
 
@@ -500,6 +530,8 @@ stage: ship-define
 stage_status: ready  # 若存在阻塞性 [GAP] 则为 draft
 generation_mode: prd_direct
 source_documents:
+  - path: "resource/raw-prd.md"
+    type: prd
   - path: "resource/prd.docx"
     type: prd
   - path: "resource/prototype.html"

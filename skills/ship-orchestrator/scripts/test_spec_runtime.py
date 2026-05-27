@@ -17,6 +17,7 @@ from feature_meta_runtime import (
     advance_stage,
     clear_delegation_warning_log,
     create_feature_meta,
+    mark_materials_ready,
     record_delegation_warning,
     record_skip,
     record_spec_proposal,
@@ -368,7 +369,77 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
         self.assertEqual(saved["macro_stage"]["current"], "define")
         self.assertEqual(saved["stages"]["ship-discover"]["status"], "skipped")
         self.assertEqual(saved["stages"]["ship-shape"]["status"], "skipped")
+        self.assertEqual(saved["stages"]["ship-define"]["status"], "blocked")
+        self.assertEqual(saved["stages"]["ship-define"]["block_reason"], "awaiting_materials")
+        self.assertFalse(saved["stages"]["ship-define"]["evidence_complete"])
         self.assertEqual(saved["stages"]["ship-define"]["generation_mode"], "prd_direct")
+        self.assertTrue((feature_dir / "requirements.md").exists())
+        self.assertTrue((feature_dir / "resource/README.md").exists())
+
+    def test_create_feature_meta_initializes_product_provided_as_materials_wait(self) -> None:
+        feature_dir = self.root / "product-provided"
+        create_feature_meta(
+            feature_dir=feature_dir,
+            feature_name="Product Provided",
+            feature_id="feature-product-provided",
+            pipeline_mode="standard",
+            project_context="existing_project",
+            project_scope="fullstack",
+            scenario="product_provided",
+        )
+
+        saved = self.load_meta(feature_dir)
+        self.assertEqual(saved["current_stage"], "ship-define")
+        self.assertEqual(saved["stages"]["ship-define"]["status"], "blocked")
+        self.assertEqual(saved["stages"]["ship-define"]["block_reason"], "awaiting_materials")
+        self.assertEqual(saved["stages"]["ship-define"]["generation_mode"], "interview")
+
+    def test_mark_materials_ready_keeps_empty_template_blocked(self) -> None:
+        feature_dir = self.root / "empty-materials"
+        create_feature_meta(
+            feature_dir=feature_dir,
+            feature_name="Empty Materials",
+            feature_id="feature-empty-materials",
+            pipeline_mode="standard",
+            project_context="existing_project",
+            project_scope="fullstack",
+            scenario="prd_direct",
+        )
+
+        payload = mark_materials_ready(feature_dir / "meta.yml")
+
+        saved = self.load_meta(feature_dir)
+        self.assertFalse(payload["materials_ready"])
+        self.assertEqual(saved["stages"]["ship-define"]["status"], "blocked")
+        self.assertEqual(saved["stages"]["ship-define"]["block_reason"], "awaiting_materials")
+
+    def test_mark_materials_ready_releases_when_raw_prd_is_filled(self) -> None:
+        feature_dir = self.root / "filled-prd"
+        create_feature_meta(
+            feature_dir=feature_dir,
+            feature_name="Filled PRD",
+            feature_id="feature-filled-prd",
+            pipeline_mode="standard",
+            project_context="existing_project",
+            project_scope="fullstack",
+            scenario="prd_direct",
+        )
+        requirements_path = feature_dir / "requirements.md"
+        requirements_path.write_text(
+            requirements_path.read_text(encoding="utf-8").replace(
+                "[在这里粘贴 PRD 原文]",
+                "完整 PRD 原文：用户可以创建订单并查看订单状态。",
+            ),
+            encoding="utf-8",
+        )
+
+        payload = mark_materials_ready(feature_dir / "meta.yml")
+
+        saved = self.load_meta(feature_dir)
+        self.assertTrue(payload["materials_ready"])
+        self.assertEqual(saved["stages"]["ship-define"]["status"], "pending")
+        self.assertEqual(saved["stages"]["ship-define"]["block_reason"], "")
+        self.assertFalse(saved["stages"]["ship-define"]["evidence_complete"])
 
     def test_create_feature_meta_backend_only_sets_delivery_plan_part(self) -> None:
         feature_dir = self.root / "backend-only"

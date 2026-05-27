@@ -27,6 +27,12 @@ from workflow_stage_map import CANONICAL_STAGE_ORDER, stage_view_for  # noqa: E4
 
 
 META_TEMPLATE_PATH = ROOT / "skills/ship-orchestrator/_templates/meta/meta.yml.template"
+RAW_PRD_INBOX_TEMPLATE_PATH = (
+    ROOT / "skills/ship-orchestrator/_templates/requirements/raw-prd-inbox.md.template"
+)
+RESOURCE_README_TEMPLATE_PATH = (
+    ROOT / "skills/ship-orchestrator/_templates/resource/README.md.template"
+)
 FEATURES_ROOT = ROOT / ".docs"
 
 CURRENT_CONTEXT = "current_context"
@@ -64,6 +70,7 @@ VALID_SCENARIOS: tuple[str, ...] = ("greenfield", "product_provided", "prd_direc
 DISCOVER_SCENARIOS: frozenset[str] = frozenset({"greenfield", "evolve"})
 DEFINE_SCENARIOS: frozenset[str] = frozenset({"product_provided", "prd_direct"})
 VALID_LIFECYCLE_STATUSES: tuple[str, ...] = ("active", "blocked", "completed", "abandoned")
+AWAITING_MATERIALS = "awaiting_materials"
 
 SCOPE_SKIP_MAP: dict[str, list[str]] = {
     "fullstack": [],
@@ -696,12 +703,59 @@ def apply_scenario_initial_state(data: dict, scenario: str) -> None:
         discover["status"] = "pending"
         discover["discovery_mode"] = scenario
         shape.setdefault("status", "pending")
+        define["block_reason"] = ""
         define["generation_mode"] = "interview"
     else:
         data["current_stage"] = "ship-define"
         discover["status"] = "skipped"
         shape["status"] = "skipped"
+        define["status"] = "blocked"
+        define["block_reason"] = AWAITING_MATERIALS
+        define["evidence_complete"] = False
         define["generation_mode"] = "prd_direct" if scenario == "prd_direct" else "interview"
+
+
+def create_material_intake_files(feature_dir: Path, scenario: str) -> None:
+    resource_dir = feature_dir / "resource"
+    resource_dir.mkdir(parents=True, exist_ok=True)
+
+    resource_readme_path = resource_dir / "README.md"
+    if not resource_readme_path.exists():
+        shutil.copyfile(RESOURCE_README_TEMPLATE_PATH, resource_readme_path)
+
+    if scenario in DEFINE_SCENARIOS:
+        requirements_path = feature_dir / "requirements.md"
+        if not requirements_path.exists():
+            shutil.copyfile(RAW_PRD_INBOX_TEMPLATE_PATH, requirements_path)
+
+
+def _is_raw_prd_inbox_empty(requirements_path: Path) -> bool:
+    if not requirements_path.exists():
+        return True
+
+    content = requirements_path.read_text(encoding="utf-8").strip()
+    template = RAW_PRD_INBOX_TEMPLATE_PATH.read_text(encoding="utf-8").strip()
+    return not content or content == template
+
+
+def _has_resource_materials(resource_dir: Path) -> bool:
+    if not resource_dir.exists():
+        return False
+
+    for path in resource_dir.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.relative_to(resource_dir).as_posix() == "README.md":
+            continue
+        return True
+    return False
+
+
+def has_materials_ready(feature_dir: Path) -> bool:
+    return (
+        not _is_raw_prd_inbox_empty(feature_dir / "requirements.md")
+        or _has_resource_materials(feature_dir / "resource")
+    )
 
 
 def create_feature_meta(
@@ -717,8 +771,7 @@ def create_feature_meta(
         raise ValueError(f"invalid scenario: {scenario}")
 
     feature_dir.mkdir(parents=True, exist_ok=True)
-    resource_dir = feature_dir / "resource"
-    resource_dir.mkdir(parents=True, exist_ok=True)
+    create_material_intake_files(feature_dir, scenario)
 
     meta_path = feature_dir / "meta.yml"
     if not meta_path.exists():
@@ -743,6 +796,37 @@ def create_feature_meta(
     ensure_lifecycle_status(data)
     save_meta(meta_path, data)
     return meta_path
+
+
+def mark_materials_ready(meta_path: Path) -> dict:
+    feature_dir = meta_path.parent
+    data = load_meta(meta_path)
+    if data.get("current_stage") != "ship-define":
+        raise ValueError("materials can only be marked ready while current_stage is ship-define")
+
+    stages = data.setdefault("stages", {})
+    define = stages.setdefault("ship-define", {})
+    if define.get("block_reason") != AWAITING_MATERIALS:
+        raise ValueError("ship-define is not waiting for materials")
+
+    materials_ready = has_materials_ready(feature_dir)
+    if not materials_ready:
+        return {
+            "materials_ready": False,
+            "status": define.get("status", ""),
+            "block_reason": define.get("block_reason", ""),
+            "message": "requirements.md is still the empty raw PRD template and resource/ has no materials",
+        }
+
+    define["status"] = "pending"
+    define["block_reason"] = ""
+    _save_meta_with_updated_at(meta_path, data)
+    return {
+        "materials_ready": True,
+        "status": define["status"],
+        "block_reason": define["block_reason"],
+        "message": "materials detected; ship-define can start",
+    }
 
 
 def refresh_feature_meta(meta_path: Path) -> None:
@@ -967,6 +1051,12 @@ def build_parser() -> argparse.ArgumentParser:
     lifecycle_parser.add_argument("meta_path", help="Path to meta.yml")
     lifecycle_parser.add_argument("--status", required=True, choices=VALID_LIFECYCLE_STATUSES)
 
+    materials_parser = subparsers.add_parser(
+        "mark-materials-ready",
+        help="Release ship-define from awaiting_materials when raw PRD or resource files exist",
+    )
+    materials_parser.add_argument("meta_path", help="Path to meta.yml")
+
     advance_parser = subparsers.add_parser("advance-stage", help="Advance current_stage")
     advance_parser.add_argument("meta_path", help="Path to meta.yml")
     advance_parser.add_argument("--from-stage", required=True, choices=CANONICAL_STAGE_ORDER)
@@ -1025,6 +1115,11 @@ def main(argv: list[str]) -> int:
 
     if args.command == "set-lifecycle":
         payload = set_lifecycle_status(Path(args.meta_path), args.status)
+        print(json.dumps(payload, ensure_ascii=True, indent=2))
+        return 0
+
+    if args.command == "mark-materials-ready":
+        payload = mark_materials_ready(Path(args.meta_path))
         print(json.dumps(payload, ensure_ascii=True, indent=2))
         return 0
 

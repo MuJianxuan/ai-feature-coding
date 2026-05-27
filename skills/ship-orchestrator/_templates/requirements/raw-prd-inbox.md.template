@@ -1,0 +1,18 @@
+---
+stage: ship-define
+stage_status: draft
+generation_mode: raw_prd_input
+input_kind: raw_prd
+evidence_complete: false
+updated_at: ""
+---
+
+# Raw PRD Input
+
+请将完整 PRD 原文粘贴到下方。格式不限，可以包含标题、表格、流程说明、验收规则、会议纪要等。
+
+补充资料请放入 `resource/`，例如原型、设计稿、截图、接口文档、会议纪要附件。
+
+---
+
+[在这里粘贴 PRD 原文]

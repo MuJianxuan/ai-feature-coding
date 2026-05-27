@@ -88,6 +88,7 @@ stages:
   ship-define:
     status: pending           # pending | in_progress | ready | blocked | completed
     generation_mode: ""       # interview | prd_direct（由 scenario 决定；prd_direct 时零提问纯提取）
+    block_reason: ""          # awaiting_materials 表示已创建目录但等待用户补 PRD/原型/设计稿等资料
     evidence_complete: false
   ship-define-review:
     status: pending           # pending | in_progress | approved | rejected | revision_needed
