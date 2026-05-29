@@ -95,6 +95,7 @@ spec_warnings: []
 - `selection` 子段必须由主上下文统一完成，因为每个 ADR 都必须能回指 `tech-research.md` 的证据链
 - 子代理不得直接把 `tech-selection.md.stage_status` 置为 `ready`，也不得跳过 spec compatibility check
 - 子代理返回的只能是 research 证据包或候选矩阵，不直接编辑 `tech-research.md` / `tech-selection.md` 正文或 frontmatter
+- 若 target project 未明确，不允许进入 `selection`
 
 ## Part 1: Research
 
@@ -121,7 +122,7 @@ selection 子段遵循 ADR 决策纪律：
 
 - 读取 `tech-research.md` 中的候选与证据
 - 读取 `requirements.md` 中的非功能需求与约束
-- 通过 `ship-spec` hook 检查已有规范是否与选型冲突，并记录 `referenced_spec_ids`
+- 通过 `ship-spec` hook 检查 target project `spec_root` 下的已有规范是否与选型冲突，并记录 `referenced_spec_ids`
 - 定义评估维度与权重
 - 逐项做出技术栈和架构决策
 - 每项决策必须有至少 1 个备选方案和不选理由

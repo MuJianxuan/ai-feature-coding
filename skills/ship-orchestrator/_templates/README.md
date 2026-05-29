@@ -8,6 +8,8 @@
 _templates/
 ├── meta/
 │   └── meta.yml.template          # feature 级索引模板（恢复 / 汇总 / 路由）
+├── project/
+│   └── project.yml.template       # target project 级配置模板（project_root / spec_root / feature_root）
 ├── requirements/
 │   └── raw-prd-inbox.md.template  # PRD 直通 / 产品提供的原始 PRD 粘贴入口
 ├── resource/
@@ -23,7 +25,7 @@ _templates/
 
 ### meta/meta.yml.template
 
-每个新 feature 启动时，由 `ship-orchestrator` 复制到 `.docs/feature-YYYYMMDD-<short-name>/meta.yml`，作为该 feature 的索引文件。
+每个新 feature 启动时，由 `ship-orchestrator` 复制到 `target project` 的 `feature_root/feature-YYYYMMDD-<short-name>/meta.yml`，作为该 feature 的索引文件。
 
 阶段文档不再各自维护 `project_context` / `pipeline_mode` 等冗余字段，只在 `meta.yml` 中维护一次。阶段是否 `ready` / `approved` 仍以产物 frontmatter 为准。
 
@@ -32,7 +34,18 @@ _templates/
 - `current_stage`：内部 canonical stage id，用于恢复和精确路由
 - `macro_stage`：默认对外展示的 5 大阶段摘要（Discover 可选），用于状态列表和执行摘要
 - `delegation`：子代理偏好、节点级覆盖与 delegation warning，用于决定“当前上下文 vs 子代理策略”
-- `spec_context`：`ship-spec` 的摘要索引，用于恢复时快速知道最近一次规范解析结果、已引用规范和待沉淀 proposal
+- `spec_context`：`ship-spec` 的摘要索引，用于恢复时快速知道 target project、最近一次规范解析结果、已引用规范和待沉淀 proposal
+
+### project/project.yml.template
+
+target project 级配置模板。用于显式声明：
+
+- `project_root`：目标项目根；本期固定 project-level-only，默认 `".")`
+- `spec_root`：规范目录，相对 `project_root`，默认 `.docs/spec`
+- `feature_root`：feature 运行时产物目录，相对 `project_root`，默认 `.docs`
+- `module_layout.mode`：本期只支持 `project_level_only`
+
+这是 `ship-spec` project boundary 的唯一显式配置源；多项目父目录下必须先选定 target project，再进入 helper 或 workflow。
 
 ### requirements/raw-prd-inbox.md.template
 

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -17,17 +18,19 @@ from feature_meta_runtime import (
     advance_stage,
     clear_delegation_warning_log,
     create_feature_meta,
+    feature_dir_for,
     mark_materials_ready,
     record_delegation_warning,
     record_skip,
     record_spec_proposal,
     resolve_delegation,
+    resolve_project_context,
     set_default_delegation_mode,
     set_lifecycle_status,
     set_node_override,
     sync_spec_context,
 )
-from spec_runtime import resolve_specs, scan_specs
+from spec_runtime import load_project_context, resolve_specs, scan_specs
 
 
 class SpecRuntimeTest(unittest.TestCase):
@@ -69,12 +72,43 @@ last_updated: "2026-05-23T10:00:00+08:00"
     def tearDown(self) -> None:
         self.tempdir.cleanup()
 
+    def write_project_config(
+        self,
+        project_root: Path,
+        *,
+        spec_root: str = ".docs/spec",
+        feature_root: str = ".docs",
+        project_id: str = "project-a",
+    ) -> Path:
+        path = project_root / ".docs/ship/project.yml"
+        self.write_text(
+            path,
+            yaml.safe_dump(
+                {
+                    "schema_version": 1,
+                    "project_id": project_id,
+                    "project_name": "Project A",
+                    "project_root": ".",
+                    "spec_root": spec_root,
+                    "feature_root": feature_root,
+                    "module_layout": {
+                        "mode": "project_level_only",
+                        "module_roots": [],
+                    },
+                    "notes": "",
+                },
+                sort_keys=False,
+            ),
+        )
+        return path
+
     def test_scan_specs_returns_ready_for_valid_spec(self) -> None:
         result = scan_specs(self.spec_root, project_root=self.root)
         self.assertEqual(result["index_status"], "ready")
         self.assertEqual(result["warnings"], [])
         self.assertEqual(result["specs"][0]["spec_id"], "react-query-data-fetching")
         self.assertEqual(result["specs"][0]["path"], ".docs/spec/coding/frontend-data.md")
+        self.assertEqual(result["target_project_root"], ".")
 
     def test_scan_specs_marks_invalid_when_frontmatter_is_broken(self) -> None:
         self.write_text(
@@ -114,7 +148,8 @@ last_updated: ""
         self.assertTrue(any("no matching specs found" in warning for warning in miss["warnings"]))
 
     def test_sync_spec_context_updates_meta_summary(self) -> None:
-        meta_path = self.root / "feature/meta.yml"
+        project_config = self.write_project_config(self.root)
+        meta_path = self.root / ".docs/feature-demo/meta.yml"
         meta_path.parent.mkdir(parents=True, exist_ok=True)
         meta_path.write_text(
             yaml.safe_dump(
@@ -132,10 +167,10 @@ last_updated: ""
         sync_spec_context(
             meta_path=meta_path,
             stage_hook="ship-build",
-            spec_root=self.spec_root,
             stack_tags=["react"],
             domains=["todo"],
             files=["src/features/todo/list/TodoList.tsx"],
+            project_config=project_config,
         )
 
         saved = yaml.safe_load(meta_path.read_text(encoding="utf-8"))
@@ -166,6 +201,69 @@ last_updated: ""
         result = scan_specs(custom_root, project_root=self.root)
 
         self.assertEqual(result["specs"][0]["path"], "custom-spec/x.md")
+
+    def test_project_config_resolves_spec_and_feature_roots(self) -> None:
+        config_path = self.write_project_config(
+            self.root,
+            spec_root=".docs/spec",
+            feature_root="docs/features",
+        )
+
+        project_context = load_project_context(config_path)
+
+        self.assertEqual(project_context.target_project_id, "project-a")
+        self.assertEqual(project_context.target_project_root, ".")
+        self.assertEqual(project_context.spec_root, ".docs/spec")
+        self.assertEqual(project_context.feature_root, "docs/features")
+        self.assertEqual(project_context.resolved_spec_root, (self.root / ".docs/spec").resolve())
+        self.assertEqual(project_context.resolved_feature_root, (self.root / "docs/features").resolve())
+
+    def test_resolve_specs_normalizes_files_against_target_project_root(self) -> None:
+        workspace_root = self.root
+        project_root = workspace_root / "project-a"
+        spec_root = project_root / ".docs/spec"
+        self.write_text(
+            spec_root / "INDEX.md",
+            "---\ndoc_type: spec-index\ndoc_status: active\nschema_version: 2\nupdated_at: \"\"\n---\n",
+        )
+        self.write_text(
+            spec_root / "coding/backend.md",
+            """---
+spec_id: backend-rule
+scope: file
+stage_hooks:
+  - ship-build
+stack_tags: []
+domains: []
+applies_to:
+  - "src/app.ts"
+last_updated: "2026-05-29T10:00:00+08:00"
+---
+""",
+        )
+        config_path = self.write_project_config(project_root)
+        previous_cwd = Path.cwd()
+        os.chdir(workspace_root)
+        try:
+            result = resolve_specs(
+                spec_root=None,
+                project_context=load_project_context(config_path),
+                stage_hook="ship-build",
+                files=["project-a/src/app.ts"],
+            )
+        finally:
+            os.chdir(previous_cwd)
+
+        self.assertEqual(result["matched_spec_ids"], ["backend-rule"])
+        self.assertEqual(result["normalized_files"], ["src/app.ts"])
+
+    def test_scan_specs_returns_warning_when_project_spec_root_missing(self) -> None:
+        config_path = self.write_project_config(self.root, spec_root=".docs/missing-spec")
+
+        result = scan_specs(project_context=load_project_context(config_path))
+
+        self.assertEqual(result["index_status"], "missing")
+        self.assertTrue(any("spec directory does not exist" in warning for warning in result["warnings"]))
 
 
 class DelegationRuntimeTest(unittest.TestCase):
@@ -330,6 +428,37 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
     def load_meta(self, feature_dir: Path) -> dict:
         return yaml.safe_load((feature_dir / "meta.yml").read_text(encoding="utf-8"))
 
+    def write_project_config(
+        self,
+        project_root: Path,
+        *,
+        spec_root: str = ".docs/spec",
+        feature_root: str = ".docs",
+        project_id: str = "project-a",
+    ) -> Path:
+        path = project_root / ".docs/ship/project.yml"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            yaml.safe_dump(
+                {
+                    "schema_version": 1,
+                    "project_id": project_id,
+                    "project_name": "Project A",
+                    "project_root": ".",
+                    "spec_root": spec_root,
+                    "feature_root": feature_root,
+                    "module_layout": {
+                        "mode": "project_level_only",
+                        "module_roots": [],
+                    },
+                    "notes": "",
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+        return path
+
     def test_create_feature_meta_initializes_greenfield_at_discover(self) -> None:
         feature_dir = self.root / "greenfield"
         create_feature_meta(
@@ -350,6 +479,16 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
         self.assertEqual(saved["stages"]["ship-define"]["generation_mode"], "interview")
         self.assertEqual(saved["lifecycle_status"], "active")
         self.assertEqual(saved["skip_log"], [])
+
+    def test_feature_dir_for_uses_target_project_feature_root(self) -> None:
+        project_root = self.root / "project-a"
+        project_context = load_project_context(
+            self.write_project_config(project_root, feature_root="docs/features")
+        )
+
+        feature_dir = feature_dir_for("feature-20260529-demo", project_context)
+
+        self.assertEqual(feature_dir, (project_root / "docs/features/feature-20260529-demo").resolve())
 
     def test_create_feature_meta_initializes_prd_direct_at_define_and_skips_discover(self) -> None:
         feature_dir = self.root / "prd-direct"
@@ -456,6 +595,117 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
         saved = self.load_meta(feature_dir)
         self.assertEqual(saved["stages"]["ship-frontend-design"]["status"], "skipped")
         self.assertEqual(saved["stages"]["ship-delivery-plan"]["current_part"], "backend")
+
+    def test_create_feature_meta_writes_target_project_spec_context(self) -> None:
+        project_root = self.root / "project-a"
+        project_context = load_project_context(self.write_project_config(project_root))
+        feature_dir = feature_dir_for("feature-project-local", project_context)
+
+        create_feature_meta(
+            feature_dir=feature_dir,
+            feature_name="Project Local",
+            feature_id="feature-project-local",
+            pipeline_mode="standard",
+            project_context="existing_project",
+            project_scope="fullstack",
+            scenario="product_provided",
+            project_spec_context=project_context,
+        )
+
+        saved = self.load_meta(feature_dir)
+        self.assertEqual(saved["spec_context"]["target_project_id"], "project-a")
+        self.assertEqual(saved["spec_context"]["target_project_root"], ".")
+        self.assertEqual(saved["spec_context"]["spec_root"], ".docs/spec")
+        self.assertEqual(saved["spec_context"]["feature_root"], ".docs")
+        self.assertEqual(saved["spec_context"]["resolution_source"], "project_config")
+
+    def test_sync_spec_context_updates_target_project_fields(self) -> None:
+        project_root = self.root / "project-a"
+        spec_root = project_root / ".docs/spec"
+        project_config = self.write_project_config(project_root)
+        (spec_root / "coding").mkdir(parents=True, exist_ok=True)
+        (spec_root / "INDEX.md").write_text(
+            "---\ndoc_type: spec-index\ndoc_status: active\nschema_version: 2\nupdated_at: \"\"\n---\n",
+            encoding="utf-8",
+        )
+        (spec_root / "coding/frontend-data.md").write_text(
+            """---
+spec_id: react-query-data-fetching
+scope: module
+stage_hooks:
+  - ship-build
+stack_tags:
+  - react
+domains:
+  - todo
+applies_to:
+  - "src/features/todo/**/*.tsx"
+last_updated: "2026-05-23T10:00:00+08:00"
+---
+""",
+            encoding="utf-8",
+        )
+        feature_dir = feature_dir_for("feature-sync", load_project_context(project_config))
+        create_feature_meta(
+            feature_dir=feature_dir,
+            feature_name="Sync",
+            feature_id="feature-sync",
+            pipeline_mode="standard",
+            project_context="existing_project",
+            project_scope="fullstack",
+            scenario="product_provided",
+        )
+
+        sync_spec_context(
+            meta_path=feature_dir / "meta.yml",
+            stage_hook="ship-build",
+            stack_tags=["react"],
+            domains=["todo"],
+            files=["src/features/todo/list/TodoList.tsx"],
+            project_config=project_config,
+        )
+
+        saved = self.load_meta(feature_dir)
+        self.assertEqual(saved["spec_context"]["target_project_id"], "project-a")
+        self.assertEqual(saved["spec_context"]["target_project_root"], ".")
+        self.assertEqual(saved["spec_context"]["spec_root"], ".docs/spec")
+        self.assertEqual(saved["spec_context"]["feature_root"], ".docs")
+        self.assertEqual(saved["spec_context"]["referenced_spec_ids"], ["react-query-data-fetching"])
+
+    def test_sync_spec_context_requires_project_config_or_meta_target_project(self) -> None:
+        feature_dir = self.root / "feature-missing-target"
+        feature_dir.mkdir(parents=True, exist_ok=True)
+        (feature_dir / "meta.yml").write_text(
+            yaml.safe_dump(
+                {
+                    "feature_name": "Missing Target",
+                    "feature_id": "feature-missing-target",
+                    "current_stage": "ship-build",
+                    "spec_context": {},
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(ValueError, "provide --project-config"):
+            sync_spec_context(
+                meta_path=feature_dir / "meta.yml",
+                stage_hook="ship-build",
+                stack_tags=[],
+                domains=[],
+                files=["src/app.ts"],
+            )
+
+    def test_resolve_project_context_does_not_guess_between_multiple_child_projects(self) -> None:
+        workspace_root = self.root / "workspace"
+        project_a = workspace_root / "project-a"
+        project_b = workspace_root / "project-b"
+        self.write_project_config(project_a, project_id="project-a")
+        self.write_project_config(project_b, project_id="project-b")
+
+        with self.assertRaisesRegex(ValueError, "provide --project-config"):
+            resolve_project_context(search_from=workspace_root)
 
     def test_record_spec_proposal_only_allows_handoff_source(self) -> None:
         feature_dir = self.root / "proposal"

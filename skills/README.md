@@ -35,6 +35,7 @@
 - 状态默认显示大阶段，不要求记住内部阶段名
 - 只有在恢复断点、排查阻塞、直接调用某阶段时，才展开内部细阶段
 - `ship-spec` 作为 workflow utility 隐式接入，不作为单独阶段暴露给默认用户视图
+- `ship-spec` 只消费 `target project` 的 `spec_root`；多项目父目录下必须先选定 `.docs/ship/project.yml`
 
 ## 为什么这样设计
 
@@ -93,7 +94,7 @@
 #### 场景 C：迭代增强
 
 ```text
-启动 ship-orchestrator，基于 .docs/feature-20260520-old-feature/ 的现有实现，<变更需求描述>
+启动 ship-orchestrator，基于 <target-project>/.docs/feature-20260520-old-feature/ 的现有实现，<变更需求描述>
 ```
 
 默认响应：
@@ -105,7 +106,7 @@
 ### 继续已有 feature
 
 ```text
-继续 .docs/feature-20260522-todo-app/
+继续 <target-project>/.docs/feature-20260522-todo-app/
 ```
 
 默认返回大阶段视图；需要诊断时，再展开 `current_stage` 对应的细阶段。
@@ -113,7 +114,7 @@
 ### 高级模式：直接调用内部阶段
 
 ```text
-使用 ship-frontend-design，基于 .docs/feature-20260522-todo-app/api-contract.md 做前端方案
+使用 ship-frontend-design，基于 <target-project>/.docs/feature-20260522-todo-app/api-contract.md 做前端方案
 ```
 
 这类调用保留给高级用户、诊断场景和精确恢复场景，不作为默认使用路径。
@@ -184,7 +185,7 @@
 ## Feature 目录结构
 
 ```text
-.docs/feature-YYYYMMDD-<short-name>/
+<target-project>/.docs/feature-YYYYMMDD-<short-name>/
 ├── meta.yml
 ├── product-brief.md           ← 仅场景 A/C（来自 ship-discover）
 ├── design-brief.md            ← 仅场景 A/C 且涉及 UI（来自 ship-shape）
@@ -217,6 +218,7 @@
 - `scenario` 记录入口场景（greenfield / product_provided / evolve）
 - `macro_stage` 记录默认对外展示的大阶段摘要
 - `spec_context` 记录最近一次规范解析状态、已引用规范和待沉淀 proposal
+- `spec_context.target_project_id / spec_root / feature_root` 记录本 feature 绑定的 target project 解析结果
 
 ## Advanced
 
@@ -230,6 +232,13 @@
 - fast-track 的最小路径和升级/降级规则
 
 这些内容以 `ship-orchestrator/_templates/protocol/workflow-protocol.md` 为准。
+
+## Project-Local Spec Boundary
+
+- `ship-spec` 的显式配置源是 `target project/.docs/ship/project.yml`
+- 默认 `spec_root` 是 `target project/.docs/spec`
+- 默认 `feature_root` 是 `target project/.docs`
+- 缺少 `spec_root` / `INDEX.md` / 匹配 spec 时只 warning；无法确定 target project 时直接阻塞
 
 ## 维护
 

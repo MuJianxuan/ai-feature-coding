@@ -17,7 +17,7 @@ npx skills add MuJianxuan/ai-feature-coding
 
 这 5 个大阶段是默认对外视图，其中 `Discover` 只在场景 A（零到一）和场景 C（迭代增强）出现。内部仍然保留细阶段、硬门禁、文档产物和恢复协议，用于精确推进与诊断。
 
-`ship-spec` 以 workflow utility 形态接入，不占用 stage map；它会在 `ship-tech-discovery`、`ship-frontend-design`、`ship-backend-design`、`ship-build`、`ship-handoff` 被自动消费并通过 `meta.yml.spec_context` 留痕。
+`ship-spec` 以 workflow utility 形态接入，不占用 stage map；它会在 `ship-tech-discovery`、`ship-frontend-design`、`ship-backend-design`、`ship-build`、`ship-handoff` 被自动消费并通过 `meta.yml.spec_context` 留痕。规范边界始终是 `target project`，不是当前 cwd。
 
 ## 你会得到什么
 
@@ -32,6 +32,7 @@ npx skills add MuJianxuan/ai-feature-coding
 - 主文档：`skills/README.md`
 - 共享协议：`skills/ship-orchestrator/_templates/protocol/workflow-protocol.md`
 - 元数据模板：`skills/ship-orchestrator/_templates/meta/meta.yml.template`
+- 项目配置模板：`skills/ship-orchestrator/_templates/project/project.yml.template`
 - 规范管理：`skills/ship-spec/SKILL.md`
 
 ## 启动示例
@@ -45,7 +46,7 @@ npx skills add MuJianxuan/ai-feature-coding
 ### 继续已有 feature
 
 ```text
-继续 .docs/feature-YYYYMMDD-<short-name>/
+继续 <target-project>/<feature-root>/feature-YYYYMMDD-<short-name>/
 ```
 
 ### 高级模式
@@ -58,7 +59,8 @@ npx skills add MuJianxuan/ai-feature-coding
 - `skills/ship-orchestrator/`：统一入口与路由规则
 - `skills/ship-orchestrator/_templates/`：协议与模板
 - `skills/ship-*/references/`：阶段内参考模板，不属于共享协议
-- `.docs/`：feature 运行时产物和规范沉淀
+- `.docs/ship/project.yml`：target project 级显式配置，声明 `project_root / spec_root / feature_root`
+- `target project` 下的 `.docs/`：默认 feature 运行时产物和规范沉淀位置
 
 ## 维护
 
@@ -73,13 +75,30 @@ npx skills add MuJianxuan/ai-feature-coding
 ```bash
 python3 skills/ship-orchestrator/scripts/validate_workflow_docs.py
 python3 skills/ship-orchestrator/scripts/workflow_stage_map.py --list
-python3 skills/ship-orchestrator/scripts/spec_runtime.py scan .docs/spec
+python3 skills/ship-orchestrator/scripts/spec_runtime.py scan --project-config <target-project>/.docs/ship/project.yml
 ```
 
 最小 runtime helper：
 
 ```bash
-python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py init .docs/feature-YYYYMMDD-demo --feature-name "Demo Feature" --feature-id "feature-YYYYMMDD-demo" --scenario product_provided
-python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py refresh .docs/feature-YYYYMMDD-demo/meta.yml
-python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec .docs/feature-YYYYMMDD-demo/meta.yml --stage ship-build --file src/app.ts
+python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py init feature-YYYYMMDD-demo --project-config <target-project>/.docs/ship/project.yml --feature-name "Demo Feature" --feature-id "feature-YYYYMMDD-demo" --scenario product_provided
+python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py refresh <target-project>/.docs/feature-YYYYMMDD-demo/meta.yml
+python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec <target-project>/.docs/feature-YYYYMMDD-demo/meta.yml --project-config <target-project>/.docs/ship/project.yml --stage ship-build --file src/app.ts
 ```
+
+最小 project config 示例：
+
+```yaml
+schema_version: 1
+project_id: demo-project
+project_name: Demo Project
+project_root: "."
+spec_root: ".docs/spec"
+feature_root: ".docs"
+module_layout:
+  mode: project_level_only
+  module_roots: []
+notes: ""
+```
+
+多项目父目录场景下，必须先选定 target project；缺少 spec 只会 warning，缺少 target project 会直接阻塞。

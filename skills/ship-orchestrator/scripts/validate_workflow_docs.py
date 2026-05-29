@@ -42,6 +42,11 @@ def validate_meta_template() -> None:
         "ship-delivery-plan:",
         "current_part: frontend",
         "spec_context:",
+        'target_project_id: ""',
+        'target_project_root: "."',
+        'spec_root: ""',
+        'feature_root: ""',
+        'resolution_source: ""',
         "index_status: missing",
         "referenced_spec_ids: []",
         "pending_proposals: []",
@@ -73,7 +78,13 @@ def validate_protocol_doc() -> None:
         f"{path}: missing next_user_decision references",
     )
     require("`ship-spec` 是 workflow utility" in text, f"{path}: missing ship-spec utility wording")
+    require("Project Resolution Contract" in text, f"{path}: missing project resolution section")
+    require(".docs/ship/project.yml" in text, f"{path}: missing project config contract")
     require("spec_context" in text, f"{path}: missing spec_context references")
+    require("target_project_id" in text, f"{path}: missing target_project_id references")
+    require("target_project_root" in text, f"{path}: missing target_project_root references")
+    require("feature_root" in text, f"{path}: missing feature_root references")
+    require("resolution_source" in text, f"{path}: missing resolution_source references")
     require("skip_log" in text, f"{path}: missing skip_log references")
     require("lifecycle_status" in text, f"{path}: missing lifecycle_status references")
     require("scenario" in text, f"{path}: missing scenario references")
@@ -95,6 +106,9 @@ def validate_protocol_doc() -> None:
         "canonical `node_id`",
         "ship-build.read-next-task",
         "ship-verify.backend-contract",
+        "只有无法确定 `target project` 时才阻塞",
+        "target project `spec_root`",
+        "归一化到 `target_project_root` 相对路径",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
     for node_id in CANONICAL_DELEGATION_NODES:
@@ -117,12 +131,14 @@ def validate_readmes() -> None:
         text = read_text(path)
         require("Discover" in text and "Define" in text and "Design" in text and "Build" in text and "Close" in text, f"{path}: missing 5-stage view")
         require("ship-spec" in text, f"{path}: missing ship-spec mention")
+        require(".docs/ship/project.yml" in text or "project.yml.template" in text, f"{path}: missing project-local spec config wording")
         require("4 个大阶段" not in text and "4 大阶段" not in text, f"{path}: contains legacy 4-stage wording")
 
     templates_readme = ROOT / "skills/ship-orchestrator/_templates/README.md"
     templates_text = read_text(templates_readme)
-    for snippet in ("meta.yml.template", "review.md.template", "workflow-protocol.md", "spec_context", "delegation"):
+    for snippet in ("meta.yml.template", "review.md.template", "workflow-protocol.md", "spec_context", "delegation", "project.yml.template", "project_root", "spec_root", "feature_root", "project_level_only"):
         require(snippet in templates_text, f"{templates_readme}: missing `{snippet}`")
+    require((ROOT / "skills/ship-orchestrator/_templates/project/project.yml.template").exists(), "missing _templates/project/project.yml.template")
 
 
 def validate_stage_reference_templates() -> None:
@@ -259,6 +275,8 @@ def validate_orchestrator_doc() -> None:
     require("Define → Design → Build → Close" in text, f"{path}: missing default stage sequence")
     require("ship-spec" in text, f"{path}: missing ship-spec utility references")
     require("spec_context" in text, f"{path}: missing spec_context references")
+    require(".docs/ship/project.yml" in text, f"{path}: missing target project config references")
+    require("target project" in text, f"{path}: missing target project wording")
     require("delegation" in text, f"{path}: missing delegation references")
     require("ship-build 正式任务保持单 `DOING`" in text, f"{path}: missing build delegation wording")
     require("parallel_subagent" in text, f"{path}: missing parallel_subagent wording")
@@ -274,6 +292,9 @@ def validate_orchestrator_doc() -> None:
         "ask_on_assistive_node",
         "delegation.warnings",
         "ship-verify.backend-contract",
+        "负责 project resolution",
+        "NEW_FEATURE / CONTINUE_FEATURE / `sync-spec` 都以 target project 为边界",
+        "feature_root",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
     require("5 个大阶段" in text or "五个大阶段" in text, f"{path}: missing 5-stage wording")
@@ -290,10 +311,43 @@ def validate_ship_spec_doc() -> None:
         "Proposal-First",
         "spec_runtime.py",
         "feature_meta_runtime.py sync-spec",
+        ".docs/ship/project.yml",
+        "--project-config",
+        "target project",
+        "project_level_only",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
     require("不是 canonical stage" in text, f"{path}: missing non-stage wording")
     require("ship-handoff" in text, f"{path}: missing handoff proposal wording")
+
+
+def validate_project_local_stage_docs() -> None:
+    expectations = {
+        ROOT / "skills/ship-tech-discovery/SKILL.md": (
+            "target project `spec_root`",
+            "target project 未明确，不允许进入 `selection`",
+        ),
+        ROOT / "skills/ship-frontend-design/SKILL.md": (
+            "target project `spec_root`",
+            "不读取父目录或其他项目 spec",
+        ),
+        ROOT / "skills/ship-backend-design/SKILL.md": (
+            "target project `spec_root`",
+            "不读取父目录或其他项目 spec",
+        ),
+        ROOT / "skills/ship-build/SKILL.md": (
+            "target project `spec_root`",
+            "相对 `target_project_root` 的路径",
+        ),
+        ROOT / "skills/ship-handoff/SKILL.md": (
+            "target project `spec_root`",
+            "spec_context.warnings",
+        ),
+    }
+    for path, snippets in expectations.items():
+        text = read_text(path)
+        for snippet in snippets:
+            require(snippet in text, f"{path}: missing `{snippet}`")
 
 
 def validate_stage_map_script() -> None:
@@ -311,6 +365,8 @@ def validate_root_readme_commands() -> None:
     require("5 大阶段" in text or "五个大阶段" in text, f"{path}: missing 5-stage wording")
     require("feature_meta_runtime.py" in text, f"{path}: missing feature_meta_runtime helper command")
     require("spec_runtime.py" in text, f"{path}: missing spec_runtime helper command")
+    require("--project-config" in text, f"{path}: missing project-config helper examples")
+    require(".docs/ship/project.yml" in text, f"{path}: missing project config example")
     require("14 个 canonical" in text or "14 个内部阶段名" in text or "14 个阶段" in text, f"{path}: missing 14-stage wording")
 
 
@@ -325,6 +381,7 @@ def main() -> int:
         validate_review_template_delegation,
         validate_orchestrator_doc,
         validate_ship_spec_doc,
+        validate_project_local_stage_docs,
         validate_root_readme_commands,
     ]
     for validator in validators:

@@ -64,8 +64,13 @@ tech_stack:
     frontend: ""              # 例: "Vitest + Testing Library + Playwright"
     backend: ""               # 例: "Vitest + Supertest"
 
-# ship-spec 摘要索引（Utility Hook；规范事实源仍是 .docs/spec/*.md）
+# ship-spec 摘要索引（Utility Hook；规范事实源是 target project 下的 spec_root）
 spec_context:
+  target_project_id: ""      # 稳定项目标识，来自 .docs/ship/project.yml
+  target_project_root: "."   # 固定按 target project root 相对表示
+  spec_root: ""              # 例: ".docs/spec"
+  feature_root: ""           # 例: ".docs"
+  resolution_source: ""      # project_config | meta_spec_context | explicit_paths
   index_status: missing       # missing | ready | invalid
   last_checked_at: ""
   last_checked_stage: ""      # ship-tech-discovery | ship-frontend-design | ship-backend-design | ship-build | ship-handoff

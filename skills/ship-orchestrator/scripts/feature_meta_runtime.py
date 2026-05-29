@@ -22,7 +22,14 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 ROOT = SCRIPT_DIR.parents[2]
 sys.path.insert(0, str(SCRIPT_DIR))
 
-from spec_runtime import VALID_STAGE_HOOKS, resolve_specs  # noqa: E402
+from spec_runtime import (  # noqa: E402
+    VALID_STAGE_HOOKS,
+    ProjectSpecContext,
+    build_explicit_project_context,
+    load_project_context,
+    locate_project_config,
+    resolve_specs,
+)
 from workflow_stage_map import CANONICAL_STAGE_ORDER, stage_view_for  # noqa: E402
 
 
@@ -33,7 +40,6 @@ RAW_PRD_INBOX_TEMPLATE_PATH = (
 RESOURCE_README_TEMPLATE_PATH = (
     ROOT / "skills/ship-orchestrator/_templates/resource/README.md.template"
 )
-FEATURES_ROOT = ROOT / ".docs"
 
 CURRENT_CONTEXT = "current_context"
 ASSISTIVE_SUBAGENT = "assistive_subagent"
@@ -328,6 +334,11 @@ def ensure_macro_stage(data: dict) -> dict:
 
 def ensure_spec_context(data: dict) -> dict:
     spec_context = data.setdefault("spec_context", {})
+    spec_context.setdefault("target_project_id", "")
+    spec_context.setdefault("target_project_root", "")
+    spec_context.setdefault("spec_root", "")
+    spec_context.setdefault("feature_root", "")
+    spec_context.setdefault("resolution_source", "")
     spec_context.setdefault("index_status", "missing")
     spec_context.setdefault("last_checked_at", "")
     spec_context.setdefault("last_checked_stage", "")
@@ -669,8 +680,78 @@ def clear_delegation_warning_log(meta_path: Path) -> None:
     _save_meta_with_updated_at(meta_path, data)
 
 
-def feature_dir_for(feature_name: str) -> Path:
-    return FEATURES_ROOT / feature_name
+def _feature_root_parts(feature_root: str) -> tuple[str, ...]:
+    return tuple(part for part in Path(feature_root).parts if part not in ("", "."))
+
+
+def feature_dir_for(feature_name: str, project_spec_context: ProjectSpecContext) -> Path:
+    return project_spec_context.resolved_feature_root / feature_name
+
+
+def _sync_project_spec_context(spec_context: dict, project_spec_context: ProjectSpecContext) -> None:
+    spec_context["target_project_id"] = project_spec_context.target_project_id
+    spec_context["target_project_root"] = project_spec_context.target_project_root
+    spec_context["spec_root"] = project_spec_context.spec_root
+    spec_context["feature_root"] = project_spec_context.feature_root
+    spec_context["resolution_source"] = project_spec_context.resolution_source
+
+
+def _resolve_project_context_from_meta(meta_path: Path, data: dict) -> ProjectSpecContext:
+    spec_context = data.get("spec_context") or {}
+    target_project_id = str(spec_context.get("target_project_id", "")).strip()
+    spec_root = str(spec_context.get("spec_root", "")).strip()
+    feature_root = str(spec_context.get("feature_root", "")).strip()
+    if not target_project_id or not spec_root or not feature_root:
+        raise ValueError(
+            "unable to determine target project from meta.yml; provide --project-config"
+        )
+
+    parts = _feature_root_parts(feature_root)
+    feature_dir = meta_path.parent.resolve()
+    project_root = feature_dir.parent if not parts else feature_dir.parents[len(parts)]
+    return build_explicit_project_context(
+        spec_root=Path(spec_root),
+        project_root=project_root,
+        feature_root=Path(feature_root),
+        target_project_id=target_project_id,
+        resolution_source="meta_spec_context",
+    )
+
+
+def resolve_project_context(
+    *,
+    project_config: Path | None = None,
+    search_from: Path | None = None,
+    meta_path: Path | None = None,
+    data: dict | None = None,
+) -> ProjectSpecContext:
+    if project_config is not None:
+        return load_project_context(project_config)
+    if search_from is not None:
+        discovered = locate_project_config(search_from)
+        if discovered is not None:
+            return load_project_context(discovered)
+    if meta_path is not None and data is not None:
+        return _resolve_project_context_from_meta(meta_path, data)
+    raise ValueError("unable to determine target project; provide --project-config")
+
+
+def resolve_feature_dir(feature_arg: str, project_spec_context: ProjectSpecContext) -> Path:
+    raw = Path(feature_arg)
+    if raw.is_absolute():
+        feature_dir = raw.resolve()
+    elif raw.parent == Path("."):
+        feature_dir = feature_dir_for(raw.name, project_spec_context)
+    else:
+        feature_dir = raw.resolve()
+
+    try:
+        feature_dir.relative_to(project_spec_context.resolved_feature_root)
+    except ValueError as exc:
+        raise ValueError(
+            f"feature_dir must be inside target project feature_root `{project_spec_context.feature_root}`"
+        ) from exc
+    return feature_dir
 
 
 def apply_scope_skips(data: dict) -> None:
@@ -766,6 +847,7 @@ def create_feature_meta(
     project_context: str,
     project_scope: str = "fullstack",
     scenario: str = "",
+    project_spec_context: ProjectSpecContext | None = None,
 ) -> Path:
     if scenario not in VALID_SCENARIOS:
         raise ValueError(f"invalid scenario: {scenario}")
@@ -791,6 +873,8 @@ def create_feature_meta(
     apply_scope_skips(data)
     ensure_macro_stage(data)
     ensure_spec_context(data)
+    if project_spec_context is not None:
+        _sync_project_spec_context(data["spec_context"], project_spec_context)
     ensure_delegation(data)
     ensure_skip_log(data)
     ensure_lifecycle_status(data)
@@ -842,29 +926,44 @@ def refresh_feature_meta(meta_path: Path) -> None:
 def sync_spec_context(
     meta_path: Path,
     stage_hook: str,
-    spec_root: Path,
     stack_tags: list[str],
     domains: list[str],
     files: list[str],
+    project_config: Path | None = None,
+    spec_root: Path | None = None,
 ) -> dict:
     data = load_meta(meta_path)
     ensure_spec_context(data)
     ensure_delegation(data)
     ensure_skip_log(data)
     ensure_lifecycle_status(data)
+    project_spec_context = resolve_project_context(
+        project_config=project_config,
+        meta_path=meta_path,
+        data=data,
+    )
+    if spec_root is not None:
+        project_spec_context = build_explicit_project_context(
+            spec_root=spec_root,
+            project_root=project_spec_context.resolved_project_root,
+            feature_root=Path(project_spec_context.feature_root),
+            target_project_id=project_spec_context.target_project_id,
+            resolution_source=project_spec_context.resolution_source,
+        )
     result = resolve_specs(
-        spec_root=spec_root,
+        spec_root=None,
+        project_context=project_spec_context,
         stage_hook=stage_hook,
         stack_tags=stack_tags,
         domains=domains,
         files=files,
-        project_root=Path.cwd(),
     )
 
     spec_context = data["spec_context"]
     existing_spec_ids = set(spec_context.get("referenced_spec_ids", []))
     existing_spec_ids.update(result["matched_spec_ids"])
 
+    _sync_project_spec_context(spec_context, project_spec_context)
     spec_context["index_status"] = result["index_status"]
     spec_context["last_checked_at"] = iso_now()
     spec_context["last_checked_stage"] = stage_hook
@@ -993,6 +1092,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     init_parser = subparsers.add_parser("init", help="Initialize a feature meta.yml")
     init_parser.add_argument("feature_dir", help="Feature directory path")
+    init_parser.add_argument(
+        "--project-config",
+        help="Path to target project .docs/ship/project.yml",
+    )
     init_parser.add_argument("--feature-name", required=True, help="Human-readable feature name")
     init_parser.add_argument("--feature-id", required=True, help="Stable feature id")
     init_parser.add_argument(
@@ -1026,7 +1129,11 @@ def build_parser() -> argparse.ArgumentParser:
     sync_parser = subparsers.add_parser("sync-spec", help="Resolve specs and sync spec_context")
     sync_parser.add_argument("meta_path", help="Path to meta.yml")
     sync_parser.add_argument("--stage", required=True, choices=VALID_STAGE_HOOKS)
-    sync_parser.add_argument("--spec-root", default=".docs/spec", help="Spec root directory")
+    sync_parser.add_argument(
+        "--project-config",
+        help="Path to target project .docs/ship/project.yml",
+    )
+    sync_parser.add_argument("--spec-root", help="Low-level override for spec root directory")
     sync_parser.add_argument("--stack-tag", action="append", default=[], help="Stack tag used for spec matching")
     sync_parser.add_argument("--domain", action="append", default=[], help="Domain tag used for spec matching")
     sync_parser.add_argument("--file", action="append", default=[], help="File path used for ship-build matching")
@@ -1071,7 +1178,11 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv[1:])
 
     if args.command == "init":
-        feature_dir = Path(args.feature_dir)
+        project_spec_context = resolve_project_context(
+            project_config=Path(args.project_config) if args.project_config else None,
+            search_from=Path(args.feature_dir),
+        )
+        feature_dir = resolve_feature_dir(args.feature_dir, project_spec_context)
         meta_path = create_feature_meta(
             feature_dir=feature_dir,
             feature_name=args.feature_name,
@@ -1080,6 +1191,7 @@ def main(argv: list[str]) -> int:
             project_context=args.project_context,
             project_scope=args.project_scope,
             scenario=args.scenario,
+            project_spec_context=project_spec_context,
         )
         print(meta_path)
         return 0
@@ -1093,10 +1205,11 @@ def main(argv: list[str]) -> int:
         payload = sync_spec_context(
             meta_path=Path(args.meta_path),
             stage_hook=args.stage,
-            spec_root=Path(args.spec_root),
             stack_tags=args.stack_tag,
             domains=args.domain,
             files=args.file,
+            project_config=Path(args.project_config) if args.project_config else None,
+            spec_root=Path(args.spec_root) if args.spec_root else None,
         )
         print(json.dumps(payload, ensure_ascii=True, indent=2))
         return 0

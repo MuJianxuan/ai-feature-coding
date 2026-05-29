@@ -31,7 +31,11 @@
         var(--paper);
       background-size: 28px 28px;
       font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      letter-spacing: 0;
+    }
+
+    code,
+    pre {
+      font-family: "SFMono-Regular", Consolas, monospace;
     }
 
     .page {
@@ -51,7 +55,7 @@
 
     .hero {
       display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+      grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
       gap: 28px;
       align-items: stretch;
       margin-bottom: 28px;
@@ -60,7 +64,6 @@
     .hero-main,
     .hero-side,
     .band,
-    .legend,
     .evidence {
       background: var(--panel);
       border: 1px solid var(--line);
@@ -70,7 +73,7 @@
 
     .hero-main {
       padding: 36px;
-      min-height: 360px;
+      min-height: 380px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -85,16 +88,15 @@
     }
 
     h1 {
-      max-width: 940px;
+      max-width: 980px;
       margin: 0;
       font-size: clamp(42px, 5vw, 84px);
       line-height: 0.98;
-      letter-spacing: 0;
       text-wrap: balance;
     }
 
     .hero-copy {
-      max-width: 760px;
+      max-width: 780px;
       margin: 28px 0 0;
       color: var(--muted);
       font-size: 20px;
@@ -114,23 +116,38 @@
       border: 1px solid #cad9d4;
       border-radius: 6px;
       background: #eef7f3;
-      font-family: "SFMono-Regular", Consolas, monospace;
-      font-size: 15px;
-      line-height: 1.55;
+      font-size: 14px;
+      line-height: 1.6;
       color: #16483d;
+      white-space: pre-wrap;
+    }
+
+    .mini-grid,
+    .scenario-row,
+    .macro-flow,
+    .track,
+    .source-grid,
+    .gate-row,
+    .delegation-grid,
+    .contract-grid,
+    .helper-grid {
+      display: grid;
+      gap: 14px;
     }
 
     .mini-grid {
-      display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
     }
 
-    .mini {
-      min-height: 92px;
-      padding: 14px;
+    .mini,
+    .artifact,
+    .gate,
+    .delegation-cell,
+    .contract-card,
+    .helper-card {
+      padding: 18px;
       border: 1px solid var(--line);
-      border-radius: 6px;
+      border-radius: 8px;
       background: #fbf8f0;
     }
 
@@ -138,7 +155,9 @@
     .stage strong,
     .artifact strong,
     .gate strong,
-    .delegation-cell strong {
+    .delegation-cell strong,
+    .contract-card strong,
+    .helper-card strong {
       display: block;
       margin-bottom: 6px;
       font-size: 14px;
@@ -147,11 +166,13 @@
     .mini span,
     .artifact span,
     .gate span,
-    .delegation-cell span {
+    .delegation-cell span,
+    .contract-card span,
+    .helper-card span {
       display: block;
       color: var(--muted);
       font-size: 13px;
-      line-height: 1.45;
+      line-height: 1.5;
     }
 
     .band {
@@ -173,25 +194,16 @@
       margin: 0;
       font-size: 30px;
       line-height: 1.15;
-      letter-spacing: 0;
     }
 
     .band-header p {
-      max-width: 660px;
+      max-width: 720px;
       margin: 0;
       color: var(--muted);
       font-size: 15px;
       line-height: 1.65;
       text-align: right;
-    }
-
-    .scenario-row,
-    .macro-flow,
-    .source-grid,
-    .gate-row,
-    .delegation-grid {
-      display: grid;
-      gap: 14px;
+      text-wrap: pretty;
     }
 
     .scenario-row {
@@ -240,18 +252,17 @@
       border-radius: 999px;
       color: var(--accent);
       background: color-mix(in oklch, var(--accent), #ffffff 88%);
-      font-family: "SFMono-Regular", Consolas, monospace;
       font-size: 12px;
       font-weight: 700;
     }
 
     .macro-flow {
-      grid-template-columns: 1.05fr 1fr 1.35fr 1.15fr 0.85fr;
+      grid-template-columns: 1.05fr 1fr 1.35fr 1.15fr 0.95fr;
       align-items: stretch;
     }
 
     .stage {
-      min-height: 180px;
+      min-height: 190px;
       padding: 18px;
       border: 2px solid var(--accent);
       border-radius: 8px;
@@ -288,21 +299,18 @@
       display: block;
       margin-top: 12px;
       color: var(--muted);
-      font-family: "SFMono-Regular", Consolas, monospace;
       font-size: 12px;
       line-height: 1.45;
     }
 
     .track {
-      display: grid;
       grid-template-columns: repeat(14, minmax(120px, 1fr));
-      gap: 10px;
       overflow-x: auto;
       padding-bottom: 8px;
     }
 
     .node {
-      min-height: 142px;
+      min-height: 150px;
       padding: 12px;
       border: 1px solid var(--line);
       border-top: 6px solid var(--accent);
@@ -312,14 +320,12 @@
 
     .node .order {
       color: var(--muted);
-      font-family: "SFMono-Regular", Consolas, monospace;
       font-size: 11px;
       font-weight: 700;
     }
 
     .node h3 {
       margin: 8px 0;
-      font-family: "SFMono-Regular", Consolas, monospace;
       font-size: 13px;
       line-height: 1.25;
       overflow-wrap: anywhere;
@@ -345,22 +351,14 @@
     }
 
     .source-grid {
-      grid-template-columns: 1.1fr 1fr 1fr;
-    }
-
-    .artifact,
-    .gate,
-    .delegation-cell {
-      padding: 18px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #fbf8f0;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 
     .artifact code,
     .gate code,
+    .contract-card code,
+    .helper-card code,
     .evidence code {
-      font-family: "SFMono-Regular", Consolas, monospace;
       color: #315f9d;
     }
 
@@ -378,8 +376,34 @@
     }
 
     .delegation-cell {
-      min-height: 160px;
+      min-height: 170px;
       border-top: 6px solid var(--accent);
+    }
+
+    .contract-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .contract-card {
+      min-height: 206px;
+      border-top: 6px solid var(--accent);
+    }
+
+    .helper-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .helper-card pre {
+      margin: 10px 0 0;
+      padding: 10px 12px;
+      border: 1px solid #d9dfed;
+      border-radius: 6px;
+      background: #f4f7fc;
+      color: #224977;
+      font-size: 12px;
+      line-height: 1.55;
+      overflow-x: auto;
+      white-space: pre-wrap;
     }
 
     .evidence {
@@ -400,12 +424,14 @@
       font-size: 14px;
     }
 
-    @media (max-width: 1100px) {
+    @media (max-width: 1180px) {
       .hero,
       .scenario-row,
       .source-grid,
       .gate-row,
-      .delegation-grid {
+      .delegation-grid,
+      .contract-grid,
+      .helper-grid {
         grid-template-columns: 1fr;
       }
 
@@ -450,42 +476,45 @@
   </style>
 </head>
 <body>
-  <!-- Visual system: 84/42/30/22/15/13 type scale, warm paper background, restrained green/blue/red status colors, 8px cards, left-to-right workflow rhythm. -->
+  <!-- Visual system: warm paper + blueprint grid, restrained semantic accents, information-dense cards, no marketing chrome. -->
   <main class="page">
     <div class="system-note">
-      设计系统声明：本页是开发使用介绍图，不是营销页。布局采用信息图密度，颜色只表达工作流语义：green 表示入口与事实源，blue 表示设计/构建轨道，red 表示 hard gate。
+      设计系统声明：这是一张“当前 skills workflow 使用介绍图”，不是品牌宣传页。信息以当前仓库事实源为准，重点补足了最新的
+      <strong>target project / project-local spec boundary / spec_context snapshot</strong>。
     </div>
 
     <section class="hero">
       <div class="hero-main">
         <div>
-          <p class="eyebrow">ShipKit Skills Workflow</p>
-          <h1>一个入口，五个大阶段，十四个内部执行节点。</h1>
+          <p class="eyebrow">ShipKit Skills Workflow · 2026-05-29 Snapshot</p>
+          <h1>一个入口，五个大阶段，十四个内部节点，再加一条 project-local 规范边界。</h1>
           <p class="hero-copy">
-            当前项目是一套从需求到交付的 development workflow skills。默认使用者只需要面对
-            <strong>ship-orchestrator</strong> 和 <strong>[Discover →] Define → Design → Build → Close</strong>，
-            维护者则通过 canonical stage、frontmatter、hard gate 与 delegation contract 保持流程可恢复、可审计、可验证。
+            当前这套 skills workflow 的最新高信心口径是：使用者默认只面对
+            <strong>ship-orchestrator</strong> 和 <strong>[Discover →] Define → Design → Build → Close</strong>；
+            维护者则通过 canonical stage、frontmatter、hard gate、delegation contract，
+            以及 <strong>target project</strong> 驱动的 <strong>ship-spec</strong> 解析协议，保持流程可恢复、可审计、可验证。
           </p>
         </div>
       </div>
       <aside class="hero-side">
         <div class="command">启动 ship-orchestrator，我想做一个“功能名”：一句话想法</div>
+        <div class="command">python3 skills/ship-orchestrator/scripts/spec_runtime.py scan --project-config &lt;target-project&gt;/.docs/ship/project.yml</div>
         <div class="mini-grid">
           <div class="mini">
             <strong>默认入口</strong>
             <span>用户默认只和 ship-orchestrator 交互，由它识别 NEW / CONTINUE / INSPECT。</span>
           </div>
           <div class="mini">
-            <strong>事实源</strong>
-            <span>阶段文档 frontmatter 是事实源，meta.yml 是恢复与展示索引。</span>
+            <strong>规范边界</strong>
+            <span>ship-spec 只消费 target project 的 <code>spec_root</code>，不再默认为 cwd /.docs/spec。</span>
           </div>
           <div class="mini">
             <strong>三道硬门禁</strong>
-            <span>Define Review、Design Review、Plan Review 必须 approved + 用户签字。</span>
+            <span>Define Review、Design Review、Plan Review 必须 <code>approved + 用户签字</code>。</span>
           </div>
           <div class="mini">
             <strong>委派原则</strong>
-            <span>子代理是执行策略，不是新阶段；状态推进仍由主上下文收口。</span>
+            <span>子代理是执行策略，不是新阶段；正式状态推进和用户签字仍由主上下文收口。</span>
           </div>
         </div>
       </aside>
@@ -494,17 +523,17 @@
     <section class="band">
       <div class="band-header">
         <h2>使用者视图：四种入口场景</h2>
-        <p>NEW_FEATURE 先识别场景，再决定是否进入 Discover。场景 B/D 跳过 Discover，场景 A/C 激活 Discover。</p>
+        <p>NEW_FEATURE 先识别场景，再决定是否进入 Discover。场景 B/D 跳过 Discover；A/C 激活 Discover。CONTINUE 与 INSPECT 则围绕 feature 目录恢复与汇总。</p>
       </div>
       <div class="scenario-row">
         <article class="scenario" style="--accent: var(--green)">
           <h3>A 零到一</h3>
-          <p>只有一句话想法，无 PRD、原型、设计稿。先进入需求探索，必要时再进入 UIUX 原型设计。</p>
+          <p>只有一句话想法，无 PRD / 原型 / 设计稿。先做需求探索，必要时再进入 ship-shape 补 UIUX 原型。</p>
           <span class="tag">start: ship-discover</span>
         </article>
         <article class="scenario" style="--accent: var(--teal)">
           <h3>B 产品提供</h3>
-          <p>已有 PRD / Figma / prototype / UIUX 材料，但仍需要整理和采访确认。</p>
+          <p>已有 PRD / Figma / prototype / UIUX 材料，但仍需要整理和采访确认。若资料未放齐，会进入 awaiting_materials。</p>
           <span class="tag">start: ship-define</span>
         </article>
         <article class="scenario" style="--accent: var(--amber)">
@@ -514,7 +543,7 @@
         </article>
         <article class="scenario" style="--accent: var(--violet)">
           <h3>D PRD 直通</h3>
-          <p>已有完整 PRD + 原型/设计稿，并明确不需要需求录入。ship-define 走 prd_direct。</p>
+          <p>已有完整 PRD + 原型 / 设计稿，并明确不需要需求录入。ship-define 走 prd_direct，零提问纯提取。</p>
           <span class="tag">start: ship-define</span>
         </article>
       </div>
@@ -523,7 +552,7 @@
     <section class="band">
       <div class="band-header">
         <h2>使用者视图：五阶段模型</h2>
-        <p>默认展示 macro_stage，隐藏内部细节。用户只需要知道当前目标、下一次决策点和是否可推进。</p>
+        <p>默认展示 <code>macro_stage</code>，隐藏内部节点。用户只需要知道当前目标、下一次决策点和是否可推进。</p>
       </div>
       <div class="macro-flow">
         <article class="stage" style="--accent: var(--green)">
@@ -533,7 +562,7 @@
         </article>
         <article class="stage" style="--accent: var(--teal)">
           <strong>Define</strong>
-          <p>把需求整理成 requirements.md，并通过需求质量评审。</p>
+          <p>把需求整理成 requirements.md，并完成第一道需求质量评审。</p>
           <small>gate: review-define.md</small>
         </article>
         <article class="stage" style="--accent: var(--blue)">
@@ -543,13 +572,13 @@
         </article>
         <article class="stage" style="--accent: var(--violet)">
           <strong>Build</strong>
-          <p>生成交付计划、评审任务粒度，按任务编码并完成验证。</p>
+          <p>生成交付计划、评审任务粒度，按任务编码，并完成验证。</p>
           <small>single DOING task</small>
         </article>
         <article class="stage" style="--accent: var(--amber)">
           <strong>Close</strong>
-          <p>映射 AC 证据、登记残余风险、产出 handoff。</p>
-          <small>handoff.md</small>
+          <p>映射 AC 证据、登记残余风险、生成 handoff 与 spec proposals。</p>
+          <small>handoff.md + verification.md</small>
         </article>
       </div>
     </section>
@@ -557,7 +586,7 @@
     <section class="band">
       <div class="band-header">
         <h2>维护者视图：十四个 canonical stages</h2>
-        <p>current_stage 只能写 canonical stage id。ship-spec 是 utility hook，不进入 stage map。</p>
+        <p><code>current_stage</code> 只能写 canonical stage id。ship-spec 是 utility hook，不进入 stage map。</p>
       </div>
       <div class="track" aria-label="canonical stages">
         <article class="node" style="--accent: var(--green)"><span class="order">00a</span><h3>ship-discover</h3><p>product-brief.md</p></article>
@@ -579,8 +608,8 @@
 
     <section class="band">
       <div class="band-header">
-        <h2>状态事实源与推进规则</h2>
-        <p>这是恢复断点和避免多套状态冲突的核心。阶段产物决定状态，orchestrator 只缓存摘要并负责路由。</p>
+        <h2>状态事实源与恢复索引</h2>
+        <p>阶段产物决定状态，orchestrator 只缓存摘要并负责路由。最新口径下，target project snapshot 也进入了 <code>meta.yml.spec_context</code>。</p>
       </div>
       <div class="source-grid">
         <article class="artifact">
@@ -592,6 +621,10 @@
           <span>保存 <code>current_stage</code>、<code>macro_stage</code>、<code>scenario</code>、<code>delegation</code>、<code>spec_context</code> 等恢复索引。</span>
         </article>
         <article class="artifact">
+          <strong>spec_context snapshot</strong>
+          <span>新增 <code>target_project_id</code>、<code>target_project_root</code>、<code>spec_root</code>、<code>feature_root</code>、<code>resolution_source</code>。</span>
+        </article>
+        <article class="artifact">
           <strong>冲突处理</strong>
           <span>如果 meta.yml 与产物 frontmatter 不一致，优先信任产物文档，再回写修正 meta.yml。</span>
         </article>
@@ -600,8 +633,60 @@
 
     <section class="band">
       <div class="band-header">
+        <h2>Project-Local Spec Boundary</h2>
+        <p>这是当前 guide 最大的新增重点。ship-spec 不再围绕 cwd 推断，而是显式绑定 target project。</p>
+      </div>
+      <div class="contract-grid">
+        <article class="contract-card" style="--accent: var(--green)">
+          <strong>唯一显式配置源</strong>
+          <span><code>target project/.docs/ship/project.yml</code> 是 project boundary 的唯一显式配置源。默认声明 <code>project_root</code>、<code>spec_root</code>、<code>feature_root</code>，本期只支持 <code>project_level_only</code>。</span>
+        </article>
+        <article class="contract-card" style="--accent: var(--blue)">
+          <strong>两种可信来源</strong>
+          <span>第一来源是当前 feature 已持久化的 <code>meta.yml.spec_context</code>；第二来源是显式 <code>.docs/ship/project.yml</code>。不再根据 <code>package.json</code>、<code>go.mod</code> 或父目录结构 silent guess。</span>
+        </article>
+        <article class="contract-card" style="--accent: var(--red)">
+          <strong>阻塞与 warning</strong>
+          <span>只有无法确定 target project 时才阻塞。target project 已确定但缺少 <code>spec_root</code>、<code>INDEX.md</code>、命中 spec 或 frontmatter 合法性时，统一走 Warn Then Continue。</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="band-header">
+        <h2>关键 helper 与恢复路径</h2>
+        <p>当前高信心口径下，helper 也分成了显式 project-config 模式与已落盘 meta 模式。</p>
+      </div>
+      <div class="helper-grid">
+        <article class="helper-card">
+          <strong>spec_runtime.py</strong>
+          <span>scan / resolve 默认优先走 <code>--project-config</code>。只有低层调试时，才显式传 <code>--spec-root + --project-root</code>。</span>
+          <pre>python3 skills/ship-orchestrator/scripts/spec_runtime.py
+scan --project-config &lt;target-project&gt;/.docs/ship/project.yml</pre>
+        </article>
+        <article class="helper-card">
+          <strong>feature_meta_runtime.py init</strong>
+          <span>NEW_FEATURE 会先解析 target project，再把 feature 创建到该项目自己的 <code>feature_root</code>。如果 feature 路径本身就在 target project 下，也允许自动上溯发现 project config。</span>
+          <pre>python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py
+init feature-YYYYMMDD-demo
+--project-config &lt;target-project&gt;/.docs/ship/project.yml
+--feature-name Demo --feature-id feature-YYYYMMDD-demo
+--scenario product_provided</pre>
+        </article>
+        <article class="helper-card">
+          <strong>feature_meta_runtime.py sync-spec</strong>
+          <span>CONTINUE_FEATURE 优先信任已落盘的 <code>meta.yml.spec_context.target_project_*</code>。若 meta 没有 target project 信息，则必须显式提供 <code>--project-config</code>。</span>
+          <pre>python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py
+sync-spec &lt;target-project&gt;/.docs/feature-YYYYMMDD-demo/meta.yml
+--stage ship-build --file src/app.ts</pre>
+        </article>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="band-header">
         <h2>三道 hard gate</h2>
-        <p>hard gate 不可跳过。只有 review_status approved 且 user_sign_off / signed_at 非空，才能继续。</p>
+        <p>hard gate 不可跳过。只有 <code>review_status: approved</code> 且 <code>user_sign_off / signed_at</code> 非空，才能继续。</p>
       </div>
       <div class="gate-row">
         <article class="gate">
@@ -622,7 +707,7 @@
     <section class="band">
       <div class="band-header">
         <h2>子代理委派边界</h2>
-        <p>委派是执行策略，不改变 stage。只有主上下文能修改 meta.yml、写最终签字、推进 current_stage。</p>
+        <p>委派是执行策略，不改变 stage。只有主上下文能修改 meta.yml、写最终签字、推进 current_stage；并且 hard gate / parallel / assistive 的解释规则都已固化到 protocol。</p>
       </div>
       <div class="delegation-grid">
         <article class="delegation-cell" style="--accent: var(--muted)">
@@ -631,19 +716,19 @@
         </article>
         <article class="delegation-cell" style="--accent: var(--teal)">
           <strong>assistive_only</strong>
-          <span>可做资料搜集、审计、测试分轨、证据整理；不能直接改正式 frontmatter。</span>
+          <span>可做资料搜集、审计、测试分轨、证据整理；不能直接改正式 frontmatter 或 meta.yml。</span>
         </article>
         <article class="delegation-cell" style="--accent: var(--blue)">
           <strong>parallel_owned_outputs</strong>
-          <span>仅前端设计和后端设计可并行拥有正式产物。</span>
+          <span>仅前端设计和后端设计可并行拥有正式产物，并共享同一份 API contract 与 spec_context。</span>
         </article>
         <article class="delegation-cell" style="--accent: var(--red)">
           <strong>gate_check_switchable</strong>
-          <span>子代理可起草 review 文档，但必须保持 pending，最终结论由主上下文确认。</span>
+          <span>子代理可起草 review 文档，但必须保持 pending，最终结论由主上下文复核并向用户请求签字。</span>
         </article>
         <article class="delegation-cell" style="--accent: var(--amber)">
           <strong>user_gate_only</strong>
-          <span>用户确认、继续/关闭、accept/follow-up/proposal 取舍不能委派。</span>
+          <span>用户确认、继续/关闭、accept / follow-up / proposal 取舍不能委派。</span>
         </article>
       </div>
     </section>
@@ -651,11 +736,12 @@
     <section class="evidence">
       <h2>证据来源</h2>
       <ul>
-        <li><code>README.md</code>：定义默认入口、五阶段模型、四种入口场景、Feature 目录结构。</li>
-        <li><code>ship-orchestrator/SKILL.md</code>：定义 NEW / CONTINUE / INSPECT、scenario detection、stage routing、pipeline modes、delegation model。</li>
-        <li><code>ship-orchestrator/_templates/protocol/workflow-protocol.md</code>：单一共享协议源，定义 canonical stage id、macro stage、frontmatter contract、hard gate、delegation contract。</li>
-        <li><code>ship-orchestrator/_templates/meta/meta.yml.template</code>：定义 feature 级 metadata、stage summary、spec_context、delegation 和风险索引字段。</li>
-        <li><code>ship-*/SKILL.md</code>：各阶段的输入、输出、退出条件与验证 checklist。</li>
+        <li><code>skills/README.md</code>：定义默认入口、五阶段模型、四种入口场景、Feature 目录结构与 project-local spec boundary。</li>
+        <li><code>skills/ship-orchestrator/SKILL.md</code>：定义 NEW / CONTINUE / INSPECT、scenario detection、stage routing、pipeline modes、delegation model、project resolution、feature directory initialization。</li>
+        <li><code>skills/ship-orchestrator/_templates/protocol/workflow-protocol.md</code>：单一共享协议源，定义 canonical stage id、macro stage、frontmatter contract、hard gate、delegation contract、Project Resolution Contract、Spec Hook Contract。</li>
+        <li><code>skills/ship-orchestrator/_templates/meta/meta.yml.template</code>：定义 feature 级 metadata、stage summary、delegation、spec_context snapshot 和风险索引字段。</li>
+        <li><code>skills/ship-orchestrator/_templates/project/project.yml.template</code>：定义 target project 的 <code>project_root / spec_root / feature_root / project_level_only</code> 模板。</li>
+        <li><code>skills/ship-spec/SKILL.md</code>：定义 project-local ship-spec 职责、目录结构、project config、runtime helpers 与 Proposal-First writeback。</li>
       </ul>
     </section>
   </main>

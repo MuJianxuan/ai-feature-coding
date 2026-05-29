@@ -9,7 +9,7 @@ description: "ShipKit utility. Manages project coding specifications and connect
 
 `ship-spec` 是一个 **workflow utility**，不是 canonical stage，不进入 `workflow_stage_map.py`，也不占用 `meta.yml.current_stage`。它的职责是：
 
-- 维护 `.docs/spec/*.md` 规范文件
+- 维护 `target project` 下 `spec_root` 的规范文件
 - 通过 helper 在关键阶段解析和匹配规范
 - 让各阶段产物与任务证据显式记录引用过的 `spec_id`
 - 在 `ship-handoff` 阶段生成待沉淀 proposal，而不是静默修改规范
@@ -31,13 +31,36 @@ description: "ShipKit utility. Manages project coding specifications and connect
 
 ## Directory Structure
 
+单项目：
+
 ```text
-.docs/spec/
-├── INDEX.md
-├── coding/
-│   └── <topic>.md
-└── <domain>/
-    └── <topic>.md
+project-a/
+└── .docs/
+    ├── ship/project.yml
+    └── spec/
+        ├── INDEX.md
+        ├── coding/<topic>.md
+        └── <domain>/<topic>.md
+```
+
+多项目父目录：
+
+```text
+workspace/
+├── project-a/.docs/ship/project.yml
+│             /spec/...
+└── project-b/.docs/ship/project.yml
+              /spec/...
+```
+
+模块化项目：
+
+```text
+project-a/
+├── .docs/ship/project.yml
+├── .docs/spec/
+├── apps/web/
+└── packages/shared/
 ```
 
 约束：
@@ -45,6 +68,30 @@ description: "ShipKit utility. Manages project coding specifications and connect
 - `INDEX.md` 是 registry，面向人工浏览与目录维护
 - 运行时匹配事实源是每个规范文件的 frontmatter，不是 `INDEX.md` 表格正文
 - 缺少 `INDEX.md` 时默认告警但不中断流程
+- 本期只支持 `project_level_only`；不扫描 module-level spec root
+
+## Project Config
+
+`ship-spec` 的 project boundary 由 `target project/.docs/ship/project.yml` 显式声明：
+
+```yaml
+schema_version: 1
+project_id: demo-project
+project_name: Demo Project
+project_root: "."
+spec_root: ".docs/spec"
+feature_root: ".docs"
+module_layout:
+  mode: project_level_only
+  module_roots: []
+notes: ""
+```
+
+规则：
+
+- `project_root / spec_root / feature_root` 都按 target project relative 表示
+- 缺少 target project 配置时，不允许 silent guess
+- target project 无法确定时阻塞；target project 已确定但 spec 缺失时只 warning
 
 ## Spec Schema
 
@@ -87,11 +134,11 @@ last_updated: "2026-05-23T10:00:00+08:00"
 
 | Hook 点 | 用途 | 运行时行为 |
 |--------|------|-----------|
-| `ship-tech-discovery` | 检查选型与规范兼容性 | 按 `stage_hooks + stack_tags` 匹配 |
-| `ship-frontend-design` | 加载前端设计约束 | 按 `stage_hooks + stack_tags + domains` 匹配 |
-| `ship-backend-design` | 加载后端设计约束 | 按 `stage_hooks + stack_tags + domains` 匹配 |
-| `ship-build` | 约束任务级实现 | 按 `stage_hooks + applies_to` 匹配，并记录 `spec_id` |
-| `ship-handoff` | 生成待沉淀规范提案 | 汇总 `meta.yml.spec_context.referenced_spec_ids` |
+| `ship-tech-discovery` | 检查选型与规范兼容性 | 在 target project `spec_root` 下按 `stage_hooks + stack_tags` 匹配 |
+| `ship-frontend-design` | 加载前端设计约束 | 在 target project `spec_root` 下按 `stage_hooks + stack_tags + domains` 匹配 |
+| `ship-backend-design` | 加载后端设计约束 | 在 target project `spec_root` 下按 `stage_hooks + stack_tags + domains` 匹配 |
+| `ship-build` | 约束任务级实现 | 在 target project `spec_root` 下按 `stage_hooks + applies_to` 匹配，并记录 `spec_id` |
+| `ship-handoff` | 生成待沉淀规范提案 | 汇总 `meta.yml.spec_context.referenced_spec_ids`，proposal 默认指向 target project `spec_root` |
 
 默认策略是 **Warn Then Continue**：
 
@@ -105,16 +152,17 @@ last_updated: "2026-05-23T10:00:00+08:00"
 
 推荐 helper：
 
-- `python3 skills/ship-orchestrator/scripts/spec_runtime.py scan .docs/spec`
-- `python3 skills/ship-orchestrator/scripts/spec_runtime.py resolve ship-build --spec-root .docs/spec --file src/app.ts`
-- `python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec .docs/feature-YYYYMMDD-demo/meta.yml --stage ship-build --file src/app.ts`
-- `python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py record-spec-proposal .docs/feature-YYYYMMDD-demo/meta.yml --proposal-id proposal-001 --title "抽取统一错误处理规范" --source-stage ship-handoff --target-spec-id error-handling --summary "来自本次交付的重复错误处理模式"`
+- `python3 skills/ship-orchestrator/scripts/spec_runtime.py scan --project-config <target-project>/.docs/ship/project.yml`
+- `python3 skills/ship-orchestrator/scripts/spec_runtime.py resolve ship-build --project-config <target-project>/.docs/ship/project.yml --file src/app.ts`
+- `python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec <target-project>/.docs/feature-YYYYMMDD-demo/meta.yml --project-config <target-project>/.docs/ship/project.yml --stage ship-build --file src/app.ts`
+- `python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py record-spec-proposal <target-project>/.docs/feature-YYYYMMDD-demo/meta.yml --proposal-id proposal-001 --title "抽取统一错误处理规范" --source-stage ship-handoff --target-spec-id error-handling --summary "来自本次交付的重复错误处理模式"`
 
 约束：
 
 - `spec_runtime.py` 负责 scan / resolve，不负责修改阶段产物
 - `feature_meta_runtime.py sync-spec` 负责把最近一次解析结果同步到 `meta.yml.spec_context`
 - 阶段 skill 必须自行把 `spec_checked_at`、`referenced_spec_ids`、`spec_warnings` 写入产物或任务证据
+- 多项目父目录下必须先显式选定 `--project-config`
 
 ## Proposal-First Writeback
 
@@ -122,7 +170,7 @@ last_updated: "2026-05-23T10:00:00+08:00"
 
 - 先在 `handoff.md` 和 `meta.yml.spec_context.pending_proposals` 记录待沉淀 proposal
 - proposal 至少包含 `proposal_id`、`title`、`source_stage`、`target_spec_id`、`summary`
-- 不在 `ship-handoff` 中直接创建或修改 `.docs/spec/*.md`
+- 不在 `ship-handoff` 中直接创建或修改 target project `spec_root` 下的规范文件
 - 用户确认后，才执行真正的规范写回
 
 ## Authoring Checklist

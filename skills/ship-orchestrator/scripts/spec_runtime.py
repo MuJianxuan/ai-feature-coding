@@ -41,6 +41,18 @@ class SpecRecord:
     last_updated: str
 
 
+@dataclass(frozen=True)
+class ProjectSpecContext:
+    target_project_id: str
+    target_project_root: str
+    spec_root: str
+    feature_root: str
+    resolution_source: str
+    resolved_project_root: Path
+    resolved_spec_root: Path
+    resolved_feature_root: Path
+
+
 def _load_frontmatter(path: Path) -> dict[str, Any]:
     text = path.read_text(encoding="utf-8")
     if not text.startswith("---\n"):
@@ -71,11 +83,112 @@ def _normalize_string_list(value: Any, field_name: str) -> tuple[str, ...]:
     return tuple(result)
 
 
+def _normalize_required_string(value: Any, field_name: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"`{field_name}` must be a non-empty string")
+    return value.strip()
+
+
+def _normalize_relative_path(value: Any, field_name: str, default: str) -> str:
+    raw = default if value in (None, "") else value
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError(f"`{field_name}` must be a non-empty string")
+    normalized = Path(raw.strip())
+    if normalized.is_absolute():
+        raise ValueError(f"`{field_name}` must be a project-relative path")
+    return normalized.as_posix()
+
+
 def _relative_to_project(path: Path, project_root: Path) -> str:
     try:
         return str(path.relative_to(project_root))
     except ValueError:
         return str(path)
+
+
+def _resolve_project_relative(project_root: Path, raw_path: str) -> Path:
+    return (project_root / Path(raw_path)).resolve()
+
+
+def locate_project_config(search_from: Path) -> Path | None:
+    anchor = search_from.resolve()
+    if search_from.suffix:
+        anchor = anchor.parent
+    for candidate_root in (anchor, *anchor.parents):
+        candidate = candidate_root / ".docs/ship/project.yml"
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def build_explicit_project_context(
+    spec_root: Path,
+    project_root: Path,
+    *,
+    feature_root: Path | str = Path(".docs"),
+    target_project_id: str = "",
+    resolution_source: str = "explicit_paths",
+) -> ProjectSpecContext:
+    resolved_project_root = project_root.resolve()
+    feature_root_path = Path(feature_root)
+    resolved_spec_root = (
+        spec_root.resolve()
+        if spec_root.is_absolute()
+        else _resolve_project_relative(resolved_project_root, spec_root.as_posix())
+    )
+    resolved_feature_root = (
+        feature_root_path.resolve()
+        if feature_root_path.is_absolute()
+        else _resolve_project_relative(resolved_project_root, feature_root_path.as_posix())
+    )
+    return ProjectSpecContext(
+        target_project_id=target_project_id,
+        target_project_root=".",
+        spec_root=_relative_to_project(resolved_spec_root, resolved_project_root),
+        feature_root=_relative_to_project(resolved_feature_root, resolved_project_root),
+        resolution_source=resolution_source,
+        resolved_project_root=resolved_project_root,
+        resolved_spec_root=resolved_spec_root,
+        resolved_feature_root=resolved_feature_root,
+    )
+
+
+def load_project_context(project_config: Path) -> ProjectSpecContext:
+    resolved_config = project_config.resolve()
+    config_data = yaml.safe_load(resolved_config.read_text(encoding="utf-8")) or {}
+    if not isinstance(config_data, dict):
+        raise ValueError(f"{resolved_config}: project config must be a YAML mapping")
+
+    target_project_id = _normalize_required_string(config_data.get("project_id"), "project_id")
+    project_root_raw = _normalize_relative_path(config_data.get("project_root"), "project_root", ".")
+    spec_root_raw = _normalize_relative_path(config_data.get("spec_root"), "spec_root", ".docs/spec")
+    feature_root_raw = _normalize_relative_path(
+        config_data.get("feature_root"),
+        "feature_root",
+        ".docs",
+    )
+
+    module_layout = config_data.get("module_layout") or {}
+    if not isinstance(module_layout, dict):
+        raise ValueError("`module_layout` must be a mapping when provided")
+    if module_layout.get("mode", "project_level_only") != "project_level_only":
+        raise ValueError("only `project_level_only` module_layout.mode is supported")
+
+    config_project_root = resolved_config.parents[2]
+    resolved_project_root = _resolve_project_relative(config_project_root, project_root_raw)
+    resolved_spec_root = _resolve_project_relative(resolved_project_root, spec_root_raw)
+    resolved_feature_root = _resolve_project_relative(resolved_project_root, feature_root_raw)
+
+    return ProjectSpecContext(
+        target_project_id=target_project_id,
+        target_project_root=".",
+        spec_root=spec_root_raw,
+        feature_root=feature_root_raw,
+        resolution_source="project_config",
+        resolved_project_root=resolved_project_root,
+        resolved_spec_root=resolved_spec_root,
+        resolved_feature_root=resolved_feature_root,
+    )
 
 
 def _parse_spec(path: Path, spec_root: Path, project_root: Path) -> SpecRecord:
@@ -116,24 +229,28 @@ def _parse_spec(path: Path, spec_root: Path, project_root: Path) -> SpecRecord:
     )
 
 
-def scan_specs(spec_root: Path, project_root: Path | None = None) -> dict[str, Any]:
+def _scan_specs_with_context(project_context: ProjectSpecContext) -> dict[str, Any]:
     warnings: list[str] = []
     records: list[SpecRecord] = []
-    spec_root = spec_root.resolve()
-    project_root = (project_root or Path.cwd()).resolve()
+    spec_root = project_context.resolved_spec_root
+    project_root = project_context.resolved_project_root
 
     if not spec_root.exists():
         return {
-            "spec_root": str(spec_root),
+            "target_project_id": project_context.target_project_id,
+            "target_project_root": project_context.target_project_root,
+            "spec_root": project_context.spec_root,
+            "feature_root": project_context.feature_root,
+            "resolution_source": project_context.resolution_source,
             "index_status": "missing",
-            "warnings": [f"{spec_root}: spec directory does not exist"],
+            "warnings": [f"{project_context.spec_root}: spec directory does not exist"],
             "specs": [],
         }
 
     index_path = spec_root / "INDEX.md"
     index_status = "ready" if index_path.exists() else "missing"
     if not index_path.exists():
-        warnings.append(f"{index_path}: missing INDEX.md registry")
+        warnings.append(f"{_relative_to_project(index_path, project_root)}: missing INDEX.md registry")
 
     seen_ids: dict[str, str] = {}
     for path in sorted(spec_root.rglob("*.md")):
@@ -142,7 +259,7 @@ def scan_specs(spec_root: Path, project_root: Path | None = None) -> dict[str, A
         try:
             record = _parse_spec(path, spec_root, project_root)
         except ValueError as exc:
-            warnings.append(f"{path}: invalid spec frontmatter: {exc}")
+            warnings.append(f"{_relative_to_project(path, project_root)}: invalid spec frontmatter: {exc}")
             continue
 
         duplicate_path = seen_ids.get(record.spec_id)
@@ -159,7 +276,11 @@ def scan_specs(spec_root: Path, project_root: Path | None = None) -> dict[str, A
         index_status = "invalid"
 
     return {
-        "spec_root": str(spec_root),
+        "target_project_id": project_context.target_project_id,
+        "target_project_root": project_context.target_project_root,
+        "spec_root": project_context.spec_root,
+        "feature_root": project_context.feature_root,
+        "resolution_source": project_context.resolution_source,
         "index_status": index_status,
         "warnings": warnings,
         "specs": [
@@ -176,6 +297,28 @@ def scan_specs(spec_root: Path, project_root: Path | None = None) -> dict[str, A
             for record in records
         ],
     }
+
+
+def scan_specs(
+    spec_root: Path | None = None,
+    project_root: Path | None = None,
+    *,
+    project_context: ProjectSpecContext | None = None,
+    feature_root: Path | str = Path(".docs"),
+    target_project_id: str = "",
+    resolution_source: str = "explicit_paths",
+) -> dict[str, Any]:
+    if project_context is None:
+        if spec_root is None:
+            raise ValueError("scan_specs requires spec_root when project_context is not provided")
+        project_context = build_explicit_project_context(
+            spec_root=spec_root,
+            project_root=project_root or Path.cwd(),
+            feature_root=feature_root,
+            target_project_id=target_project_id,
+            resolution_source=resolution_source,
+        )
+    return _scan_specs_with_context(project_context)
 
 
 def _normalize_requested_tags(values: list[str] | None) -> set[str]:
@@ -198,6 +341,22 @@ def _matches_domains(record: SpecRecord, domains: set[str]) -> bool:
     return bool(domains.intersection(record.domains))
 
 
+def _normalize_requested_files(files: list[str], project_root: Path) -> list[str]:
+    normalized: list[str] = []
+    cwd = Path.cwd().resolve()
+    for raw_path in files:
+        candidate = Path(raw_path)
+        if candidate.is_absolute():
+            normalized.append(_relative_to_project(candidate.resolve(), project_root))
+            continue
+        resolved_from_cwd = (cwd / candidate).resolve()
+        if str(resolved_from_cwd).startswith(str(project_root)):
+            normalized.append(_relative_to_project(resolved_from_cwd, project_root))
+            continue
+        normalized.append(candidate.as_posix())
+    return normalized
+
+
 def _matches_files(record: SpecRecord, files: list[str]) -> bool:
     if not record.applies_to:
         return True
@@ -212,20 +371,39 @@ def _matches_files(record: SpecRecord, files: list[str]) -> bool:
 
 
 def resolve_specs(
-    spec_root: Path,
+    spec_root: Path | None,
     stage_hook: str,
     stack_tags: list[str] | None = None,
     domains: list[str] | None = None,
     files: list[str] | None = None,
     project_root: Path | None = None,
+    *,
+    project_context: ProjectSpecContext | None = None,
+    feature_root: Path | str = Path(".docs"),
+    target_project_id: str = "",
+    resolution_source: str = "explicit_paths",
 ) -> dict[str, Any]:
     if stage_hook not in VALID_STAGE_HOOKS:
         raise ValueError(f"invalid stage hook: {stage_hook}")
 
-    scan_result = scan_specs(spec_root, project_root=project_root)
+    if project_context is None:
+        if spec_root is None:
+            raise ValueError("resolve_specs requires spec_root when project_context is not provided")
+        project_context = build_explicit_project_context(
+            spec_root=spec_root,
+            project_root=project_root or Path.cwd(),
+            feature_root=feature_root,
+            target_project_id=target_project_id,
+            resolution_source=resolution_source,
+        )
+
+    scan_result = scan_specs(project_context=project_context)
     stack_tag_set = _normalize_requested_tags(stack_tags)
     domain_set = _normalize_requested_tags(domains)
-    file_list = [value for value in (files or []) if value]
+    file_list = _normalize_requested_files(
+        [value for value in (files or []) if value],
+        project_context.resolved_project_root,
+    )
 
     matched_specs: list[dict[str, Any]] = []
     for spec in scan_result["specs"]:
@@ -256,10 +434,16 @@ def resolve_specs(
         warnings.append(f"{stage_hook}: no matching specs found")
 
     return {
+        "target_project_id": project_context.target_project_id,
+        "target_project_root": project_context.target_project_root,
+        "spec_root": project_context.spec_root,
+        "feature_root": project_context.feature_root,
+        "resolution_source": project_context.resolution_source,
         "stage_hook": stage_hook,
         "index_status": scan_result["index_status"],
         "matched_spec_ids": [spec["spec_id"] for spec in matched_specs],
         "matched_specs": matched_specs,
+        "normalized_files": file_list,
         "warnings": warnings,
     }
 
@@ -272,26 +456,40 @@ def build_parser() -> argparse.ArgumentParser:
     scan_parser.add_argument(
         "spec_root",
         nargs="?",
-        default=".docs/spec",
         help="Spec root directory",
     )
     scan_parser.add_argument(
+        "--project-config",
+        help="Path to target project .docs/ship/project.yml",
+    )
+    scan_parser.add_argument(
         "--project-root",
-        default=".",
-        help="Project root used for stable relative paths",
+        help="Project root used for low-level explicit path resolution",
+    )
+    scan_parser.add_argument(
+        "--feature-root",
+        default=".docs",
+        help="Feature root used for low-level explicit path resolution",
     )
 
     resolve_parser = subparsers.add_parser("resolve", help="Resolve matching specs for a stage hook")
     resolve_parser.add_argument("stage_hook", choices=VALID_STAGE_HOOKS)
     resolve_parser.add_argument(
+        "--project-config",
+        help="Path to target project .docs/ship/project.yml",
+    )
+    resolve_parser.add_argument(
         "--spec-root",
-        default=".docs/spec",
         help="Spec root directory",
     )
     resolve_parser.add_argument(
         "--project-root",
-        default=".",
-        help="Project root used for stable relative paths",
+        help="Project root used for low-level explicit path resolution",
+    )
+    resolve_parser.add_argument(
+        "--feature-root",
+        default=".docs",
+        help="Feature root used for low-level explicit path resolution",
     )
     resolve_parser.add_argument(
         "--stack-tag",
@@ -320,19 +518,45 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv[1:])
 
     if args.command == "scan":
-        payload = scan_specs(Path(args.spec_root), project_root=Path(args.project_root))
+        if args.project_config:
+            project_context = load_project_context(Path(args.project_config))
+            payload = scan_specs(project_context=project_context)
+        else:
+            if not args.spec_root or not args.project_root:
+                parser.error("scan requires --project-config or both spec_root and --project-root")
+            payload = scan_specs(
+                Path(args.spec_root),
+                project_root=Path(args.project_root),
+                feature_root=Path(args.feature_root),
+            )
         print(json.dumps(payload, ensure_ascii=True, indent=2))
         return 0
 
     if args.command == "resolve":
-        payload = resolve_specs(
-            spec_root=Path(args.spec_root),
-            stage_hook=args.stage_hook,
-            stack_tags=args.stack_tag,
-            domains=args.domain,
-            files=args.file,
-            project_root=Path(args.project_root),
-        )
+        if args.project_config:
+            project_context = load_project_context(Path(args.project_config))
+            payload = resolve_specs(
+                spec_root=None,
+                project_context=project_context,
+                stage_hook=args.stage_hook,
+                stack_tags=args.stack_tag,
+                domains=args.domain,
+                files=args.file,
+            )
+        else:
+            if not args.spec_root or not args.project_root:
+                parser.error(
+                    "resolve requires --project-config or both --spec-root and --project-root"
+                )
+            payload = resolve_specs(
+                spec_root=Path(args.spec_root),
+                stage_hook=args.stage_hook,
+                stack_tags=args.stack_tag,
+                domains=args.domain,
+                files=args.file,
+                project_root=Path(args.project_root),
+                feature_root=Path(args.feature_root),
+            )
         print(json.dumps(payload, ensure_ascii=True, indent=2))
         return 0
 

@@ -148,7 +148,8 @@ Phase 3: 集成联调
 - 阅读任务条目中的"完成判定标准"（Acceptance Criteria for Task）
 - 阅读"关联文件清单"中列出的所有文件，理解现状
 - 如果任务关联了 design 文档章节，读取该章节
-- 使用 `ship-spec` hook 匹配 `.docs/spec/*.md`，将命中的 `spec_id` 写入任务的 `spec_refs`
+- 使用 `ship-spec` hook 匹配 target project `spec_root` 下的规范文件；`--file` 必须先归一化为相对 `target_project_root` 的路径，再与 `applies_to` 做 glob 匹配
+- 将命中的 `spec_id` 写入任务的 `spec_refs`
 - 若无匹配规范或规范 frontmatter 不合法，记录 warning，但默认继续
 - 不要凭记忆或假设直接动手
 
