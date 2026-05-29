@@ -26,6 +26,7 @@ UIUX 原型设计是开发工作流的条件性前置阶段，在无外部设计
 
 - 用户已提供 Figma/原型/UIUX 设计稿——直接进 `ship-define`
 - feature 是纯后端/CLI/API，无 UI——跳过本阶段
+- `project_scope = backend_only`——本阶段自动跳过，orchestrator 将 `stages.ship-shape.status = skipped`
 - fast-track 模式下——默认跳过，UI 由 build 阶段现场处理
 - 用户明确说"不需要设计，直接开始"——尊重用户意图
 

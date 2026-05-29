@@ -86,6 +86,164 @@
   | 40901 | 409 | 订单已发货 | 刷新页面并提示不可取消 |
 ```
 
+### 3.1 gRPC Service Contract（如选了 `grpc`）
+
+按 service 分组，不按 method 平铺。每个 service 块建议至少包含：
+- service 名称与职责
+- proto 文件位置（建议指向仓库内的 `.proto` 文件路径，避免在本文重复 schema）
+- 每个 method 的：流式模式、关联 AC、关联调用方、超时与 deadline、重试策略、幂等性
+
+关键示例：
+
+```markdown
+#### OrderService
+
+- **proto 文件**：`proto/order/v1/order.proto`
+- **职责**：订单生命周期管理，供内部 checkout 与 fulfillment 服务调用
+
+##### `rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse)`
+
+- **流式模式**：unary
+- **关联 AC**：AC-ORD-004
+- **关联调用方**：CheckoutService、AdminConsoleService
+- **超时**：客户端 deadline 默认 3s；服务端最大处理 2.5s
+- **重试**：客户端可对 `UNAVAILABLE` / `DEADLINE_EXCEEDED` 重试，最多 2 次，指数退避起步 100ms
+- **幂等性**：基于 `request_id` 字段去重，TTL 24h
+- **错误码**：
+  | gRPC code | 业务条件 | 调用方处理 |
+  |-----------|---------|-----------|
+  | FAILED_PRECONDITION | 订单已发货 | 提示用户刷新 |
+  | NOT_FOUND | 订单不存在 | 检查 ID 来源 |
+```
+
+### 3.2 消息契约（如选了 `message`）
+
+按 topic / queue 分组。每个消息块建议至少包含：
+- topic / queue 名与传输介质（Kafka / RabbitMQ / SQS / Pub-Sub 等）
+- 生产者与消费者清单
+- payload schema（建议引用仓库内 schema 文件，避免重复）
+- 分区键 / 路由键策略
+- 幂等键与去重 TTL
+- 重试策略（次数、退避、死信处理）
+- 消息顺序保证级别（无序 / 分区有序 / 全局有序）
+- 关联 AC
+
+关键示例：
+
+```markdown
+#### topic: `orders.cancelled.v1`
+
+- **介质**：Kafka
+- **生产者**：OrderService
+- **消费者**：FulfillmentService、NotificationService、AnalyticsPipeline
+- **关联 AC**：AC-ORD-004、AC-NOTIF-002
+- **payload schema**：`schemas/orders/cancelled-v1.avsc`
+- **分区键**：`order_id`（保证同一订单的事件分区有序）
+- **幂等键**：`event_id`（UUID v7），消费端去重 TTL 7 天
+- **重试策略**：消费失败重试 3 次，退避 1s/5s/30s；超出后转入 DLQ `orders.cancelled.v1.dlq`
+- **顺序保证**：分区有序
+- **schema 演进**：仅允许向后兼容（新增可选字段）；不兼容变更必须发布 `v2` 新 topic
+```
+
+### 3.3 定时任务契约（如选了 `cron`）
+
+按任务名分组。每个任务块建议至少包含：
+- 任务名与负责模块
+- 触发表达式（cron / interval / 事件驱动）
+- 输入源（DB 查询 / 文件 / 上游 topic / API 拉取）
+- 输出去向（DB 写入 / 文件落盘 / 下游 topic / 通知）
+- 并发控制（单例 / 多实例 / 分片）
+- 超时与失败补偿
+- 关联 AC
+
+关键示例：
+
+```markdown
+#### task: `daily-order-reconciliation`
+
+- **负责模块**：BillingService
+- **触发**：cron `0 3 * * *`（每日 03:00 UTC）
+- **关联 AC**：AC-BILL-007
+- **输入源**：`orders` 表（前一日已完成订单） + `payments` 表（前一日成功扣款）
+- **输出**：`reconciliation_report` 表写入；异常项推送 topic `billing.reconciliation.alert.v1`
+- **并发控制**：分布式锁单例（key: `cron:daily-order-reconciliation`，TTL 2h）
+- **超时**：90 分钟；超时自动释放锁并告警
+- **失败补偿**：失败后 30 分钟内自动重试一次；二次失败转人工，写入 `reconciliation_failures` 表
+- **幂等性**：按 `(date, order_id)` 去重，重复执行不重复落账
+```
+
+### 3.4 CLI 接口契约（如选了 `cli`）
+
+按命令树组织。每个命令块建议至少包含：
+- 命令路径（含父命令）
+- 用途与典型场景
+- 参数定义（位置参数、选项、必填/可选、默认值）
+- 输入约定（stdin 格式）
+- 输出约定（stdout 格式：纯文本 / JSON / 表格）
+- 退出码语义
+- 环境变量依赖
+- 关联 AC
+
+关键示例：
+
+```markdown
+#### `myapp orders cancel <order-id>`
+
+- **用途**：取消指定订单
+- **关联 AC**：AC-ORD-004
+- **参数**：
+  | 名称 | 位置/选项 | 必填 | 默认 | 说明 |
+  |------|-----------|------|------|------|
+  | order-id | 位置参数 1 | 是 | — | 订单 UUID |
+  | --reason | 选项 | 否 | "" | 取消原因，最长 200 字 |
+  | --force | 选项 | 否 | false | 跳过状态前置检查 |
+  | --output | 选项 | 否 | text | text \| json |
+- **stdin**：不读取
+- **stdout**：成功输出最新订单快照（text 或 json）
+- **stderr**：错误信息（人类可读）
+- **退出码**：
+  | code | 含义 |
+  |------|------|
+  | 0 | 成功 |
+  | 1 | 通用失败 |
+  | 2 | 参数错误 |
+  | 3 | 订单不存在 |
+  | 4 | 状态不允许取消（除非 `--force`） |
+- **环境变量**：`MYAPP_API_URL`、`MYAPP_TOKEN`
+```
+
+### 3.5 内部 SDK 契约（如选了 `sdk`）
+
+按公开 API 表面组织。建议至少覆盖：
+- 公开符号清单（类、函数、常量、类型）—— 未列出即视为私有
+- 每个公开 API 的：签名、参数语义、返回值语义、抛出的异常 / 返回的错误
+- 版本策略（SemVer / CalVer）
+- breaking change 政策（是否允许 minor 引入破坏；deprecation 周期长度）
+- 兼容性测试边界
+
+关键示例：
+
+```markdown
+#### `class OrderClient`
+
+- **包路径**：`@myorg/order-sdk`
+- **公开方法**：`cancel(orderId: string, options?: CancelOptions): Promise<Order>`
+- **关联 AC**：AC-ORD-004
+- **参数**：
+  - `orderId`：必填，UUID v4
+  - `options.reason`：可选，string，最长 200 字
+  - `options.idempotencyKey`：可选，string；不传则 SDK 自动生成
+- **返回**：取消后的最新 `Order` 快照
+- **抛出**：
+  | 异常类 | 触发条件 |
+  |--------|---------|
+  | `OrderNotFoundError` | 订单不存在 |
+  | `OrderStateError` | 订单状态不允许取消 |
+  | `NetworkError` | 传输层失败（已重试 3 次） |
+- **版本策略**：SemVer；breaking change 仅允许在 major 版本引入
+- **deprecation 周期**：minor 版本标记 `@deprecated` 后，至少保留 2 个 minor 版本再删除
+```
+
 ### 4. Shared Models
 
 建议明确：
