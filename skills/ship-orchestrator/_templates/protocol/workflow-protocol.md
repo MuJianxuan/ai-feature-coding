@@ -183,7 +183,7 @@ conditions: []
 | `ship-shape` | `assistive_only` | 仅素材收集、参考图分析、token 提取、单变体 HTML 草稿可委派；`design-brief.md` 定稿与变体筛选仍由主上下文完成 |
 | `ship-define` | `assistive_only` | 仅资料索引、资源可访问性检查可委派；`requirements.md` 定稿仍由主上下文完成 |
 | `ship-define-review` | `gate_check_switchable` + `user_gate_only` | 质量检查可由当前上下文或子代理执行；最终 gate 结论和签字不可委派 |
-| `ship-tech-discovery.research` | `assistive_only` | 可委派资料搜集与证据初筛 |
+| `ship-tech-discovery.research` | `assistive_only` | 可委派项目现状扫描、资料搜集与证据初筛；正式 `tech-research.md` 仍由主上下文合并 |
 | `ship-tech-discovery.selection` | `forbidden` | 选型必须回指 research 证据，保持单一决策链 |
 | `ship-contract` | `forbidden` | 共享契约是前后端并行的单一基线，不分叉 |
 | `ship-frontend-design` | `parallel_owned_outputs` | 可与后端设计并行，拥有 `frontend-design.md` |
@@ -225,7 +225,7 @@ conditions: []
 | `ship-shape` | `assistive_only` | UIUX 原型：素材收集、参考分析、单变体草稿 |
 | `ship-define` | `assistive_only` | 需求资料索引与可访问性检查 |
 | `ship-define-review` | `gate_check_switchable` | 需求评审 gate |
-| `ship-tech-discovery.research` | `assistive_only` | 技术资料搜集与证据初筛 |
+| `ship-tech-discovery.research` | `assistive_only` | Project Reality Scan、技术资料搜集与证据初筛 |
 | `ship-tech-discovery.selection` | `forbidden` | 技术选型与 ADR 收口 |
 | `ship-contract` | `forbidden` | 共享 API 契约定稿 |
 | `ship-frontend-design` | `parallel_owned_outputs` | 前端设计正式产物 |
@@ -415,7 +415,9 @@ spec_warnings: []
 
 - `ship-build` 没有阶段产物 frontmatter；它应在任务条目或任务证据中记录 `spec_refs`
 
-- `target project` 下的 `spec_root/INDEX.md` 是 registry，服务于人工浏览；运行时匹配事实源是 target project `spec_root` 下各个规范文件的 frontmatter
+- `target project` 下的 `.docs/spec/INDEX.md` 是唯一人工路由入口；agent 在当前需求和阶段下必须先读 `INDEX.md`，再决定读取哪些 spec 文件
+- `INDEX.md` 表格只使用 `frontend / backend / shared` 三类；不新增 `spec_type` / `discipline` 等 schema 层级字段
+- 运行时 helper 仍可读取 target project `spec_root` 下各个规范文件的 frontmatter 做 scan / resolve / 校验；`INDEX.md` 与 frontmatter 不一致时记录 warning
 - 缺少 `INDEX.md`、找不到匹配规范、frontmatter 不合法时，默认只告警并留痕；除非用户显式要求严格模式，否则不阻塞阶段推进
 - `fast-track` 不新增 hook stage；跳过设计阶段时，规范检查压缩到 `ship-build` 入口和 `ship-handoff` 汇总
 
@@ -433,10 +435,34 @@ last_updated: ""
 
 匹配规则：
 
-- `ship-tech-discovery`：按 `stage_hooks + stack_tags` 匹配，`domains` 为空表示全局规范
-- `ship-frontend-design / ship-backend-design`：按 `stage_hooks + stack_tags + domains` 匹配
+- `ship-tech-discovery`：先读 `.docs/spec/INDEX.md`，再按 `stage_hooks + stack_tags` 匹配，`domains` 为空表示全局规范
+- `ship-frontend-design`：先读 `INDEX.md` 中 `frontend/shared` 候选，再按 `stage_hooks + stack_tags + domains` 匹配
+- `ship-backend-design`：先读 `INDEX.md` 中 `backend/shared` 候选，再按 `stage_hooks + stack_tags + domains` 匹配
 - `ship-build`：按 `stage_hooks=ship-build` 且 `applies_to` 对任务文件清单做 glob 匹配；任务文件清单必须先归一化到 `target_project_root` 相对路径；`stack_tags / domains` 为附加过滤
 - `ship-handoff`：以 `meta.yml.spec_context.referenced_spec_ids` 为基础生成 proposal，可附加全局规范扫描结果
+
+## 8.1 Tech Discovery Research Contract
+
+`ship-tech-discovery` 是 Design 大阶段的第一个事实收口点。已有项目上的需求必须 Project Reality First，不能只做外部技术调研或技术选型。
+
+`tech-research.md.stage_status: ready` 必须包含：
+
+- `Project Reality Scan / 项目现状发现`
+- `Requirement-to-Reality Mapping / 需求与已有系统映射`
+- `Existing Surface Inventory / 现有表面清单`
+- `Evidence and Uncertainty / 证据与不确定项`
+- `Research Alignment Check / 产出前对齐记录`
+- `Technical Research / 技术调研`
+- `Selection Inputs / 给 tech-selection.md 的输入`
+
+Research Alignment Check 是 research 子段内部的过程动作，不是 hard gate：
+
+- 不新增 `review-tech-research.md`
+- 不新增 `review_status / user_sign_off / signed_at`
+- 用户纠正项目理解时，必须回到相关代码路径重新探索并更新证据
+- 用户允许按假设继续时，必须在 `tech-research.md` 记录 assumptions、风险和影响范围
+
+对 `existing_project`，Project Reality Scan 必须至少给出与需求相关的代码路径、文档路径、API、DB、frontend、service、worker、MQ、权限、observability、test 或既有 feature 证据。对 `new_project`，可以写“不适用：new_project，无既有代码基线”，但章节不能消失。
 
 ## 9. Testing / Handoff Ownership
 

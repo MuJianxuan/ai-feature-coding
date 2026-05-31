@@ -49,6 +49,7 @@ class WorkflowHardeningTest(unittest.TestCase):
         *,
         current_stage: str = "ship-define-review",
         project_scope: str = "fullstack",
+        project_context: str = "existing_project",
         scenario: str = "product_provided",
         define_status: str = "ready",
         define_review_status: str = "pending",
@@ -92,6 +93,7 @@ class WorkflowHardeningTest(unittest.TestCase):
             "current_stage": current_stage,
             "scenario": scenario,
             "project_scope": project_scope,
+            "project_context": project_context,
             "macro_stage": {"current": macro_current, "label": macro_label, "summary": "", "next_user_decision": ""},
             "lifecycle_status": "active",
             "stages": stages,
@@ -648,6 +650,154 @@ Decision: use FastAPI.
         self.assertFalse(result["ok"])
         self.assertTrue(any(issue["code"] == "research_missing_source_ids" for issue in result["issues"]))
 
+    def write_selection_ready(self) -> None:
+        self.write_text(
+            "tech-selection.md",
+            """---
+stage: ship-tech-discovery
+artifact_role: selection
+stage_status: ready
+updated_at: ""
+evidence_complete: true
+---
+
+# Selection
+
+Decision: use existing auth stack. source_id: SRC-AUTH-001
+Rejected: custom auth.
+ADR: ADR-AUTH-001
+tech_stack: Node service
+""",
+        )
+
+    def write_research_ready(self, body: str) -> None:
+        self.write_text(
+            "tech-research.md",
+            f"""---
+stage: ship-tech-discovery
+artifact_role: research
+stage_status: ready
+updated_at: ""
+evidence_complete: true
+---
+
+{body}
+""",
+        )
+
+    def valid_research_body(self, project_context: str = "existing_project") -> str:
+        project_scan = (
+            "Target project: demo. project_context: existing_project. "
+            "Confirmed src/modules/auth/auth.service.ts, src/routes/auth.ts, prisma/schema.prisma, src/pages/LoginPage.tsx. source_id: SRC-AUTH-001"
+            if project_context == "existing_project"
+            else "不适用：new_project，无既有代码基线。project_context: new_project. source_id: SRC-AUTH-001"
+        )
+        mapping = (
+            "| Domain / AC | 需求摘要 | 现有项目发现 | 关系类型 | 证据路径 | 不确定项 |\n"
+            "|---|---|---|---|---|---|\n"
+            "| D-AUTH-001 / AC-AUTH-001 | 登录 | 已有 auth route 和 AuthService | extend | src/routes/auth.ts, src/modules/auth/auth.service.ts | 无 |\n"
+        )
+        if project_context == "new_project":
+            mapping = (
+                "| Domain / AC | 需求摘要 | 现有项目发现 | 关系类型 | 证据路径 | 不确定项 |\n"
+                "|---|---|---|---|---|---|\n"
+                "| D-AUTH-001 / AC-AUTH-001 | 登录 | new_project 无既有代码基线 | new | requirements.md | 初始化方案待 selection |\n"
+            )
+        return f"""# Tech Research
+
+## Project Reality Scan / 项目现状发现
+{project_scan}
+
+## Requirement-to-Reality Mapping / 需求与已有系统映射
+{mapping}
+Relation types covered: reuse / extend / replace / new / avoid / unknown.
+
+## Existing Surface Inventory / 现有表面清单
+| Surface | Existing Item | Path / Source | Relation | Notes |
+|---|---|---|---|---|
+| API | POST /api/v1/login | src/routes/auth.ts | extend | existing_project auth endpoint |
+| Backend Service | AuthService | src/modules/auth/auth.service.ts | extend | credential validation |
+
+## Evidence and Uncertainty / 证据与不确定项
+### Confirmed Facts
+- FACT-001: Auth route exists at src/routes/auth.ts. source_id: SRC-AUTH-001
+### Conflicting Evidence
+- None.
+### Open Questions
+- None.
+
+## Research Alignment Check / 产出前对齐记录
+### Alignment Summary Presented to User
+- 当前理解：复用已有 AuthService 和 POST /api/v1/login。
+- 准备复用 / 扩展：src/routes/auth.ts, src/modules/auth/auth.service.ts。
+- 不确定项：无阻塞项。
+- 若按当前理解继续，将影响：api-contract.md 与 backend-design.md 会扩展现有 auth surface。
+### User Feedback
+- 用户确认：继续按现有 auth surface 扩展。
+- 用户纠正：无。
+- 用户要求按假设继续：无。
+### Follow-up Exploration
+- 重新探索的路径：无纠正，未触发。
+- 修正后的结论：无。
+### Final Research Baseline
+- 本 research 产物基于 FACT-001 和 SRC-AUTH-001。
+- assumptions：无阻塞假设。
+
+## Technical Research / 技术调研
+- source_id: SRC-AUTH-001 official auth framework docs.
+
+## Selection Inputs / 给 tech-selection.md 的输入
+- 复用 AuthService，扩展 existing endpoint，保持 additive change。
+
+## 信息来源清单
+- source_id: SRC-AUTH-001 official auth framework docs and local src/routes/auth.ts.
+"""
+
+    def test_tech_discovery_existing_project_requires_project_reality_scan(self) -> None:
+        self.write_meta(project_context="existing_project")
+        body = self.valid_research_body().replace("## Project Reality Scan / 项目现状发现", "## Removed Reality")
+        self.write_research_ready(body)
+        self.write_selection_ready()
+
+        result = validate_tech_discovery(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "missing_project_reality_scan" for issue in result["issues"]))
+
+    def test_tech_discovery_existing_project_requires_alignment_check(self) -> None:
+        self.write_meta(project_context="existing_project")
+        body = self.valid_research_body().replace("## Research Alignment Check / 产出前对齐记录", "## Removed Alignment")
+        self.write_research_ready(body)
+        self.write_selection_ready()
+
+        result = validate_tech_discovery(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "missing_research_alignment_check" for issue in result["issues"]))
+
+    def test_tech_discovery_existing_project_rejects_na_reality_scan(self) -> None:
+        self.write_meta(project_context="existing_project")
+        body = self.valid_research_body().replace(
+            "Target project: demo. project_context: existing_project. Confirmed src/modules/auth/auth.service.ts, src/routes/auth.ts, prisma/schema.prisma, src/pages/LoginPage.tsx. source_id: SRC-AUTH-001",
+            "不适用：new_project，无既有代码基线。source_id: SRC-AUTH-001",
+        )
+        self.write_research_ready(body)
+        self.write_selection_ready()
+
+        result = validate_tech_discovery(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "existing_project_reality_scan_na" for issue in result["issues"]))
+
+    def test_tech_discovery_new_project_allows_na_reality_scan_with_reason(self) -> None:
+        self.write_meta(project_context="new_project")
+        self.write_research_ready(self.valid_research_body(project_context="new_project"))
+        self.write_selection_ready()
+
+        result = validate_tech_discovery(self.feature_dir)
+
+        self.assertTrue(result["ok"], result["issues"])
+
     def test_design_alignment_detects_unknown_frontend_endpoint(self) -> None:
         self.write_text("api-contract.md", "---\nstage: ship-contract\nstage_status: ready\ncontract_forms: [rest]\nupdated_at: \"\"\nevidence_complete: true\n---\nPOST /api/v1/login\nERR_AUTH_INVALID\n")
         self.write_text("frontend-design.md", "---\nstage: ship-frontend-design\nstage_status: ready\nupdated_at: \"\"\nevidence_complete: true\n---\nPOST /api/v1/logout\n")
@@ -726,8 +876,55 @@ updated_at: "2026-05-31T10:00:00+08:00"
 evidence_complete: true
 ---
 
-# Research
+# Tech Research
+
+## Project Reality Scan / 项目现状发现
+Target project: demo. project_context: existing_project. Confirmed src/modules/auth/auth.service.ts, src/routes/auth.ts, prisma/schema.prisma, src/pages/LoginPage.tsx. source_id: SRC-AUTH-001
+
+## Requirement-to-Reality Mapping / 需求与已有系统映射
+| Domain / AC | 需求摘要 | 现有项目发现 | 关系类型 | 证据路径 | 不确定项 |
+|---|---|---|---|---|---|
+| D-AUTH-001 / AC-AUTH-001 | 登录 | 已有 auth route 和 AuthService | extend | src/routes/auth.ts, src/modules/auth/auth.service.ts | 无 |
+
+## Existing Surface Inventory / 现有表面清单
+| Surface | Existing Item | Path / Source | Relation | Notes |
+|---|---|---|---|---|
+| API | POST /api/v1/login | src/routes/auth.ts | extend | auth endpoint |
+| Backend Service | AuthService | src/modules/auth/auth.service.ts | extend | credential validation |
+
+## Evidence and Uncertainty / 证据与不确定项
+### Confirmed Facts
+- FACT-001: Auth route exists at src/routes/auth.ts. source_id: SRC-AUTH-001
+### Conflicting Evidence
+- None.
+### Open Questions
+- None.
+
+## Research Alignment Check / 产出前对齐记录
+### Alignment Summary Presented to User
+- 当前理解：复用已有 AuthService 和 POST /api/v1/login。
+- 准备复用 / 扩展：src/routes/auth.ts, src/modules/auth/auth.service.ts。
+- 不确定项：无阻塞项。
+- 若按当前理解继续，将影响：contract/backend design 扩展现有 auth surface。
+### User Feedback
+- 用户确认：继续按现有 auth surface 扩展。
+- 用户纠正：无。
+- 用户要求按假设继续：无。
+### Follow-up Exploration
+- 重新探索的路径：无纠正，未触发。
+- 修正后的结论：无。
+### Final Research Baseline
+- 本 research 产物基于 FACT-001 和 SRC-AUTH-001。
+- assumptions：无阻塞假设。
+
+## Technical Research / 技术调研
 - source_id: SRC-AUTH-001 official auth framework docs
+
+## Selection Inputs / 给 tech-selection.md 的输入
+- 复用 AuthService，扩展 existing endpoint。
+
+## 信息来源清单
+- source_id: SRC-AUTH-001 local auth source and official auth framework docs.
 """,
         )
         self.write_text(

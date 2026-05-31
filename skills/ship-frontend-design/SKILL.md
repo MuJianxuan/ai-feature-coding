@@ -7,11 +7,12 @@ description: "ShipKit stage. Designs frontend architecture based on UI/UX protot
 
 ## Overview
 
-前端技术方案阶段基于 UI/UX 设计稿（Figma / 墨刀 / 原型图）和 api-contract.md，设计前端的整体架构与实现路径。
+前端技术方案阶段基于 UI/UX 设计稿（Figma / 墨刀 / 原型图）、tech-research.md 的项目事实发现和 api-contract.md，设计前端的整体架构与实现路径。
 
 核心目标：
 - 建立"页面-组件-接口"三层映射，确保设计可落地
 - 基于真实的 UI/UX 设计稿规划组件结构与状态流向
+- 基于 `Existing Surface Inventory` 区分复用、扩展、新增或避免触碰的页面、组件、store、API client
 - 产出可直接拆解为开发任务的前端方案
 - 明确路由、权限、状态管理等横切关注点
 
@@ -76,21 +77,25 @@ description: "ShipKit stage. Designs frontend architecture based on UI/UX protot
 ## Process
 
 ```
-1. 收集与索引 UI/UX 设计资料并记录证据等级
+1. 读取 requirements.md、tech-research.md、api-contract.md
+   verify: 已理解 Existing Surface Inventory、Requirement-to-Reality Mapping 和 API contract
+2. 收集与索引 UI/UX 设计资料并记录证据等级
    verify: 所有页面的设计稿可访问，Design Evidence Quality 已记录
-2. 构建页面树（Page Tree）、复杂用户流、异常流与权限流
+3. 构建页面树（Page Tree）、复杂用户流、异常流与权限流
    verify: 覆盖 requirements.md 所有用户路径与关键异常路径
-3. 加载 ship-spec 约束
+4. 加载 ship-spec 约束
    verify: 已记录匹配的 `spec_id` 或“无匹配规范”
-4. 按原子设计分层规划组件
+5. 按原子设计分层规划组件
    verify: 每个组件标注数据来源
-5. 编写页面-接口映射表与 Page-to-Contract 双向覆盖
+6. 编写 Existing Frontend Surface Plan
+   verify: 现有页面、组件、store、API client 已标注 reuse / extend / new / avoid / unknown
+7. 编写页面-接口映射表与 Page-to-Contract 双向覆盖
    verify: 覆盖所有页面操作、错误码和未消费 contract
-6. 设计状态管理方案、状态所有权与 UI State Matrix
+8. 设计状态管理方案、状态所有权与 UI State Matrix
    verify: 区分 URL/local/server/global/derived state 与 UI 状态分支
-7. 设计路由与权限
+9. 设计路由与权限
    verify: 与 requirements.md 权限模型一致
-8. 制定前端非功能方案
+10. 制定前端非功能方案
    verify: 性能/SEO/无障碍各至少一条
 ```
 
@@ -111,10 +116,12 @@ description: "ShipKit stage. Designs frontend architecture based on UI/UX protot
 
 **Step 3: 加载 ship-spec 约束**
 
-- 基于 `tech-selection.md` 的技术栈标签和 `requirements.md` 的 domain 信息匹配规范
+- 先读 `.docs/spec/INDEX.md`，优先从 `frontend / shared` 分类选择候选 spec
+- 基于 `tech-selection.md` 的技术栈标签、`requirements.md` 的 domain 信息和涉及文件匹配规范
 - 规范匹配边界固定为 target project `spec_root`
 - 将命中的 `spec_id` 记录到 `frontend-design.md.referenced_spec_ids`
 - 无匹配规范时显式写“无匹配规范”，并把 warning 写入 `spec_warnings`
+- 若 INDEX 与 frontmatter 不一致，记录 warning，默认 Warn Then Continue
 
 **Step 4: 组件分层（Atomic Design）**
 
@@ -281,6 +288,19 @@ spec_warnings: []
 - 对当前方案生效的关键约束
 - 若无匹配规范，显式记录原因和 warnings
 
+#### 4.1 Existing Frontend Surface Plan
+
+来自 `tech-research.md` 的现有前端 surface 必须逐项处理，避免把已有页面/组件重复新建：
+
+```markdown
+| Surface | Existing Item | Path / Source | Relation | Plan | Risk / Open Question |
+|---|---|---|---|---|---|
+| Page | UserProfilePage | src/pages/user/Profile.tsx | extend | 增加编辑入口与保存态 | 头像字段 owner 待确认 |
+| API client | userApi.getProfile | src/api/user.ts | reuse | 新增 updateProfile 方法 | 需保持现有缓存 key |
+```
+
+Relation 建议使用：`reuse`、`extend`、`replace`、`new`、`avoid`、`unknown`。
+
 #### 5. 页面-接口映射表（核心产物）
 
 完整列出每个页面的每个用户操作对应的接口调用。
@@ -395,6 +415,7 @@ Test Focus 应能直接输入后续 delivery plan 和 verification 阶段，按 
 - 每个页面有可访问的 UI/UX 设计资料
 - Design Evidence Quality 已区分 high / medium / low，低证据等级未被当作定稿
 - 已记录 `referenced_spec_ids` 或“无匹配规范”
+- 已消费 `tech-research.md` 的 Existing Surface Inventory，并区分复用、扩展、新增或避免触碰的前端 surface
 - 映射表覆盖所有页面的所有用户操作
 - 每个接口在映射表中至少被一个页面引用
 - 状态管理与路由权限方案明确
@@ -423,6 +444,9 @@ Test Focus 应能直接输入后续 delivery plan 和 verification 阶段，按 
 
 ```
 □ 是否有完整的 UI/UX 设计资料索引？
+□ 是否已读取 tech-research.md 的 Existing Surface Inventory？
+□ 页面 / 组件 / store / API client 方案是否区分 reuse / extend / new / avoid / unknown？
+□ 前端规范是否先从 `.docs/spec/INDEX.md` 的 frontend/shared 分类中选择？
 □ 页面树是否覆盖 requirements.md 所有用户路径？
 □ 组件清单是否按原子设计分层？
 □ 每个组件是否标注了数据来源？

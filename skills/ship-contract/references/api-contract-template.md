@@ -3,7 +3,8 @@
 这是一份写作引导模板，不是固定格式。
 
 使用原则：
-- 先基于 `requirements.md`、`tech-selection.md` 和相关设计输入做判断，再决定文档结构
+- 先基于 `requirements.md`、`tech-research.md`、`tech-selection.md` 和相关设计输入做判断，再决定文档结构
+- 必须消费 `tech-research.md` 的 Requirement-to-Reality Mapping 和 Existing Surface Inventory；已有 API / message / cron / cli / sdk surface 不能被默认忽略或重复新建
 - 优先回答关键设计问题，而不是机械填章节
 - 若项目采用 GraphQL / tRPC / gRPC，可把“接口”改写为 operation / procedure / method，但保留同等粒度的信息
 - 若某部分不适用，写明“不适用 + 原因”，不要静默省略
@@ -26,6 +27,7 @@
 10. 状态 enum 是否定义了合法迁移、非法迁移错误和新增 enum 值的 consumer 兼容处理？
 11. 写操作、message、cron、CLI 副作用命令的幂等与重试边界是什么？
 12. 契约中有哪些假设、兼容性约束、机器可读产物路径和潜在变更点？
+13. `tech-research.md` 中已有 surface 的处理结论是什么：兼容扩展、breaking、deprecation、avoid、new 还是 unknown？
 
 ## 推荐写法
 
@@ -37,6 +39,7 @@
 - 契约覆盖范围
 - API 风格与原因
 - 本文的关键设计决策
+- 与已有 API / message / cron / cli / sdk surface 的关系
 - 明确不包含的范围
 
 ### 1.1 Consumer / Provider Matrix
@@ -46,6 +49,15 @@
 ```markdown
 | Contract | Provider | Consumer | Entrypoint | AC ID | 调用时机 | 是否阻塞主流程 |
 |---|---|---|---|---|---|---|
+```
+
+### 1.1.1 Existing Surface Compatibility
+
+把 `tech-research.md` 的现有 surface 映射到本契约决策。
+
+```markdown
+| Existing Surface | Source Evidence | Required Change | Compatibility | Decision | Risk / Follow-up |
+|---|---|---|---|---|---|
 ```
 
 ### 1.2 Diagrams / Visual Aids

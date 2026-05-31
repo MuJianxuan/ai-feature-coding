@@ -19,6 +19,8 @@ npx skills add MuJianxuan/ai-feature-coding
 
 `ship-spec` 以 workflow utility 形态接入，不占用 stage map；它会在 `ship-tech-discovery`、`ship-frontend-design`、`ship-backend-design`、`ship-build`、`ship-handoff` 被自动消费并通过 `meta.yml.spec_context` 留痕。规范边界始终是 `target project`，不是当前 cwd。
 
+Design 大阶段现在采用 Project Reality First：已有项目上的需求必须先通过 `ship-tech-discovery` 发现真实功能、表、API、页面、服务、权限、worker/MQ、日志/metrics 和既有 feature 文档，再进入技术调研、选型、contract、frontend/backend design。规范路由从单一 `.docs/spec/INDEX.md` 开始，INDEX 只使用 `frontend / backend / shared` 分类，frontmatter schema 不新增 `spec_type`。
+
 ## 你会得到什么
 
 - 对外更简单：首屏不再要求理解所有内部 skill 名
@@ -62,6 +64,7 @@ npx skills add MuJianxuan/ai-feature-coding
 - `skills/ship-orchestrator/tests/regression-prompts.md`：workflow 回归场景
 - `skills/ship-*/references/`：阶段内参考模板，不属于共享协议
 - `.docs/ship/project.yml`：target project 级显式配置，声明 `project_root / spec_root / feature_root`
+- `.docs/spec/INDEX.md`：唯一人工 spec 路由入口，按 `frontend / backend / shared` 分类列出候选规范
 - `target project` 下的 `.docs/`：默认 feature 运行时产物和规范沉淀位置
 
 ## 维护

@@ -15,7 +15,7 @@
 |--------|------|--------------------|------|
 | `Discover` | 把模糊想法或变更请求转化为结构化产品简报和 UIUX 原型 | 方案对比、设计方向选择、HTML 原型预览 | 仅场景 A/C 激活 |
 | `Define` | 把需求整理成可验证输入，并完成首道确认 | 当前目标、需求是否已明确、下一次确认点 | 始终 |
-| `Design` | 完成调研、选型、接口契约、前后端方案，并通过设计评审 | 方案是否成形、是否需要你批准设计 | 始终 |
+| `Design` | 先完成项目真实现状发现，再完成调研、选型、接口契约、前后端方案，并通过设计评审 | 方案是否成形、是否需要你批准设计 | 始终 |
 | `Build` | 完成实施计划、编码执行、自动化验证 | 是否可以开始编码、当前进展、下一次确认点 | 始终 |
 | `Close` | 完成 AC 映射验收与交付总结 | 是否已可交付、残余风险、handoff 结论 | 始终 |
 
@@ -36,6 +36,8 @@
 - 只有在恢复断点、排查阻塞、直接调用某阶段时，才展开内部细阶段
 - `ship-spec` 作为 workflow utility 隐式接入，不作为单独阶段暴露给默认用户视图
 - `ship-spec` 只消费 `target project` 的 `spec_root`；多项目父目录下必须先选定 `.docs/ship/project.yml`
+- 进入 Design 后，`ship-tech-discovery` 对已有项目必须 Project Reality First：先查真实功能、表、API、页面、服务、权限和既有 feature 文档，再做技术调研/选型
+- 规范路由从单一 `.docs/spec/INDEX.md` 开始；INDEX 只区分 `frontend / backend / shared`，frontmatter schema 不新增 `spec_type`
 
 ## 为什么这样设计
 
@@ -240,6 +242,8 @@
 - `ship-spec` 的显式配置源是 `target project/.docs/ship/project.yml`
 - 默认 `spec_root` 是 `target project/.docs/spec`
 - 默认 `feature_root` 是 `target project/.docs`
+- `.docs/spec/INDEX.md` 是唯一人工路由入口；agent 先读 INDEX，再按当前阶段、domain、tech_stack 和文件范围读取候选 spec
+- INDEX 分类只使用 `frontend / backend / shared`；runtime helper 仍用各 spec frontmatter 做 scan / resolve / 校验
 - 缺少 `spec_root` / `INDEX.md` / 匹配 spec 时只 warning；无法确定 target project 时直接阻塞
 
 ## 维护

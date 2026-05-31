@@ -4,6 +4,7 @@
 
 使用原则：
 - 可按项目复杂度裁剪章节；不适用内容必须写明“不适用 + 原因”，不采用“严格不删章节 / 缺失写 TBD”的 rigid schema
+- `tech-research.md` 的 Project Reality Scan / Existing Surface Inventory 是已有后端事实源；数据模型、Service、Repository、MQ、Redis、Cron 方案不能只从 `api-contract.md` 反推
 - 先从业务域边界、数据约束和接口实现链路出发，再谈框架和目录结构
 - 模板强调“后端为什么这样分层、如何承接 contract”，不是泛泛列中间件名词
 - 若项目不是典型 CRUD，也要把命令流、事件流或集成边界写清楚
@@ -32,6 +33,7 @@
 13. 本方案对应的项目背景、现状痛点、本期目标和非目标是什么？
 14. 本次是否涉及部署拓扑、MQ topic、worker、cron、外部依赖、跨团队依赖或上线风险？
 15. 哪些问题仍未决，需要进入 Q&A / Open Questions？
+16. 本次方案如何处理 `tech-research.md` 发现的已有 DB / ORM / migration / Service / Repository / MQ / Redis / Cron / 权限 / observability？
 
 ## 推荐写法
 
@@ -56,6 +58,7 @@
 - 覆盖范围
 - 非目标 / 不覆盖范围
 - 关键假设与约束
+这里的“现状”优先来自 `tech-research.md` 的 Project Reality Scan，而不是凭空概括。
 
 ### 2. Summary / Architecture Decisions
 
@@ -103,6 +106,15 @@ OrderService --> OrderCancelled
 | Domain ID | 业务域 | 代码模块 | 聚合 / 核心对象 | Core Service | Repository / Gateway |
 |-----------|--------|----------|------------------|--------------|----------------------|
 | D-ORD-001 | 订单管理 | modules/order | Order | OrderService | OrderRepository |
+```
+
+### 3.1 Existing Backend Surface Plan
+
+来自 `tech-research.md` 的现有后端 surface 必须逐项处理。
+
+```markdown
+| Surface | Existing Item | Path / Source | Relation | Plan | Risk / Open Question |
+|---|---|---|---|---|---|
 ```
 
 ### 4. Data Model / Storage Design

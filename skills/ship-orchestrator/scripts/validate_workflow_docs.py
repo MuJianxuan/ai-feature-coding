@@ -109,6 +109,12 @@ def validate_protocol_doc() -> None:
         "只有无法确定 `target project` 时才阻塞",
         "target project `spec_root`",
         "归一化到 `target_project_root` 相对路径",
+        "Project Reality Scan",
+        "Research Alignment Check 是 research 子段内部的过程动作，不是 hard gate",
+        ".docs/spec/INDEX.md` 是唯一人工路由入口",
+        "frontend / backend / shared",
+        "不新增 `review-tech-research.md`",
+        "不新增 `review_status / user_sign_off / signed_at`",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
     for node_id in CANONICAL_DELEGATION_NODES:
@@ -132,6 +138,12 @@ def validate_readmes() -> None:
         require("Discover" in text and "Define" in text and "Design" in text and "Build" in text and "Close" in text, f"{path}: missing 5-stage view")
         require("ship-spec" in text, f"{path}: missing ship-spec mention")
         require(".docs/ship/project.yml" in text or "project.yml.template" in text, f"{path}: missing project-local spec config wording")
+        for snippet in (
+            "Project Reality First",
+            ".docs/spec/INDEX.md",
+            "frontend / backend / shared",
+        ):
+            require(snippet in text, f"{path}: missing `{snippet}`")
         require("4 个大阶段" not in text and "4 大阶段" not in text, f"{path}: contains legacy 4-stage wording")
 
     templates_readme = ROOT / "skills/ship-orchestrator/_templates/README.md"
@@ -350,10 +362,14 @@ def validate_ship_spec_doc() -> None:
         "--project-config",
         "target project",
         "project_level_only",
+        ".docs/spec/INDEX.md",
+        "frontend / backend / shared",
+        "唯一人工路由入口",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
     require("不是 canonical stage" in text, f"{path}: missing non-stage wording")
     require("ship-handoff" in text, f"{path}: missing handoff proposal wording")
+    require("不是 `INDEX.md` 表格正文" not in text, f"{path}: contains legacy INDEX-not-runtime wording")
 
 
 def validate_project_local_stage_docs() -> None:
@@ -361,14 +377,33 @@ def validate_project_local_stage_docs() -> None:
         ROOT / "skills/ship-tech-discovery/SKILL.md": (
             "target project `spec_root`",
             "target project 未明确，不允许进入 `selection`",
+            "Project Reality First",
+            "Project Reality Scan",
+            "Requirement-to-Reality Mapping",
+            "Existing Surface Inventory",
+            "Evidence and Uncertainty",
+            "Research Alignment Check",
+            "不是 hard gate",
         ),
         ROOT / "skills/ship-frontend-design/SKILL.md": (
             "target project `spec_root`",
             "不读取父目录或其他项目 spec",
+            "Existing Surface Inventory",
+            "frontend / shared",
+            "reuse / extend / new / avoid / unknown",
         ),
         ROOT / "skills/ship-backend-design/SKILL.md": (
             "target project `spec_root`",
             "不读取父目录或其他项目 spec",
+            "Project Reality Scan",
+            "Existing Surface Inventory",
+            "backend / shared",
+            "DB / ORM / migration",
+        ),
+        ROOT / "skills/ship-contract/SKILL.md": (
+            "Requirement-to-Reality Mapping",
+            "Existing Surface Inventory",
+            "breaking change",
         ),
         ROOT / "skills/ship-build/SKILL.md": (
             "target project `spec_root`",

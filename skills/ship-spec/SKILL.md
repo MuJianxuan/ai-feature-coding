@@ -39,8 +39,9 @@ project-a/
     ├── ship/project.yml
     └── spec/
         ├── INDEX.md
-        ├── coding/<topic>.md
-        └── <domain>/<topic>.md
+        ├── frontend/<topic>.md
+        ├── backend/<topic>.md
+        └── shared/<topic>.md
 ```
 
 多项目父目录：
@@ -65,10 +66,35 @@ project-a/
 
 约束：
 
-- `INDEX.md` 是 registry，面向人工浏览与目录维护
-- 运行时匹配事实源是每个规范文件的 frontmatter，不是 `INDEX.md` 表格正文
+- `.docs/spec/INDEX.md` 是唯一人工路由入口；agent 在当前需求和阶段下必须先读 `INDEX.md`，再决定读取哪些 spec 文件
+- `INDEX.md` 表格只使用 `frontend / backend / shared` 三类；`shared` 仅用于 error code、date/time、trace id 等真正跨前后端规范
+- 运行时 helper 仍可读取每个规范文件的 frontmatter 做 scan / resolve / 校验；frontmatter 不新增 `spec_type` 或 `discipline`
+- `INDEX.md` 与 spec 文件 frontmatter 必须保持一致；不一致时记录 warning，默认 Warn Then Continue
 - 缺少 `INDEX.md` 时默认告警但不中断流程
 - 本期只支持 `project_level_only`；不扫描 module-level spec root
+
+## INDEX.md Template
+
+`INDEX.md` 推荐写法：
+
+```markdown
+# Spec Index
+
+| Spec ID | 分类 | 适用阶段 | 适用技术/模块 | 文件路径 | 何时使用 | 备注 |
+|---|---|---|---|---|---|---|
+| react-query-data-fetching | frontend | ship-frontend-design, ship-build | React, data fetching | frontend/react-query-data-fetching.md | 页面需要 server state / cache / mutation |  |
+| backend-service-methods | backend | ship-backend-design, ship-build | Node, service layer | backend/service-methods.md | 设计 Service 方法签名和调用边界 |  |
+| redis-cache-policy | backend | ship-backend-design, ship-build | Redis | backend/redis-cache-policy.md | 需求涉及缓存、限流、会话、分布式锁 |  |
+| mq-event-contract | backend | ship-contract, ship-backend-design, ship-build | MQ | backend/mq-event-contract.md | 需求涉及异步消息、事件、worker |  |
+| shared-error-codes | shared | ship-contract, ship-frontend-design, ship-backend-design, ship-build | Error Model | shared/error-codes.md | 需求涉及跨端错误码或异常处理 |  |
+```
+
+规则：
+
+- 只保留 `.docs/spec/INDEX.md` 一个总索引，不新增 `.docs/spec/frontend/INDEX.md` 或 `.docs/spec/backend/INDEX.md`
+- `分类` 只允许 `frontend / backend / shared`
+- `文件路径` 使用相对 `.docs/spec/` 的路径
+- 表格是人工路由入口，不替代 spec 文件 frontmatter
 
 ## Project Config
 
@@ -95,7 +121,7 @@ notes: ""
 
 ## Spec Schema
 
-不兼容旧 schema，统一使用以下 frontmatter：
+不兼容旧 schema，统一使用以下 frontmatter；本轮不新增 `spec_type`：
 
 ```markdown
 ---
@@ -134,9 +160,9 @@ last_updated: "2026-05-23T10:00:00+08:00"
 
 | Hook 点 | 用途 | 运行时行为 |
 |--------|------|-----------|
-| `ship-tech-discovery` | 检查选型与规范兼容性 | 在 target project `spec_root` 下按 `stage_hooks + stack_tags` 匹配 |
-| `ship-frontend-design` | 加载前端设计约束 | 在 target project `spec_root` 下按 `stage_hooks + stack_tags + domains` 匹配 |
-| `ship-backend-design` | 加载后端设计约束 | 在 target project `spec_root` 下按 `stage_hooks + stack_tags + domains` 匹配 |
+| `ship-tech-discovery` | 检查选型与规范兼容性 | 先读 `.docs/spec/INDEX.md`，再在 target project `spec_root` 下按 `stage_hooks + stack_tags` 匹配 |
+| `ship-frontend-design` | 加载前端设计约束 | 先读 `INDEX.md` 中 `frontend/shared` 候选，再按 `stage_hooks + stack_tags + domains` 匹配 |
+| `ship-backend-design` | 加载后端设计约束 | 先读 `INDEX.md` 中 `backend/shared` 候选，再按 `stage_hooks + stack_tags + domains` 匹配 |
 | `ship-build` | 约束任务级实现 | 在 target project `spec_root` 下按 `stage_hooks + applies_to` 匹配，并记录 `spec_id` |
 | `ship-handoff` | 生成待沉淀规范提案 | 汇总 `meta.yml.spec_context.referenced_spec_ids`，proposal 默认指向 target project `spec_root` |
 
@@ -147,6 +173,17 @@ last_updated: "2026-05-23T10:00:00+08:00"
 - 规范 frontmatter 不合法
 
 以上都应写入 `meta.yml.spec_context.warnings` 和阶段产物的 `spec_warnings`，但默认不阻塞推进。
+
+### Agent 使用规则
+
+每个需要 spec 的阶段必须：
+
+1. 先读 `.docs/spec/INDEX.md`
+2. 根据当前阶段、需求 domain、project_scope、tech_stack 和涉及文件，从 `frontend / backend / shared` 分类中挑选候选 spec
+3. 再读取候选 spec 文件
+4. 把实际使用的 `spec_id` 写入对应产物的 `referenced_spec_ids` 或任务 `spec_refs`
+5. 若 INDEX 和 frontmatter 不一致，记录 warning
+6. 若找不到匹配 spec，Warn Then Continue
 
 ## Runtime Helpers
 
@@ -163,6 +200,7 @@ last_updated: "2026-05-23T10:00:00+08:00"
 - `feature_meta_runtime.py sync-spec` 负责把最近一次解析结果同步到 `meta.yml.spec_context`
 - 阶段 skill 必须自行把 `spec_checked_at`、`referenced_spec_ids`、`spec_warnings` 写入产物或任务证据
 - 多项目父目录下必须先显式选定 `--project-config`
+- 本轮 runtime helper 不把 `INDEX.md` 变成唯一机器事实源；若后续增强 INDEX 表格校验，只能产生 warning，不阻塞流程
 
 ## Proposal-First Writeback
 

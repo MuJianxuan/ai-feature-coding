@@ -4,6 +4,7 @@
 
 使用原则：
 - 设计稿、原型图、截图、设计系统是事实源；没有视觉证据时不要凭空补全页面
+- `tech-research.md` 的 Existing Surface Inventory 是现有前端事实源；已有页面、组件、store、API client 必须先判断 reuse / extend / new / avoid / unknown
 - 先说明页面和用户操作，再说明组件、状态和接口映射
 - 模板强调“页面如何落地”，不是泛泛讲前端技术栈
 - 若某部分不适用，写明“不适用 + 原因”，不要静默省略
@@ -28,6 +29,7 @@
 12. 路由、权限、加载态、错误态、响应式、无障碍如何落地？
 13. 哪些地方是高风险区域：
    - 复杂表单、并发请求、长列表、跨页面共享状态、设计稿信息不足
+14. 本次前端方案如何处理 `tech-research.md` 发现的现有页面、组件、store、API client 和权限/路由约束？
 
 ## 推荐写法
 
@@ -38,6 +40,7 @@
 先用短段落写清：
 - 本文覆盖的页面或功能流
 - 关键实现策略
+- 与现有前端 surface 的关系：复用、扩展、新增或避免触碰
 - 与设计稿的一致性原则
 - 明确暂不处理的范围
 
@@ -110,6 +113,15 @@ stop
 - 对外暴露的 props / events
 - 依赖的 hooks / store / query
 - 是否复用，复用边界在哪里
+
+### 4.1 Existing Frontend Surface Plan
+
+来自 `tech-research.md` 的现有前端 surface 必须逐项处理。
+
+```markdown
+| Surface | Existing Item | Path / Source | Relation | Plan | Risk / Open Question |
+|---|---|---|---|---|---|
+```
 
 关键示例：
 

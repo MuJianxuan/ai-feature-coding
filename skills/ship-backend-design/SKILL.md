@@ -7,12 +7,13 @@ description: "ShipKit stage. Designs backend architecture with domain modeling a
 
 ## Overview
 
-后端技术方案阶段基于 requirements.md 的业务域和 api-contract.md 的接口规约，设计后端的整体架构、领域模型、数据层、服务层、运行时边界和交付风险。
+后端技术方案阶段基于 requirements.md 的业务域、tech-research.md 的项目事实发现和 api-contract.md 的接口规约，设计后端的整体架构、领域模型、数据层、服务层、运行时边界和交付风险。
 
 核心目标：
 - 建立"业务域-服务边界-数据模型"三层设计，保证架构清晰可演进
 - 每个接口都能追溯到具体的 Controller/Service/Repository 实现路径
-- 数据模型完整支撑接口规约，并考虑事务、一致性与扩展性
+- 数据模型完整支撑接口规约，并结合已有 DB / ORM / migration 发现考虑复用、扩展、事务、一致性与扩展性
+- Service / Repository / MQ / Redis / Cron 等方案必须引用相关 backend spec 或显式记录无匹配规范
 - 横切关注点（认证、日志、限流、缓存）有统一方案
 - 产物同时满足工程实现、技术评审、部署上线和后续 delivery plan 消费
 
@@ -73,29 +74,33 @@ Bounded Context → 业务域（与 requirements.md 的 Domain ID 对齐）
 ## Process
 
 ```
-1. 整理项目背景、范围、目标、非目标、依赖与风险
+1. 读取 requirements.md、tech-research.md、api-contract.md
+   verify: 已理解 Project Reality Scan、Existing Surface Inventory、Requirement-to-Reality Mapping 和接口契约
+2. 整理项目背景、范围、目标、非目标、依赖与风险
    verify: 背景、边界、假设、Open Questions 已显式记录
-2. 选择架构模式与分层策略
+3. 选择架构模式与分层策略
    verify: 选择有 tech-selection.md 依据，并说明方案取舍
-3. 业务域 → 模块映射
+4. 业务域 → 模块映射
    verify: 与 requirements.md 的 Domain ID 一一对应
-4. 加载 ship-spec 约束
+5. 加载 ship-spec 约束
    verify: 已记录匹配的 `spec_id` 或“无匹配规范”
-5. 设计系统边界、运行时组件和关键流程图
+6. 设计系统边界、运行时组件和关键流程图
    verify: Runtime Overview / 关键流程图有 PlantUML 或不适用原因
-6. 设计数据模型与状态/关系图
-   verify: 支撑 api-contract.md 所有数据结构和 state enum
-7. 设计服务层（Service + 方法签名）
+7. 设计 Existing Backend Surface Plan
+   verify: DB / ORM / migration / Service / Repository / MQ / Redis / Cron 已标注 reuse / extend / new / avoid / unknown
+8. 设计数据模型与状态/关系图
+   verify: 支撑 api-contract.md 所有数据结构和 state enum，且结合已有 DB / ORM / migration 事实
+9. 设计服务层（Service + 方法签名）
    verify: 每个 Domain 至少一个 Service
-8. 接口实现映射（Controller → Service → Repository）
+10. 接口实现映射（Controller → Service → Repository）
    verify: api-contract.md 每个接口都有映射
-9. 设计服务交互、MQ / worker / cron、事件流与事务一致性
+11. 设计服务交互、MQ / worker / cron、事件流与事务一致性
    verify: Runtime Component、Domain Event、Transaction / Consistency 有落点
-10. 设计中间件、Security Design 与横切关注点
+12. 设计中间件、Security Design 与横切关注点
    verify: AuthN/AuthZ/Tenant/PII/Audit/Abuse 与错误处理覆盖
-11. 制定数据库迁移、部署、rollout / rollback 策略
+13. 制定数据库迁移、部署、rollout / rollback 策略
    verify: 含初始化脚本、升级脚本规范、上线和回滚结论
-12. 制定后端非功能方案与 ready checklist
+14. 制定后端非功能方案与 ready checklist
    verify: 缓存/限流/监控/observability/capacity/alerting/dependencies/Q&A 各有结论
 ```
 
@@ -114,7 +119,7 @@ Bounded Context → 业务域（与 requirements.md 的 Domain ID 对齐）
 
 **Step 1: 背景、范围与风险整理**
 
-先写清项目背景、现状痛点、本期目标、非目标、关键假设、跨团队 / 外部系统依赖、上线风险和 Open Questions。小项目可以合并章节，但不能省略设计边界。
+先读取 `tech-research.md` 的 Project Reality Scan / Existing Surface Inventory / Evidence and Uncertainty，写清项目背景、现状痛点、本期目标、非目标、关键假设、跨团队 / 外部系统依赖、上线风险和 Open Questions。小项目可以合并章节，但不能省略设计边界。
 
 **Step 2: 架构模式选择**
 
@@ -136,10 +141,12 @@ D-PAY-001  支付处理  →   src/modules/payment/
 
 **Step 4: 加载 ship-spec 约束**
 
-- 基于 `tech-selection.md` 的技术栈标签和 `requirements.md` 的 Domain ID 匹配规范
+- 先读 `.docs/spec/INDEX.md`，优先从 `backend / shared` 分类选择候选 spec
+- 基于 `tech-selection.md` 的技术栈标签、`requirements.md` 的 Domain ID 和涉及文件匹配规范
 - 规范匹配边界固定为 target project `spec_root`
 - 将命中的 `spec_id` 记录到 `backend-design.md.referenced_spec_ids`
 - 无匹配规范时显式写“无匹配规范”，并把 warning 写入 `spec_warnings`
+- 若 INDEX 与 frontmatter 不一致，记录 warning，默认 Warn Then Continue
 
 **Step 5: 系统边界与运行时概览**
 
@@ -149,7 +156,7 @@ D-PAY-001  支付处理  →   src/modules/payment/
 
 **Step 6: 数据模型设计**
 
-- 从 api-contract.md 的数据模型反推数据库表结构
+- 先读取 `tech-research.md` 中已有 DB / ORM / migration 发现，再从 api-contract.md 的数据模型推导新增或扩展字段
 - 标注主键、外键、唯一索引、复合索引
 - 考虑软删除、审计字段（created_at / updated_at / created_by）
 - 标注字段的业务含义与约束
@@ -334,6 +341,20 @@ src/
 - 对当前后端方案生效的关键约束
 - 若无匹配规范，显式记录原因和 warnings
 
+#### 3.2 Existing Backend Surface Plan
+
+来自 `tech-research.md` 的现有后端 surface 必须逐项处理，数据模型设计不能只从 `api-contract.md` 反推：
+
+```markdown
+| Surface | Existing Item | Path / Source | Relation | Plan | Risk / Open Question |
+|---|---|---|---|---|---|
+| DB | users | prisma/schema.prisma | extend | 复用主键和 email，新增 profile relation | avatar 字段归属待确认 |
+| Service | UserService | src/modules/user/user.service.ts | extend | 新增 updateProfile 方法 | 需保持权限检查 |
+| MQ | user.updated | src/events/user.ts | unknown | 暂不发布，等待用户确认 | 下游订阅者未知 |
+```
+
+Relation 建议使用：`reuse`、`extend`、`replace`、`new`、`avoid`、`unknown`。
+
 #### 4. Data Model / Storage Design
 - ER 图（表 + 关系）
 - 每张表的 DDL（含字段类型、约束、索引）
@@ -485,6 +506,7 @@ Test Focus 应能直接输入后续 delivery plan 和 verification 阶段，按 
 
 - 每个 Domain ID 有对应的代码模块和 Service
 - 已记录 `referenced_spec_ids` 或“无匹配规范”
+- 已消费 `tech-research.md` 的 Project Reality Scan / Existing Surface Inventory，并处理已有 DB / ORM / migration / Service / MQ / Redis / Cron 事实
 - 每个接口在接口实现映射中有完整链路
 - 数据模型支撑 api-contract.md 所有数据结构
 - 中间件方案覆盖认证、授权、错误处理
@@ -515,6 +537,9 @@ Test Focus 应能直接输入后续 delivery plan 和 verification 阶段，按 
 ```
 □ 业务域是否与 requirements.md 的 Domain ID 一一对应？
 □ 每个 Domain 是否有对应的代码模块和 Service？
+□ 是否已读取 tech-research.md 的 Project Reality Scan 和 Existing Surface Inventory？
+□ 数据模型是否结合已有 DB / ORM / migration 发现，而不是只从 api-contract.md 反推？
+□ Service / Repository / MQ / Redis / Cron 等方案是否引用 backend/shared spec 或记录无匹配规范？
 □ 项目背景、范围、目标、非目标和关键假设是否明确？
 □ 依赖项、风险、Q&A / Open Questions 是否有结论？
 □ 是否已完成 ship-spec 匹配并记录 `referenced_spec_ids` / `spec_warnings`？
