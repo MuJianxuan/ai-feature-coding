@@ -7,13 +7,14 @@ description: "ShipKit stage. Designs backend architecture with domain modeling a
 
 ## Overview
 
-后端技术方案阶段基于 requirements.md 的业务域和 api-contract.md 的接口规约，设计后端的整体架构、领域模型、数据层和服务层。
+后端技术方案阶段基于 requirements.md 的业务域和 api-contract.md 的接口规约，设计后端的整体架构、领域模型、数据层、服务层、运行时边界和交付风险。
 
 核心目标：
 - 建立"业务域-服务边界-数据模型"三层设计，保证架构清晰可演进
 - 每个接口都能追溯到具体的 Controller/Service/Repository 实现路径
 - 数据模型完整支撑接口规约，并考虑事务、一致性与扩展性
 - 横切关注点（认证、日志、限流、缓存）有统一方案
+- 产物同时满足工程实现、技术评审、部署上线和后续 delivery plan 消费
 
 产出物：`backend-design.md`
 
@@ -55,6 +56,7 @@ Bounded Context → 业务域（与 requirements.md 的 Domain ID 对齐）
 复杂后端建议使用 PlantUML source 写入 Markdown 辅助评审，不要求渲染图片入库；简单项目不强制画图，可合并章节或写明“不适用 + 原因”。ER 图不是唯一图示类型，图示必须服务于架构、事务、一致性或运行时边界决策。
 
 推荐图类型：
+- system boundary diagram：表达业务入口、核心服务、基础设施和外部系统边界
 - component diagram：表达 Runtime Component、模块边界、外部依赖、message / worker 承接关系
 - sequence diagram：表达接口调用、服务交互、事务步骤、重试和补偿
 - ER style class diagram：表达数据模型、状态字段和表关系
@@ -71,26 +73,30 @@ Bounded Context → 业务域（与 requirements.md 的 Domain ID 对齐）
 ## Process
 
 ```
-1. 选择架构模式与分层策略
-   verify: 选择有 tech-selection.md 依据
-2. 业务域 → 模块映射
+1. 整理项目背景、范围、目标、非目标、依赖与风险
+   verify: 背景、边界、假设、Open Questions 已显式记录
+2. 选择架构模式与分层策略
+   verify: 选择有 tech-selection.md 依据，并说明方案取舍
+3. 业务域 → 模块映射
    verify: 与 requirements.md 的 Domain ID 一一对应
-3. 加载 ship-spec 约束
+4. 加载 ship-spec 约束
    verify: 已记录匹配的 `spec_id` 或“无匹配规范”
-4. 设计数据模型与状态/关系图
+5. 设计系统边界、运行时组件和关键流程图
+   verify: Runtime Overview / 关键流程图有 PlantUML 或不适用原因
+6. 设计数据模型与状态/关系图
    verify: 支撑 api-contract.md 所有数据结构和 state enum
-5. 设计服务层（Service + 方法签名）
+7. 设计服务层（Service + 方法签名）
    verify: 每个 Domain 至少一个 Service
-6. 接口实现映射（Controller → Service → Repository）
+8. 接口实现映射（Controller → Service → Repository）
    verify: api-contract.md 每个接口都有映射
-7. 设计运行时组件、服务交互、事件流与事务一致性
+9. 设计服务交互、MQ / worker / cron、事件流与事务一致性
    verify: Runtime Component、Domain Event、Transaction / Consistency 有落点
-8. 设计中间件、Security Design 与横切关注点
+10. 设计中间件、Security Design 与横切关注点
    verify: AuthN/AuthZ/Tenant/PII/Audit/Abuse 与错误处理覆盖
-9. 制定数据库迁移策略
-   verify: 含初始化脚本与升级脚本规范
-10. 制定后端非功能方案
-   verify: 缓存/限流/监控/observability/capacity 各有结论
+11. 制定数据库迁移、部署、rollout / rollback 策略
+   verify: 含初始化脚本、升级脚本规范、上线和回滚结论
+12. 制定后端非功能方案与 ready checklist
+   verify: 缓存/限流/监控/observability/capacity/alerting/dependencies/Q&A 各有结论
 ```
 
 ## Delegation Boundary
@@ -106,7 +112,11 @@ Bounded Context → 业务域（与 requirements.md 的 Domain ID 对齐）
 
 ### 步骤详解
 
-**Step 1: 架构模式选择**
+**Step 1: 背景、范围与风险整理**
+
+先写清项目背景、现状痛点、本期目标、非目标、关键假设、跨团队 / 外部系统依赖、上线风险和 Open Questions。小项目可以合并章节，但不能省略设计边界。
+
+**Step 2: 架构模式选择**
 
 常见选项：
 - **分层架构**（Controller / Service / Repository）：适合大多数 CRUD 场景
@@ -114,7 +124,7 @@ Bounded Context → 业务域（与 requirements.md 的 Domain ID 对齐）
 - **CQRS**：适合读写分离、高并发查询场景
 - **微服务**：适合大型团队、独立部署需求
 
-**Step 2: 业务域映射**
+**Step 3: 业务域映射**
 
 ```
 requirements.md         backend
@@ -124,21 +134,27 @@ D-ORD-001  订单创建  →   src/modules/order/
 D-PAY-001  支付处理  →   src/modules/payment/
 ```
 
-**Step 3: 加载 ship-spec 约束**
+**Step 4: 加载 ship-spec 约束**
 
 - 基于 `tech-selection.md` 的技术栈标签和 `requirements.md` 的 Domain ID 匹配规范
 - 规范匹配边界固定为 target project `spec_root`
 - 将命中的 `spec_id` 记录到 `backend-design.md.referenced_spec_ids`
 - 无匹配规范时显式写“无匹配规范”，并把 warning 写入 `spec_warnings`
 
-**Step 4: 数据模型设计**
+**Step 5: 系统边界与运行时概览**
+
+- 明确业务入口、核心服务、基础设施、外部系统和部署边界
+- 用 PlantUML 表达 Runtime Component、关键接口 Sequence、message / worker / cron 承接关系
+- 简单项目可写“不画图 + 原因”，但仍需说明边界与关键路径
+
+**Step 6: 数据模型设计**
 
 - 从 api-contract.md 的数据模型反推数据库表结构
 - 标注主键、外键、唯一索引、复合索引
 - 考虑软删除、审计字段（created_at / updated_at / created_by）
 - 标注字段的业务含义与约束
 
-**Step 5-6: 服务层与接口映射**
+**Step 7-8: 服务层与接口映射**
 
 每个接口必须能追溯到：
 ```
@@ -148,9 +164,9 @@ POST /api/v1/todos
       → TodoRepository.save(entity)
 ```
 
-**Step 7-10: 运行时、事件与横切关注点**
+**Step 9-12: 运行时、事件、部署与横切关注点**
 
-认证、授权、日志、错误处理、缓存、限流、监控均需统一方案。复杂项目还需明确 Runtime Component、服务交互、Domain Event / Message、事务边界、一致性补偿、Security Design、Data Lifecycle 和 Read / Write Path。
+认证、授权、日志、错误处理、缓存、限流、监控均需统一方案。复杂项目还需明确 Runtime Component、服务交互、MQ / worker / cron、Domain Event / Message、事务边界、一致性补偿、Security Design、Data Lifecycle、Read / Write Path、部署拓扑、rollout / rollback、依赖项、风险和 Q&A。
 
 ## Service Layer Design Rules
 
@@ -260,10 +276,23 @@ spec_warnings: []
 
 以下内容是推荐覆盖点，不要求固定章节顺序；可按项目复杂度合并或拆分，但需确保模板中的必答问题有对应答案。
 
-#### 1. 后端架构概览
+#### 0. Document Metadata / 文档元信息
+- 功能名称、平台 / 系统名称
+- 前言、修订历史、词汇表
+- 关联文档：requirements.md、tech-selection.md、api-contract.md、spec
+
+#### 1. Background / Scope / Goals
+- 项目背景、现状痛点、本期目标
+- 覆盖范围
+- 非目标 / 不覆盖范围
+- 关键假设与约束
+
+#### 2. Summary / Architecture Decisions
 - 架构模式（分层 / 六边形 / CQRS）及选择依据
 - 技术栈（语言 / 框架 / ORM / 数据库）来自 tech-selection.md
 - 分层策略与依赖方向
+- 方案对比与最终取舍
+- 明确不做的内容
 - 目录结构
 
 ```
@@ -283,22 +312,29 @@ src/
 └── config/
 ```
 
-#### 2. 业务域划分
+#### 2.1 System Boundary / Runtime Overview
+- 业务入口
+- 核心服务
+- 基础设施
+- 外部系统
+- Runtime Component Diagram / 关键流程 Sequence Diagram
+
+#### 3. Domain-to-Module Map
 
 ```markdown
-| Domain ID | Domain 名称 | 代码模块 | 核心 Service |
-|-----------|-------------|----------|--------------|
-| D-AUTH-001 | 用户认证 | modules/auth | AuthService |
-| D-AUTH-002 | 权限管理 | modules/auth/permissions | PermissionService |
-| D-TODO-001 | 待办管理 | modules/todo | TodoService |
+| Domain ID | Domain 名称 | 代码模块 | 聚合 / 核心对象 | 核心 Service | Repository / Gateway |
+|-----------|-------------|----------|------------------|--------------|----------------------|
+| D-AUTH-001 | 用户认证 | modules/auth | UserCredential | AuthService | AuthRepository |
+| D-AUTH-002 | 权限管理 | modules/auth/permissions | Permission | PermissionService | PermissionRepository |
+| D-TODO-001 | 待办管理 | modules/todo | Todo | TodoService | TodoRepository |
 ```
 
-#### 3. Referenced Specs / Constraints
+#### 3.1 Referenced Specs / Constraints
 - 引用的 `spec_id` 列表
 - 对当前后端方案生效的关键约束
 - 若无匹配规范，显式记录原因和 warnings
 
-#### 4. 数据模型设计
+#### 4. Data Model / Storage Design
 - ER 图（表 + 关系）
 - 每张表的 DDL（含字段类型、约束、索引）
 - 索引策略说明
@@ -306,11 +342,11 @@ src/
 - 数据迁移与初始数据
 - 状态字段与 `api-contract.md` state enum / State Contract 的映射
 
-#### 4.1 Runtime Component Diagram / Diagrams
+#### 4.1 Data Model / ER Diagrams
 
 复杂项目建议补充 PlantUML component / sequence / ER style class / deployment diagram，并在图下说明范围、参与方、关键路径、异常路径、未覆盖范围、一致性检查。
 
-#### 5. 服务层设计
+#### 5. Service Design
 
 每个 Domain 列出：
 
@@ -331,49 +367,26 @@ src/
 **事务边界**：每个公开方法为一个事务
 ```
 
-#### 6. 接口实现映射
+#### 6. Contract-to-Implementation Map
 
 api-contract.md 中每个接口的实现路径：
 
 ```markdown
-| 接口 | Controller | Service 方法 | Repository | DB 操作 |
-|------|------------|--------------|------------|---------|
-| POST /api/v1/todos | TodoController.create | TodoService.createTodo | TodoRepository.save | INSERT todos |
-| GET /api/v1/todos | TodoController.list | TodoService.listByUser | TodoRepository.findByUserId | SELECT todos |
-| DELETE /api/v1/todos/:id | TodoController.delete | TodoService.deleteTodo | TodoRepository.softDelete | UPDATE todos SET deleted_at |
+| Contract | Handler / Controller / Consumer / Job / Command | Service 方法 | Repository / Gateway | Storage / External dependency | 副作用 |
+|----------|--------------------------------------------------|--------------|----------------------|-------------------------------|--------|
+| POST /api/v1/todos | TodoController.create | TodoService.createTodo | TodoRepository.save | todos | INSERT todos |
+| GET /api/v1/todos | TodoController.list | TodoService.listByUser | TodoRepository.findByUserId | todos | SELECT todos |
+| DELETE /api/v1/todos/:id | TodoController.delete | TodoService.deleteTodo | TodoRepository.softDelete | todos | UPDATE todos SET deleted_at |
 ```
 
-#### 6.1 Service Interaction Protocol
-
-```markdown
-| 调用方 | 被调用方 | 调用方式 | 超时 | 重试 | 熔断/降级 | 错误映射 |
-|---|---|---|---|---|---|---|
-```
-
-#### 6.2 Domain Event / Message Design
-
-承接 `api-contract.md` 中的 message、cron、cli、sdk contract，明确 producer / consumer / job / command handler。
-
-```markdown
-| Event | Producer | Consumer | 触发事务点 | Outbox | Retry | DLQ |
-|---|---|---|---|---|---|---|
-```
-
-#### 6.3 Transaction / Consistency Matrix
-
-```markdown
-| 操作 | 涉及聚合 | 事务边界 | 一致性要求 | 失败补偿 | 幂等策略 |
-|---|---|---|---|---|---|
-```
-
-#### 6.4 Cross-Document Traceability Matrix
+#### 6.1 Cross-Document Traceability Matrix
 
 ```markdown
 | Domain ID | AC ID | Contract | Handler | Service | Repository / Gateway | Storage / External | Test Focus |
 |---|---|---|---|---|---|---|---|
 ```
 
-#### 6.5 Test Focus / Verification Scenario
+#### 6.2 Test Focus / Verification Scenario
 
 Test Focus 应能直接输入后续 delivery plan 和 verification 阶段，按 service method、transaction、event consumer、external dependency 写清场景与预期结果。
 
@@ -382,39 +395,42 @@ Test Focus 应能直接输入后续 delivery plan 和 verification 阶段，按 
 |---|---|---|---|---|---|
 ```
 
-#### 7. 中间件 / 拦截器设计
+#### 7. Transaction / Consistency / Idempotency
+
+```markdown
+| 操作 | 涉及聚合 | 事务边界 | 一致性要求 | 失败补偿 | 幂等策略 |
+|---|---|---|---|---|---|
+```
+
+#### 8. MQ / Domain Event / Worker / Cron
+
+承接 `api-contract.md` 中的 message、cron、cli、sdk contract，明确 producer / consumer / job / command handler。
+
+```markdown
+| Topic / Queue / Event / Job | Producer | Consumer / Worker / Job | Payload schema | 触发事务点 | Outbox | Retry | DLQ | 幂等 key |
+|---|---|---|---|---|---|---|---|---|
+```
+
+无 MQ、worker、cron 或异步事件时，写明“不涉及 MQ / 异步事件 + 原因”。
+
+#### 9. Service Interaction / External Integration
+
+```markdown
+| 调用方 | 被调用方 | 调用方式 | 超时 | 重试 | fallback / 降级 | error mapping |
+|---|---|---|---|---|---|---|
+```
+
+#### 10. Cross-Cutting Concerns / Security Design
+
 - **认证中间件**：解析 JWT、注入 user 上下文
 - **授权中间件**：基于角色 / 权限的访问控制
 - **请求日志**：记录请求/响应、脱敏 PII
 - **错误处理**：统一异常 → API 错误响应
 - **限流**：按 IP / 用户 / 接口的限流策略
 
-#### 8. 数据库迁移策略
-- 迁移工具（Prisma Migrate / TypeORM / Flyway）
-- 迁移命名规范（`YYYYMMDDHHmmss_description.sql`）
-- 回滚策略（每个迁移配套 down 脚本）
-- 生产环境迁移流程（备份 → 演练 → 灰度）
-
-#### 9. 后端非功能方案
-- **缓存**：Redis 使用场景、key 命名规范、过期策略
-- **限流**：算法（令牌桶 / 漏桶）、维度、配置
-- **监控**：指标（QPS / 延迟 / 错误率）、告警阈值
-- **日志**：结构化日志格式、级别、采样策略
-- **可观测性**：trace ID 透传、链路追踪
-- **安全**：SQL 注入防护、XSS、CSRF、依赖漏洞扫描
-
-#### 10. Security Design
-
 复杂项目单独覆盖 AuthN、AuthZ、Tenant isolation、Sensitive data、Audit、Abuse prevention、Dependency security；不要只写“由中间件处理”。
 
-#### 11. Data Lifecycle / Retention
-
-```markdown
-| 数据对象 | 敏感级别 | 保留周期 | 删除策略 | 脱敏/加密 | 审计要求 |
-|---|---|---|---|---|---|
-```
-
-#### 12. Read / Write Path Design
+#### 11. Read / Write Path Design
 
 适用于 CQRS、搜索、Redis 缓存、报表宽表、高并发列表查询。
 
@@ -423,11 +439,42 @@ Test Focus 应能直接输入后续 delivery plan 和 verification 阶段，按 
 |---|---|---|---|---|---|
 ```
 
+#### 12. Deployment / Operations / Reliability
+- 迁移工具（Prisma Migrate / TypeORM / Flyway）
+- 迁移命名规范（`YYYYMMDDHHmmss_description.sql`）
+- 回滚策略（每个迁移配套 down 脚本）
+- 生产环境迁移流程（备份 → 演练 → 灰度）
+- 部署拓扑与运行时边界
+- rollout 顺序和灰度策略
+- rollback 触发条件和回滚步骤
+- migration 执行流程与失败恢复
+- 无部署变更时写明“沿用现有部署拓扑 + 原因”
+- **缓存**：Redis 使用场景、key 命名规范、过期策略
+- **限流**：算法（令牌桶 / 漏桶）、维度、配置
+- **监控**：指标（QPS / 延迟 / 错误率）、告警阈值
+- **日志**：结构化日志格式、级别、采样策略
+- **可观测性**：trace ID 透传、链路追踪
+- **安全**：SQL 注入防护、XSS、CSRF、依赖漏洞扫描
+
+#### 12.1 Data Lifecycle / Retention
+
+```markdown
+| 数据对象 | 敏感级别 | 保留周期 | 删除策略 | 脱敏/加密 | 审计要求 |
+|---|---|---|---|---|---|
+```
+
 #### 13. Observability / Capacity / Alerting
 
 - 核心指标：QPS、latency、error rate、queue lag、job duration、DLQ count
 - 告警阈值：按业务风险给初始阈值，或说明无法确定
 - 容量假设：数据量、并发量、热点查询、缓存命中预期
+
+#### 14. Risk / Dependencies / Q&A / Ready Checklist
+- 风险评估
+- 跨团队 / 外部系统依赖
+- Open Questions
+- Q&A
+- 接口映射、数据模型、事务一致性、安全、部署迁移、observability 的 ready checklist
 
 ### stage_status 流转规则
 
@@ -468,6 +515,8 @@ Test Focus 应能直接输入后续 delivery plan 和 verification 阶段，按 
 ```
 □ 业务域是否与 requirements.md 的 Domain ID 一一对应？
 □ 每个 Domain 是否有对应的代码模块和 Service？
+□ 项目背景、范围、目标、非目标和关键假设是否明确？
+□ 依赖项、风险、Q&A / Open Questions 是否有结论？
 □ 是否已完成 ship-spec 匹配并记录 `referenced_spec_ids` / `spec_warnings`？
 □ api-contract.md 中每个接口是否有完整的实现映射？
 □ 数据模型是否支撑接口规约的所有数据结构？
@@ -482,8 +531,10 @@ Test Focus 应能直接输入后续 delivery plan 和 verification 阶段，按 
 □ 复杂后端场景是否已补充 PlantUML 图示，或说明不画图原因？
 □ 图中的 Service / Repository / Event / external dependency 是否存在于正文表格？
 □ api-contract.md 中的 message / cron / cli / sdk contract 是否被 backend design 承接？
+□ 无 MQ / async / worker / cron 时是否写明不适用原因？
 □ 每个写操作是否说明事务边界、一致性要求、失败补偿和幂等策略？
 □ 外部依赖是否说明 timeout、retry、fallback、error mapping？
+□ deployment / rollout / rollback 是否有明确结论，或写明沿用现有部署拓扑的原因？
 □ Security Design 是否覆盖 AuthN、AuthZ、Tenant isolation、PII、Audit、Abuse prevention 和 Dependency security？
 □ 后端实现路径是否能反向追溯到 Domain ID、AC ID、Contract 和 Test Focus？
 ```
