@@ -50,6 +50,24 @@ Bounded Context → 业务域（与 requirements.md 的 Domain ID 对齐）
 3. **依赖方向单向**：Controller → Service → Repository → DB，不允许反向调用
 4. **业务逻辑不下沉到 Controller**：Controller 只做参数校验、调用 Service、返回响应
 
+## Diagram Guidance
+
+复杂后端建议使用 PlantUML source 写入 Markdown 辅助评审，不要求渲染图片入库；简单项目不强制画图，可合并章节或写明“不适用 + 原因”。ER 图不是唯一图示类型，图示必须服务于架构、事务、一致性或运行时边界决策。
+
+推荐图类型：
+- component diagram：表达 Runtime Component、模块边界、外部依赖、message / worker 承接关系
+- sequence diagram：表达接口调用、服务交互、事务步骤、重试和补偿
+- ER style class diagram：表达数据模型、状态字段和表关系
+- deployment diagram：表达部署拓扑、队列、存储和第三方系统边界
+
+推荐触发条件：
+- 多服务、多模块或第三方依赖协作
+- `api-contract.md` 包含 message、cron、cli、sdk 等非 HTTP contract，需要 producer / consumer / job / command handler 承接
+- 存在复杂事务、一致性补偿、outbox、DLQ、幂等重试
+- 存在权限、租户隔离、PII、审计不可变或部署拓扑风险
+
+每张图下方必须补充：范围、参与方、关键路径、至少一个关键异常路径、未覆盖范围、一致性检查。图中的 Service、Repository、Event、external dependency、storage 名称必须与 Domain Map、Contract-to-Implementation Map 和正文表格一致。
+
 ## Process
 
 ```
@@ -59,18 +77,20 @@ Bounded Context → 业务域（与 requirements.md 的 Domain ID 对齐）
    verify: 与 requirements.md 的 Domain ID 一一对应
 3. 加载 ship-spec 约束
    verify: 已记录匹配的 `spec_id` 或“无匹配规范”
-4. 设计数据模型（ER 图 + 表结构）
-   verify: 支撑 api-contract.md 所有数据结构
+4. 设计数据模型与状态/关系图
+   verify: 支撑 api-contract.md 所有数据结构和 state enum
 5. 设计服务层（Service + 方法签名）
    verify: 每个 Domain 至少一个 Service
 6. 接口实现映射（Controller → Service → Repository）
    verify: api-contract.md 每个接口都有映射
-7. 设计中间件与横切关注点
-   verify: 认证/授权/日志/错误处理覆盖
-8. 制定数据库迁移策略
+7. 设计运行时组件、服务交互、事件流与事务一致性
+   verify: Runtime Component、Domain Event、Transaction / Consistency 有落点
+8. 设计中间件、Security Design 与横切关注点
+   verify: AuthN/AuthZ/Tenant/PII/Audit/Abuse 与错误处理覆盖
+9. 制定数据库迁移策略
    verify: 含初始化脚本与升级脚本规范
-9. 制定后端非功能方案
-   verify: 缓存/限流/监控各至少一条
+10. 制定后端非功能方案
+   verify: 缓存/限流/监控/observability/capacity 各有结论
 ```
 
 ## Delegation Boundary
@@ -128,9 +148,9 @@ POST /api/v1/todos
       → TodoRepository.save(entity)
 ```
 
-**Step 7-9: 横切关注点**
+**Step 7-10: 运行时、事件与横切关注点**
 
-认证、授权、日志、错误处理、缓存、限流、监控均需统一方案。
+认证、授权、日志、错误处理、缓存、限流、监控均需统一方案。复杂项目还需明确 Runtime Component、服务交互、Domain Event / Message、事务边界、一致性补偿、Security Design、Data Lifecycle 和 Read / Write Path。
 
 ## Service Layer Design Rules
 
@@ -284,6 +304,11 @@ src/
 - 索引策略说明
 - 软删除/审计字段约定
 - 数据迁移与初始数据
+- 状态字段与 `api-contract.md` state enum / State Contract 的映射
+
+#### 4.1 Runtime Component Diagram / Diagrams
+
+复杂项目建议补充 PlantUML component / sequence / ER style class / deployment diagram，并在图下说明范围、参与方、关键路径、异常路径、未覆盖范围、一致性检查。
 
 #### 5. 服务层设计
 
@@ -318,6 +343,45 @@ api-contract.md 中每个接口的实现路径：
 | DELETE /api/v1/todos/:id | TodoController.delete | TodoService.deleteTodo | TodoRepository.softDelete | UPDATE todos SET deleted_at |
 ```
 
+#### 6.1 Service Interaction Protocol
+
+```markdown
+| 调用方 | 被调用方 | 调用方式 | 超时 | 重试 | 熔断/降级 | 错误映射 |
+|---|---|---|---|---|---|---|
+```
+
+#### 6.2 Domain Event / Message Design
+
+承接 `api-contract.md` 中的 message、cron、cli、sdk contract，明确 producer / consumer / job / command handler。
+
+```markdown
+| Event | Producer | Consumer | 触发事务点 | Outbox | Retry | DLQ |
+|---|---|---|---|---|---|---|
+```
+
+#### 6.3 Transaction / Consistency Matrix
+
+```markdown
+| 操作 | 涉及聚合 | 事务边界 | 一致性要求 | 失败补偿 | 幂等策略 |
+|---|---|---|---|---|---|
+```
+
+#### 6.4 Cross-Document Traceability Matrix
+
+```markdown
+| Domain ID | AC ID | Contract | Handler | Service | Repository / Gateway | Storage / External | Test Focus |
+|---|---|---|---|---|---|---|---|
+```
+
+#### 6.5 Test Focus / Verification Scenario
+
+Test Focus 应能直接输入后续 delivery plan 和 verification 阶段，按 service method、transaction、event consumer、external dependency 写清场景与预期结果。
+
+```markdown
+| Domain ID | AC ID | Design Surface | Scenario | Expected Result | Evidence |
+|---|---|---|---|---|---|
+```
+
 #### 7. 中间件 / 拦截器设计
 - **认证中间件**：解析 JWT、注入 user 上下文
 - **授权中间件**：基于角色 / 权限的访问控制
@@ -338,6 +402,32 @@ api-contract.md 中每个接口的实现路径：
 - **日志**：结构化日志格式、级别、采样策略
 - **可观测性**：trace ID 透传、链路追踪
 - **安全**：SQL 注入防护、XSS、CSRF、依赖漏洞扫描
+
+#### 10. Security Design
+
+复杂项目单独覆盖 AuthN、AuthZ、Tenant isolation、Sensitive data、Audit、Abuse prevention、Dependency security；不要只写“由中间件处理”。
+
+#### 11. Data Lifecycle / Retention
+
+```markdown
+| 数据对象 | 敏感级别 | 保留周期 | 删除策略 | 脱敏/加密 | 审计要求 |
+|---|---|---|---|---|---|
+```
+
+#### 12. Read / Write Path Design
+
+适用于 CQRS、搜索、Redis 缓存、报表宽表、高并发列表查询。
+
+```markdown
+| 场景 | 写模型 | 读模型 | 缓存 | 索引 | 一致性延迟 |
+|---|---|---|---|---|---|
+```
+
+#### 13. Observability / Capacity / Alerting
+
+- 核心指标：QPS、latency、error rate、queue lag、job duration、DLQ count
+- 告警阈值：按业务风险给初始阈值，或说明无法确定
+- 容量假设：数据量、并发量、热点查询、缓存命中预期
 
 ### stage_status 流转规则
 
@@ -389,6 +479,13 @@ api-contract.md 中每个接口的实现路径：
 □ 服务方法签名命名是否一致？
 □ 事务边界是否在 Service 方法粒度明确？
 □ frontmatter 字段是否正确填写？
+□ 复杂后端场景是否已补充 PlantUML 图示，或说明不画图原因？
+□ 图中的 Service / Repository / Event / external dependency 是否存在于正文表格？
+□ api-contract.md 中的 message / cron / cli / sdk contract 是否被 backend design 承接？
+□ 每个写操作是否说明事务边界、一致性要求、失败补偿和幂等策略？
+□ 外部依赖是否说明 timeout、retry、fallback、error mapping？
+□ Security Design 是否覆盖 AuthN、AuthZ、Tenant isolation、PII、Audit、Abuse prevention 和 Dependency security？
+□ 后端实现路径是否能反向追溯到 Domain ID、AC ID、Contract 和 Test Focus？
 ```
 
 全部通过后，将 `stage_status` 设为 `ready`，`evidence_complete` 设为 `true`。

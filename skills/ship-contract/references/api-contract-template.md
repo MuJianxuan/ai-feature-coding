@@ -21,7 +21,11 @@
 6. 失败路径如何表达：
    - HTTP status、business error code、message、details、前端处理建议、是否可重试
 7. 哪些数据结构是共享模型，哪些是接口专属模型？
-8. 契约中有哪些假设、兼容性约束和潜在变更点？
+8. 是否存在跨接口业务流程、状态迁移或异步链路需要 PlantUML 图示辅助评审？若不画图，原因是什么？
+9. 每个 contract 的 provider、consumer、entrypoint、调用时机是否明确？这同样适用于 REST、gRPC、message、cron、cli、sdk。
+10. 状态 enum 是否定义了合法迁移、非法迁移错误和新增 enum 值的 consumer 兼容处理？
+11. 写操作、message、cron、CLI 副作用命令的幂等与重试边界是什么？
+12. 契约中有哪些假设、兼容性约束、机器可读产物路径和潜在变更点？
 
 ## 推荐写法
 
@@ -35,6 +39,36 @@
 - 本文的关键设计决策
 - 明确不包含的范围
 
+### 1.1 Consumer / Provider Matrix
+
+用于统一 REST、gRPC、message、cron、cli、sdk 的调用关系。小项目可合并到 Summary，但不能静默省略调用方边界。
+
+```markdown
+| Contract | Provider | Consumer | Entrypoint | AC ID | 调用时机 | 是否阻塞主流程 |
+|---|---|---|---|---|---|---|
+```
+
+### 1.2 Diagrams / Visual Aids
+
+复杂项目建议补充 PlantUML source，不要求渲染图片入库。推荐用 sequence diagram 表达业务调用顺序，用 state diagram 表达状态迁移，用 activity diagram 表达异常分支。
+
+```plantuml
+@startuml
+title Cancel Order Contract Flow
+actor User
+participant OrderDetailPage
+participant "POST /api/v1/orders/:id/cancel" as CancelOrder
+participant "orders.cancelled.v1" as OrderCancelled
+User -> OrderDetailPage: click cancel
+OrderDetailPage -> CancelOrder: submit cancel request
+CancelOrder --> OrderDetailPage: updated order snapshot
+CancelOrder -> OrderCancelled: publish event
+CancelOrder --> OrderDetailPage: 40901 when order already shipped
+@enduml
+```
+
+每张图下方必须说明：范围、参与方、关键路径、异常路径、未覆盖范围、一致性检查。图中的 contract、event、task、command、state 名称必须能在本文表格中找到。
+
 ### 2. Global Conventions
 
 建议至少覆盖：
@@ -44,6 +78,13 @@
 - idempotency、幂等冲突、并发控制
 - 分页 / 排序 / 过滤 / 搜索 / 日期范围规范
 - 时间、货币、枚举、空值和时区约定
+
+机器可读产物建议记录 owner 和路径，例如：
+- OpenAPI: `docs/contracts/openapi.yaml`
+- JSON Schema: `docs/contracts/schemas/*.schema.json`
+- Zod: `src/contracts/*.schema.ts`
+- proto: `proto/<domain>/v1/*.proto`
+- Avro: `schemas/<domain>/*.avsc`
 
 关键示例：
 
@@ -259,18 +300,63 @@
 关键示例：
 
 ```markdown
-| 类别 | 错误码 | HTTP Status | 触发条件 | 用户提示 | 是否可重试 |
-|------|--------|-------------|----------|----------|------------|
-| 业务冲突 | 40901 | 409 | 订单已发货 | 当前状态不可取消 | 否 |
+| 错误码 | HTTP/gRPC Code | 触发条件 | 用户可恢复 | 是否可重试 | 前端处理 | 后端日志级别 |
+|---|---|---|---|---|---|---|
+| 40901 | 409 / FAILED_PRECONDITION | 订单已发货 | 是 | 否 | 刷新页面并提示不可取消 | info |
+```
+
+### 5.1 State Contract
+
+有状态对象建议显式列出 enum、合法迁移、非法迁移错误和新增状态值的兼容处理。复杂状态流可补充 PlantUML state diagram。
+
+```markdown
+| 对象 | 当前状态 | 允许迁移到 | 触发 contract | 非法迁移错误 | 兼容性说明 |
+|---|---|---|---|---|---|
+```
+
+### 5.2 Idempotency / Retry Contract
+
+适用于写接口、message consumer、cron / batch、CLI 副作用命令。
+
+```markdown
+| Contract | 幂等要求 | 幂等键来源 | 重复请求行为 | 超时后是否可重试 | 冲突响应 |
+|---|---|---|---|---|---|
 ```
 
 ### 6. Change Impact / Open Questions
 
 建议记录：
 - 兼容性策略
+- 变更分类：breaking / non-breaking / additive
+- 新增 response 字段默认 optional，或说明 consumer 兼容性
+- 新增 request 必填字段通常是 breaking change
+- enum 新增值可能破坏前端 switch exhaustiveness，必须提示默认处理
+- error code 新增需要前端默认 fallback
+- message topic 不兼容变更必须发布 `v2` topic
+- SDK public API deprecation 周期
 - 预期高变更区域
 - 暂存假设
 - 后续若接口调整，前端和后端各受什么影响
+
+### 6.1 Traceability Matrix
+
+contract template 不要求提前填完 backend/frontend 细节，但必须为下游补齐实现路径和页面路径预留追踪关系。
+
+```markdown
+| Domain ID | AC ID | Contract | Consumer / Entrypoint | Shared Model / Error Code | Test Focus |
+|---|---|---|---|---|---|
+```
+
+下游 `backend-design.md` 应补齐 Handler / Service / Repository / Storage，`frontend-design.md` 应补齐 Page / User Action / State / Error UX。
+
+### 6.2 Test Focus / Verification Scenario
+
+按 contract operation / event / task / error code 生成测试关注点，便于后续 `ship-delivery-plan` 和 `ship-verify` 直接消费。
+
+```markdown
+| Domain ID | AC ID | Design Surface | Scenario | Expected Result | Evidence |
+|---|---|---|---|---|---|
+```
 
 ### 7. Verification Snapshot
 
@@ -283,6 +369,8 @@
 ## 裁剪规则
 
 - 小项目可以合并 “Summary + Global Conventions”
+- 小项目可以把 Consumer / Provider Matrix、Traceability Matrix 合并到接口清单，但需保留字段含义或写明不适用原因
+- 简单项目不强制画图；复杂项目若不画图，应写明原因
 - GraphQL / tRPC 项目可以把“接口清单”写成 query / mutation / procedure 清单
 - 没有分页场景时，可显式写“本期无分页接口”
 - 没有公开 API 时，仍要写明调用方边界，例如 Web app / internal admin / worker

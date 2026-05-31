@@ -45,6 +45,23 @@ description: "ShipKit stage. Designs frontend architecture based on UI/UX protot
 2. 若用户表示"按你的理解做"，先产出线框图（wireframe）并获取确认
 3. 不可在没有任何视觉依据时直接开始组件设计
 
+## Diagram Guidance
+
+复杂前端建议使用 PlantUML source 写入 Markdown 辅助评审，不要求渲染图片入库；简单项目不强制画图，可合并章节或写明“不适用 + 原因”。图示只辅助用户流、页面/API 顺序和状态流，不能替代 UI evidence，也不能在没有设计稿时假装页面事实已定稿。
+
+推荐图类型：
+- activity diagram：表达多步骤表单、审批、支付、导入导出等用户流和异常流
+- sequence diagram：表达 Page / API / store / router 的调用顺序
+- component diagram：表达页面、组件、状态 owner、server state cache 和共享 store 关系
+
+推荐触发条件：
+- 多步骤表单、审批/支付/导入导出、复杂错误恢复
+- 复杂权限、组织层级、数据不可见或资源存在性不能泄露
+- 多页面共享状态、实时刷新、离线/弱网、乐观更新
+- Page-API Mapping 仅靠表格难以理解调用顺序或异常路径
+
+每张图下方必须补充：范围、参与方、关键路径、至少一个关键异常路径、权限路径或未授权分支、未覆盖范围、一致性检查。图中的页面、用户操作、状态、接口必须与 Page Tree、Page-API Mapping、UI State Matrix 和 State / Data Flow 一致。
+
 ## Delegation Boundary
 
 本阶段是少数允许**拥有正式产物**的并行阶段之一。
@@ -59,18 +76,18 @@ description: "ShipKit stage. Designs frontend architecture based on UI/UX protot
 ## Process
 
 ```
-1. 收集与索引 UI/UX 设计资料
-   verify: 所有页面的设计稿可访问
-2. 构建页面树（Page Tree）
-   verify: 覆盖 requirements.md 所有用户路径
+1. 收集与索引 UI/UX 设计资料并记录证据等级
+   verify: 所有页面的设计稿可访问，Design Evidence Quality 已记录
+2. 构建页面树（Page Tree）、复杂用户流、异常流与权限流
+   verify: 覆盖 requirements.md 所有用户路径与关键异常路径
 3. 加载 ship-spec 约束
    verify: 已记录匹配的 `spec_id` 或“无匹配规范”
 4. 按原子设计分层规划组件
    verify: 每个组件标注数据来源
-5. 编写页面-接口映射表
-   verify: 覆盖所有页面的所有用户操作
-6. 设计状态管理方案
-   verify: 区分全局状态与局部状态
+5. 编写页面-接口映射表与 Page-to-Contract 双向覆盖
+   verify: 覆盖所有页面操作、错误码和未消费 contract
+6. 设计状态管理方案、状态所有权与 UI State Matrix
+   verify: 区分 URL/local/server/global/derived state 与 UI 状态分支
 7. 设计路由与权限
    verify: 与 requirements.md 权限模型一致
 8. 制定前端非功能方案
@@ -146,6 +163,15 @@ pages      → HomePage / TodoListPage
 - 每个页面至少有一行映射（包括纯展示页面也要标注 onMount）
 - 每个接口在 api-contract.md 中至少被一个页面引用
 - 接口与页面的映射关系双向一致
+- 页面操作调用的接口必须存在于 api-contract.md；api-contract.md 中面向前端的接口必须至少有一个页面操作消费，或说明是非前端 consumer
+- 错误码、loading、empty、error、permission denied 等 UI 状态必须纳入覆盖检查
+
+反向覆盖建议表：
+
+```markdown
+| 页面操作 | 使用接口 | contract 是否存在 | 错误码是否覆盖 | loading/empty/error 是否设计 |
+|---|---|---|---|---|
+```
 
 ## Component Design Rules
 
@@ -259,16 +285,68 @@ spec_warnings: []
 
 完整列出每个页面的每个用户操作对应的接口调用。
 
+#### 5.1 User Flow Diagram / Diagrams
+
+复杂用户流建议补充 PlantUML activity / sequence / component diagram，并在图下说明范围、参与方、关键路径、异常路径、权限路径、未覆盖范围、一致性检查。图示不替代 UI evidence。
+
+#### 5.2 Page-to-Contract Bidirectional Coverage
+
+```markdown
+| 页面操作 | 使用接口 | contract 是否存在 | 错误码是否覆盖 | loading/empty/error 是否设计 |
+|---|---|---|---|---|
+```
+
+#### 5.3 Cross-Document Traceability Matrix
+
+```markdown
+| Domain ID | AC ID | Contract | Frontend Page/Action | UI State / Error UX | Test Focus |
+|---|---|---|---|---|---|
+```
+
+#### 5.4 Test Focus / Verification Scenario
+
+Test Focus 应能直接输入后续 delivery plan 和 verification 阶段，按 page action、UI state、permission UX、error UX 写清场景与预期结果。
+
+```markdown
+| Domain ID | AC ID | Design Surface | Scenario | Expected Result | Evidence |
+|---|---|---|---|---|---|
+```
+
 #### 6. 状态管理方案
 - 全局状态：用户信息、认证 token、全局通知
 - 局部状态：表单数据、UI 临时状态
 - 服务端状态：API 数据缓存（推荐 React Query / SWR）
 - 数据流向图：用户操作 → 组件 → Store/Hook → API → Store 更新 → 组件重渲染
 
+#### 6.1 UI State Matrix
+
+至少提示 initial、loading、empty、error、partial success、optimistic、permission denied、offline；不适用项写明原因。
+
+```markdown
+| 页面 | 状态 | 触发条件 | UI 表现 | 可执行操作 |
+|---|---|---|---|---|
+```
+
+#### 6.2 Frontend Data Ownership
+
+```markdown
+| 状态 | Owner | 存储位置 | 更新来源 | 是否持久化 | 不变量 |
+|---|---|---|---|---|---|
+```
+
 #### 7. 路由与权限设计
 - 路由守卫机制（公开 / 已登录 / 特定角色）
 - Token 存储与刷新策略
 - 401 / 403 的统一处理
+
+#### 7.1 Permission UX
+
+覆盖未登录、无权限、数据不可见、操作被禁用、资源不存在但不能泄露存在性。
+
+```markdown
+| 权限场景 | 页面/组件表现 | 接口错误 | 前端处理 |
+|---|---|---|---|
+```
 
 #### 8. UI/UX 设计资料索引
 - Figma 链接（含具体页面锚点）
@@ -276,12 +354,36 @@ spec_warnings: []
 - 设计系统引用（设计 token / 颜色 / 间距）
 - 组件库映射（设计稿组件 → 代码组件）
 
+#### 8.1 Design Evidence Quality
+
+证据等级：`high` = Figma final design / design system / 完整交互说明；`medium` = 截图 / 原型 / 局部设计稿；`low` = wireframe / 用户口述 / 暂存假设。低证据等级不能假装已定稿。
+
+```markdown
+| 页面 | 证据等级 | 来源 | 缺失信息 | 采用假设 |
+|---|---|---|---|---|
+```
+
 #### 9. 前端非功能方案
 - **性能**：路由懒加载、图片懒加载、虚拟列表、防抖节流
 - **SEO**：SSR / SSG 决策、meta 标签、sitemap
 - **无障碍**：语义化 HTML、ARIA 属性、键盘导航、对比度
 - **国际化**：i18n 方案、文案管理
 - **响应式**：断点定义（mobile/tablet/desktop）
+
+#### 9.1 Accessibility / Responsive Detail
+
+```markdown
+| 页面/组件 | Keyboard | Screen Reader | Focus | Contrast | Mobile Behavior |
+|---|---|---|---|---|---|
+```
+
+重点覆盖 Modal、Dropdown、Table、Form、Toast、Date picker、Drag and drop 等关键组件。
+
+#### 9.2 Analytics / Performance Budget / Accessibility Tests
+
+- Analytics events：关键页面进入、关键操作提交、失败原因、转化漏斗
+- Performance budget：首屏、交互延迟、列表渲染规模、bundle 分包
+- Accessibility tests：键盘路径、focus trap、screen reader label、contrast
 
 ### stage_status 流转规则
 
@@ -291,6 +393,7 @@ spec_warnings: []
 ### evidence_complete 判定标准
 
 - 每个页面有可访问的 UI/UX 设计资料
+- Design Evidence Quality 已区分 high / medium / low，低证据等级未被当作定稿
 - 已记录 `referenced_spec_ids` 或“无匹配规范”
 - 映射表覆盖所有页面的所有用户操作
 - 每个接口在映射表中至少被一个页面引用
@@ -330,6 +433,13 @@ spec_warnings: []
 □ 是否包含性能/SEO/无障碍方案各至少一条？
 □ 响应式断点是否定义？
 □ frontmatter 字段是否正确填写？
+□ 复杂用户流是否已补充 PlantUML 图示，或说明不画图原因？
+□ 图中的页面 / 用户操作 / 状态 / 接口是否存在于 Page Tree、Page-API Mapping、State Matrix？
+□ 每个关键页面是否覆盖 loading、empty、error、permission denied 等状态，或说明不适用原因？
+□ 每个页面操作调用的接口是否存在于 api-contract.md？
+□ api-contract.md 中面向前端的接口是否至少有一个页面操作消费，或说明是非前端 consumer？
+□ 401 / 403 / 404 / 409 等关键错误码是否有对应 UX 处理？
+□ 前端设计是否能追溯到 Domain ID、AC ID、Contract、Page Action 和 Test Focus？
 ```
 
 全部通过后，将 `stage_status` 设为 `ready`，`evidence_complete` 设为 `true`。

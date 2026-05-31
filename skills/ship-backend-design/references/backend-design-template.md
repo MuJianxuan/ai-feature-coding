@@ -19,10 +19,13 @@
 5. 数据模型如何支撑接口契约：
    - 表结构、约束、索引、审计字段、软删除、唯一性、状态机
 6. 哪些操作需要事务，一致性边界在哪里，哪些地方接受 eventual consistency？
-7. 认证、授权、日志、错误处理、缓存、限流、监控如何统一落地？
-8. 与外部系统如何集成：
+7. 哪些调用同步阻塞主流程，哪些通过事件、worker、cron 或 command handler 异步处理？
+8. `api-contract.md` 中的 message / cron / cli / sdk contract 如何落到 producer / consumer / job / command handler？
+9. 事务失败后如何补偿，幂等键来自哪里？
+10. 认证、授权、租户隔离、PII、审计、滥用防护、依赖安全如何统一落地？
+11. 与外部系统如何集成：
    - 重试、超时、幂等、补偿、降级
-9. 哪些地方是高风险区域：
+12. 哪些地方是高风险区域：
    - 热点查询、复杂事务、迁移风险、跨域编排、权限模型
 
 ## 推荐写法
@@ -36,6 +39,25 @@
 - 架构模式与核心理由
 - 主要模块边界
 - 明确不做的内容
+
+### 1.1 Diagrams / Visual Aids
+
+复杂项目建议补充 PlantUML source，不要求渲染图片入库；简单项目可写“不适用 + 原因”。推荐图：Runtime Component Diagram、Service Interaction Sequence Diagram、ER style class diagram、Deployment Diagram。
+
+每张图下方必须说明：范围、参与方、关键路径、异常路径、未覆盖范围、一致性检查。图中的 Service、Repository、Event、storage、external dependency 名称必须与本文表格一致。
+
+```plantuml
+@startuml
+title Order Cancellation Runtime Components
+component OrderController
+component OrderService
+database OrderDB
+queue "orders.cancelled.v1" as OrderCancelled
+OrderController --> OrderService
+OrderService --> OrderDB
+OrderService --> OrderCancelled
+@enduml
+```
 
 ### 2. Domain-to-Module Map
 
@@ -57,6 +79,15 @@
 - 状态字段与状态转移
 - 索引依据来自哪些查询或过滤条件
 - 审计字段和删除策略
+
+### 3.1 Data Lifecycle / Retention
+
+```markdown
+| 数据对象 | 敏感级别 | 保留周期 | 删除策略 | 脱敏/加密 | 审计要求 |
+|---|---|---|---|---|---|
+```
+
+覆盖归档、PII 脱敏、删除恢复、保留周期、审计不可变、多租户隔离、敏感字段加密。小项目可合并到 Data Model，但需写明不适用项原因。
 
 关键示例：
 
@@ -102,6 +133,45 @@
 | POST /api/v1/orders/:id/cancel | OrderController.cancel | OrderService.cancelOrder | OrderRepository.updateStatus | 写审计日志 |
 ```
 
+### 5.1 Cross-Document Traceability Matrix
+
+```markdown
+| Domain ID | AC ID | Contract | Handler | Service | Repository / Gateway | Storage / External | Test Focus |
+|---|---|---|---|---|---|---|---|
+```
+
+用于承接 `api-contract.md` 的 Domain ID、AC ID、Contract 和 Test Focus；若后续有 `frontend-design.md`，需能反查页面操作。
+
+### 5.1.1 Test Focus / Verification Scenario
+
+按 service method、transaction、event consumer、external dependency 生成测试关注点，便于后续 `ship-delivery-plan` 和 `ship-verify` 直接消费。
+
+```markdown
+| Domain ID | AC ID | Design Surface | Scenario | Expected Result | Evidence |
+|---|---|---|---|---|---|
+```
+
+### 5.2 Transaction / Consistency Matrix
+
+```markdown
+| 操作 | 涉及聚合 | 事务边界 | 一致性要求 | 失败补偿 | 幂等策略 |
+|---|---|---|---|---|---|
+```
+
+### 5.3 Service Interaction Protocol
+
+```markdown
+| 调用方 | 被调用方 | 调用方式 | 超时 | 重试 | 熔断/降级 | 错误映射 |
+|---|---|---|---|---|---|---|
+```
+
+### 5.4 Domain Event / Outbox
+
+```markdown
+| Event | Producer | Consumer | 触发事务点 | Outbox | Retry | DLQ |
+|---|---|---|---|---|---|---|
+```
+
 ### 6. Cross-Cutting Concerns
 
 只写与当前方案真的相关的机制：
@@ -114,6 +184,31 @@
 - cache
 - background jobs / domain events
 
+### 6.1 Security Design
+
+复杂项目建议单独写 Security Design，而不是只放在中间件清单中。
+
+```markdown
+| 主题 | 方案 | 作用范围 | 失败处理 | 验证点 |
+|---|---|---|---|---|
+| AuthN |  |  |  |  |
+| AuthZ |  |  |  |  |
+| Tenant isolation |  |  |  |  |
+| Sensitive data / PII |  |  |  |  |
+| Audit |  |  |  |  |
+| Abuse prevention |  |  |  |  |
+| Dependency security |  |  |  |  |
+```
+
+### 6.2 Read / Write Path Design
+
+适用于 CQRS、搜索、Redis 缓存、报表宽表、高并发列表查询。
+
+```markdown
+| 场景 | 写模型 | 读模型 | 缓存 | 索引 | 一致性延迟 |
+|---|---|---|---|---|---|
+```
+
 ### 7. Migration / Operations / Reliability
 
 建议覆盖：
@@ -122,6 +217,9 @@
 - 外部依赖失败时的重试与超时
 - 观测指标和告警
 - 敏感数据、审计、合规策略
+- observability：QPS、latency、error rate、queue lag、job duration、DLQ count
+- capacity：数据量、并发量、热点查询、缓存命中预期
+- alerting：按业务风险写初始阈值，或说明无法确定
 
 ### 8. Risk / Verification
 
@@ -136,6 +234,7 @@
 - 纯内部 worker 或 batch 任务可弱化 controller 层，但必须保留输入边界和失败处理
 - 无数据库场景可把数据模型改写成 external storage / third-party API contract
 - 小项目可以把 “Summary + Domain Map” 合并，但不要省略实现链路
+- 小项目可以合并 Diagrams、Transaction / Consistency、Traceability 表格，但需保留结论或写明不适用原因
 - 没有缓存或限流需求时，显式写“本期不引入 + 原因”
 
 ## 常见空话警报
