@@ -233,6 +233,7 @@ stage: ship-handoff
 stage_status: ready  # ship-verify 结束时应为 ready；ship-handoff 完成后改为 complete 或回退为 draft
 updated_at: ""
 all_ac_verified: false  # 所有 AC 都有明确结果（含 N/A）则为 true
+accepted_risks_sign_off: ""
 spec_checked_at: ""
 referenced_spec_ids: []
 spec_warnings: []
@@ -258,6 +259,12 @@ spec_warnings: []
 **5. 残余风险**：见 Risk Assessment 章节格式
 
 **6. Spec Proposals**：列出“无新增规范”或待沉淀 proposal（proposal_id / target_spec_id / summary）
+
+维护者可运行：
+
+```bash
+python3 skills/ship-orchestrator/scripts/validate_handoff.py <feature-dir>
+```
 
 ### handoff.md 核心章节
 

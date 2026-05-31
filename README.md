@@ -58,6 +58,8 @@ npx skills add MuJianxuan/ai-feature-coding
 - `skills/README.md`：默认用户视图，重点讲 5 个大阶段（Discover 可选）
 - `skills/ship-orchestrator/`：统一入口与路由规则
 - `skills/ship-orchestrator/_templates/`：协议与模板
+- `skills/agents/openai.yaml`：安装后默认入口与维护命令元数据
+- `skills/ship-orchestrator/tests/regression-prompts.md`：workflow 回归场景
 - `skills/ship-*/references/`：阶段内参考模板，不属于共享协议
 - `.docs/ship/project.yml`：target project 级显式配置，声明 `project_root / spec_root / feature_root`
 - `target project` 下的 `.docs/`：默认 feature 运行时产物和规范沉淀位置
@@ -74,6 +76,22 @@ npx skills add MuJianxuan/ai-feature-coding
 
 ```bash
 python3 skills/ship-orchestrator/scripts/validate_workflow_docs.py
+python3 skills/ship-orchestrator/scripts/validate_feature_artifacts.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_product_brief.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_ui_artifacts.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_requirements.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_contract.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_tech_discovery.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_frontend_design.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_backend_design.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_design_alignment.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_delivery_plan.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_traceability.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/build_task_preflight.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_verification.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_handoff.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/workflow_doctor.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/stage_transition_check.py <target-project>/.docs/feature-YYYYMMDD-demo --target-stage ship-tech-discovery
 python3 skills/ship-orchestrator/scripts/workflow_stage_map.py --list
 python3 skills/ship-orchestrator/scripts/spec_runtime.py scan --project-config <target-project>/.docs/ship/project.yml
 ```

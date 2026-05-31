@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+"""Validate ship-shape design brief and wireframe manifest signals."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
+
+from validate_feature_artifacts import read_frontmatter  # noqa: E402
+
+
+def _issue(level: str, code: str, message: str, path: str = "design-brief.md") -> dict[str, str]:
+    return {"level": level, "code": code, "message": message, "path": path}
+
+
+def validate_ui_artifacts(feature_dir: Path) -> dict:
+    feature_dir = feature_dir.resolve()
+    path = feature_dir / "design-brief.md"
+    issues = []
+    if not path.exists():
+        return {"feature_dir": str(feature_dir), "ok": False, "issues": [_issue("error", "missing_design_brief", "design-brief.md missing")]}
+    try:
+        fm, body = read_frontmatter(path)
+    except ValueError as exc:
+        return {"feature_dir": str(feature_dir), "ok": False, "issues": [_issue("error", "invalid_frontmatter", str(exc))]}
+    ready = fm.get("stage_status") == "ready"
+    if fm.get("stage") != "ship-shape":
+        issues.append(_issue("error", "invalid_stage", "design-brief.md must use stage: ship-shape"))
+    variations = fm.get("variations_count", 0)
+    if ready and (not isinstance(variations, int) or variations < 3):
+        issues.append(_issue("error", "insufficient_variants", "ready design brief requires 3+ variants"))
+    for signal in ("tokens:", "Visual System", "viewport", "wireframe", "resource/wireframes"):
+        if signal not in body and signal not in str(fm):
+            issues.append(_issue("error" if ready else "warning", "missing_ui_manifest_signal", f"missing UI artifact signal: {signal}"))
+    index_path = feature_dir / str(fm.get("wireframe_index_path", "resource/wireframes/index.html"))
+    if ready and not index_path.exists():
+        issues.append(_issue("error", "missing_wireframe_index", f"wireframe index missing: {index_path.relative_to(feature_dir)}"))
+    html_count = len(list((feature_dir / "resource/wireframes").glob("*.html"))) if (feature_dir / "resource/wireframes").exists() else 0
+    if ready and html_count < 3:
+        issues.append(_issue("error", "missing_wireframe_files", "ready shape artifact requires 3+ HTML wireframe files"))
+    return {"feature_dir": str(feature_dir), "ok": not any(i["level"] == "error" for i in issues), "issues": issues}
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("feature_dir")
+    parser.add_argument("--json", action="store_true")
+    args = parser.parse_args(argv)
+    result = validate_ui_artifacts(Path(args.feature_dir))
+    if args.json:
+        print(json.dumps(result, ensure_ascii=True, indent=2))
+    else:
+        print(f"ok: {str(result['ok']).lower()}")
+        for issue in result["issues"]:
+            print(f"{issue['level'].upper()} {issue['code']}: {issue['message']}")
+    return 0 if result["ok"] else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

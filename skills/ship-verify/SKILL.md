@@ -290,6 +290,25 @@ all_ac_verified: false
 - 测试运行命令
 - 已知的测试环境限制
 
+### Test Run Schema
+
+每条测试轨道结果至少记录：
+
+```yaml
+track: backend-unit | backend-integration | backend-contract | frontend-component | frontend-e2e
+command: ""
+status: pass | fail | skipped | na
+evidence: ""
+failure_class: none | product_bug | test_bug | environment | flaky
+linked_ac: []
+```
+
+维护者可运行：
+
+```bash
+python3 skills/ship-orchestrator/scripts/validate_verification.py <feature-dir> --project-scope <fullstack|backend_only|frontend_only>
+```
+
 ## Coverage Requirements
 
 | 范围 | 最低要求 | 建议 |

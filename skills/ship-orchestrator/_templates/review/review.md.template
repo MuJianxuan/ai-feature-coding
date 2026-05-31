@@ -9,6 +9,7 @@ revision_count: 0               # 第几轮评审
 user_sign_off: ""               # 用户原话；子代理起草时必须为空；仅 approved 时由主代理填写
 signed_at: ""                   # ISO8601 时间戳；子代理起草时必须为空；仅 approved 时由主代理填写
 conditions: []                  # revision_needed 时列出必须解决的条件
+required_changes: []            # rejected / revision_needed 时列出上游必须修改的事项
 ---
 
 # 评审记录: <阶段名>
@@ -45,21 +46,21 @@ conditions: []                  # revision_needed 时列出必须解决的条件
 
 ### Critical（必须修复才能通过）
 
-| ID | 位置 | 问题描述 | 建议 |
-|----|------|---------|------|
-| C-1 | doc.md §X | ... | ... |
+| ID | 位置 | 问题描述 | fix_owner | required_change |
+|----|------|---------|-----------|-----------------|
+| C-1 | doc.md §X | ... | requirements / contract / frontend-design / backend-design / delivery-plan | ... |
 
 ### Major（应当修复，可协商延后）
 
-| ID | 位置 | 问题描述 | 建议 |
-|----|------|---------|------|
-| M-1 | ... | ... | ... |
+| ID | 位置 | 问题描述 | fix_owner | required_change |
+|----|------|---------|-----------|-----------------|
+| M-1 | ... | ... | ... | ... |
 
 ### Minor（可选修复）
 
-| ID | 位置 | 问题描述 | 建议 |
-|----|------|---------|------|
-| m-1 | ... | ... | ... |
+| ID | 位置 | 问题描述 | fix_owner | required_change |
+|----|------|---------|-----------|-----------------|
+| m-1 | ... | ... | ... | ... |
 
 ## 5. 修改建议（汇总）
 

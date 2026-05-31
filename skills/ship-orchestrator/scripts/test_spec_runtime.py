@@ -7,8 +7,12 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+import sys
 
 import yaml
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
 
 from feature_meta_runtime import (
     ASSISTIVE_SUBAGENT,

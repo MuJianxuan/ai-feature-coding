@@ -1,0 +1,808 @@
+#!/usr/bin/env python3
+"""Tests for workflow doctor and feature artifact validators."""
+
+from __future__ import annotations
+
+import tempfile
+import unittest
+from pathlib import Path
+import sys
+
+import yaml
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
+
+from stage_transition_check import check_transition
+from validate_feature_artifacts import validate_feature
+from validate_contract import validate_contract_file
+from validate_delivery_plan import validate_delivery_plan
+from build_task_preflight import build_task_preflight
+from validate_requirements import validate_requirements_file
+from validate_traceability import validate_traceability
+from validate_verification import validate_verification_file
+from validate_handoff import validate_handoff
+from validate_tech_discovery import validate_tech_discovery
+from validate_design_alignment import validate_design_alignment
+from validate_frontend_design import validate_frontend_design
+from validate_backend_design import validate_backend_design
+from workflow_doctor import diagnose_feature
+
+
+class WorkflowHardeningTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.root = Path(self.tempdir.name)
+        self.feature_dir = self.root / "feature-demo"
+        self.feature_dir.mkdir(parents=True)
+
+    def tearDown(self) -> None:
+        self.tempdir.cleanup()
+
+    def write_text(self, relative_path: str, content: str) -> None:
+        path = self.feature_dir / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+    def write_meta(
+        self,
+        *,
+        current_stage: str = "ship-define-review",
+        project_scope: str = "fullstack",
+        scenario: str = "product_provided",
+        define_status: str = "ready",
+        define_review_status: str = "pending",
+    ) -> None:
+        stages = {
+            "ship-discover": {"status": "skipped"},
+            "ship-shape": {"status": "skipped"},
+            "ship-define": {"status": define_status, "block_reason": ""},
+            "ship-define-review": {"status": define_review_status, "approved": define_review_status == "approved"},
+            "ship-tech-discovery": {"status": "pending"},
+            "ship-contract": {"status": "pending"},
+            "ship-frontend-design": {"status": "pending"},
+            "ship-backend-design": {"status": "pending"},
+            "ship-design-review": {"status": "pending", "approved": False},
+            "ship-delivery-plan": {"status": "pending"},
+            "ship-plan-review": {"status": "pending", "approved": False},
+            "ship-build": {"status": "pending", "tasks_done": 0, "tasks_total": 0},
+            "ship-verify": {"status": "pending"},
+            "ship-handoff": {"status": "pending"},
+        }
+        macro_by_stage = {
+            "ship-discover": ("discover", "Discover"),
+            "ship-shape": ("discover", "Discover"),
+            "ship-define": ("define", "Define"),
+            "ship-define-review": ("define", "Define"),
+            "ship-tech-discovery": ("design", "Design"),
+            "ship-contract": ("design", "Design"),
+            "ship-frontend-design": ("design", "Design"),
+            "ship-backend-design": ("design", "Design"),
+            "ship-design-review": ("design", "Design"),
+            "ship-delivery-plan": ("build", "Build"),
+            "ship-plan-review": ("build", "Build"),
+            "ship-build": ("build", "Build"),
+            "ship-verify": ("build", "Build"),
+            "ship-handoff": ("close", "Close"),
+        }
+        macro_current, macro_label = macro_by_stage[current_stage]
+        payload = {
+            "feature_name": "Demo",
+            "feature_id": "feature-demo",
+            "current_stage": current_stage,
+            "scenario": scenario,
+            "project_scope": project_scope,
+            "macro_stage": {"current": macro_current, "label": macro_label, "summary": "", "next_user_decision": ""},
+            "lifecycle_status": "active",
+            "stages": stages,
+        }
+        self.write_text("meta.yml", yaml.safe_dump(payload, sort_keys=False))
+
+    def write_requirements(self, *, status: str = "ready") -> None:
+        self.write_text(
+            "requirements.md",
+            f"""---
+stage: ship-define
+stage_status: {status}
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# Requirements
+
+## 3. 功能范围
+In Scope: 用户登录。
+Out of Scope: 用户注册。
+
+## 4. 业务域建模
+- D-AUTH-001 用户认证
+
+## 5. 验收标准
+- AC-AUTH-001 | D-AUTH-001 | Given 用户在登录页, When 提交正确凭证, Then 进入首页
+
+## 6. 非功能需求
+性能：登录 API P95 < 500ms。
+安全：登录接口需要认证、授权和审计。
+可用性：认证服务异常时返回明确错误。
+可访问性：表单支持键盘导航。
+
+## 8. 待确认问题清单
+- 无阻塞问题。
+
+## 9. 需求资料索引
+- resource/prd.md 已解析
+""",
+        )
+
+    def write_define_review(self, *, status: str = "pending", signed: bool = False) -> None:
+        sign_off = '"approved by user"' if signed else '""'
+        signed_at = '"2026-05-31T10:00:00+08:00"' if signed else '""'
+        self.write_text(
+            "review-define.md",
+            f"""---
+stage: ship-define-review
+gate_type: hard
+review_status: {status}
+reviewer: ""
+reviewed_at: ""
+reviewed_documents: ["requirements.md"]
+revision_count: 0
+user_sign_off: {sign_off}
+signed_at: {signed_at}
+conditions: []
+---
+
+# Review
+""",
+        )
+
+    def test_ready_requirements_allows_define_review_entry(self) -> None:
+        self.write_meta(current_stage="ship-define")
+        self.write_requirements(status="ready")
+
+        result = check_transition(self.feature_dir, "ship-define-review")
+
+        self.assertTrue(result["allowed"], result["issues"])
+
+    def test_unsigned_approved_gate_blocks_transition(self) -> None:
+        self.write_meta(current_stage="ship-define-review", define_review_status="approved")
+        self.write_requirements(status="ready")
+        self.write_define_review(status="approved", signed=False)
+
+        validation = validate_feature(self.feature_dir)
+        transition = check_transition(self.feature_dir, "ship-tech-discovery")
+        doctor = diagnose_feature(self.feature_dir)
+
+        self.assertFalse(validation["ok"])
+        self.assertTrue(any(issue["code"] == "unsigned_approved_gate" for issue in validation["issues"]))
+        self.assertFalse(transition["allowed"])
+        self.assertEqual(doctor["next_action"]["action"], "fix_blocking_issues")
+
+    def test_meta_artifact_conflict_is_reported(self) -> None:
+        self.write_meta(current_stage="ship-define-review", define_status="ready")
+        self.write_requirements(status="draft")
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "meta_artifact_status_conflict" for issue in result["issues"]))
+
+    def test_requirements_ready_requires_domain_ac_and_no_blockers(self) -> None:
+        self.write_requirements(status="ready")
+        self.write_text(
+            "requirements.md",
+            """---
+stage: ship-define
+stage_status: ready
+generation_mode: interview
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# Requirements
+
+## 3. 功能范围
+In Scope: 支持登录。
+Out of Scope: 注册。
+
+## 5. 验收标准
+- AC-AUTH-001 | Given 用户在登录页, When 提交正确凭证, Then 进入首页
+
+## 6. 非功能需求
+性能：P95 < 500ms。
+安全：需要认证。
+
+## 8. 待确认问题清单
+- [ ] Q-1: OAuth provider 未确认 | 影响: High | 阻塞: 是
+
+## 9. 需求资料索引
+- resource/prd.md
+""",
+        )
+
+        result = validate_requirements_file(self.feature_dir / "requirements.md")
+
+        self.assertFalse(result["ok"])
+        codes = {issue["code"] for issue in result["issues"]}
+        self.assertIn("missing_domain_ids", codes)
+        self.assertIn("ac_missing_domain_ref", codes)
+        self.assertIn("ready_with_blocking_questions", codes)
+
+    def test_requirements_valid_ready_passes_with_warnings_allowed(self) -> None:
+        self.write_text(
+            "requirements.md",
+            """---
+stage: ship-define
+stage_status: ready
+generation_mode: interview
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# Requirements
+
+## 3. 功能范围
+In Scope: 用户登录。
+Out of Scope: 用户注册。
+
+## 4. 业务域建模
+- D-AUTH-001 用户认证
+
+## 5. 验收标准
+- AC-AUTH-001 | D-AUTH-001 | Given 用户在登录页, When 提交正确凭证, Then 进入首页
+
+## 6. 非功能需求
+性能：登录 API P95 < 500ms。
+安全：登录接口需要认证、授权和审计。
+可用性：认证服务异常时返回明确错误。
+可访问性：表单支持键盘导航。
+
+## 8. 待确认问题清单
+- 无阻塞问题。
+
+## 9. 需求资料索引
+- resource/prd.md 已解析
+""",
+        )
+
+        result = validate_requirements_file(self.feature_dir / "requirements.md")
+
+        self.assertTrue(result["ok"], result["issues"])
+
+    def test_traceability_reports_ac_gaps_and_orphans(self) -> None:
+        self.write_requirements(status="ready")
+        self.write_text(
+            "api-contract.md",
+            """---
+stage: ship-contract
+stage_status: ready
+updated_at: ""
+evidence_complete: true
+---
+
+AC-AUTH-999
+""",
+        )
+        self.write_text(
+            "frontend-plan.md",
+            """---
+stage: ship-delivery-plan
+artifact_role: frontend-plan
+stage_status: ready
+updated_at: ""
+evidence_complete: true
+---
+
+AC-AUTH-001
+""",
+        )
+
+        result = validate_traceability(self.feature_dir)
+
+        self.assertTrue(result["ok"], result["issues"])
+        codes = {issue["code"] for issue in result["issues"]}
+        self.assertIn("ac_trace_gap", codes)
+        self.assertIn("orphan_ac_ref", codes)
+
+    def test_traceability_passes_when_required_links_exist(self) -> None:
+        self.write_requirements(status="ready")
+        for relative_path in ("api-contract.md", "frontend-plan.md", "verification.md"):
+            self.write_text(relative_path, "AC-AUTH-001\n")
+
+        result = validate_traceability(self.feature_dir)
+
+        self.assertTrue(result["ok"], result["issues"])
+        self.assertFalse(any(issue["code"] == "ac_trace_gap" for issue in result["issues"]))
+
+    def test_contract_ready_requires_endpoint_error_schema_and_ac_refs(self) -> None:
+        self.write_text(
+            "api-contract.md",
+            """---
+stage: ship-contract
+stage_status: ready
+contract_forms: [rest]
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# API Contract
+
+#### POST /api/v1/login
+- 描述：登录
+""",
+        )
+
+        result = validate_contract_file(self.feature_dir / "api-contract.md")
+
+        self.assertFalse(result["ok"])
+        codes = {issue["code"] for issue in result["issues"]}
+        self.assertIn("missing_ac_refs", codes)
+        self.assertIn("endpoint_missing_ac_refs", codes)
+        self.assertIn("missing_schema_section", codes)
+        self.assertIn("missing_error_codes", codes)
+
+    def test_contract_valid_rest_ready_passes(self) -> None:
+        self.write_text(
+            "api-contract.md",
+            """---
+stage: ship-contract
+stage_status: ready
+contract_forms: [rest]
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# API Contract
+
+## 1. Summary
+REST contract for D-AUTH-001. OpenAPI artifact: resource/openapi.yaml.
+Change classification: additive.
+
+## 3. Domain Contract Blocks
+#### POST /api/v1/login
+- 描述：登录
+- 关联 AC：AC-AUTH-001
+- 关联页面：LoginPage
+- 请求参数：
+  | 位置 | 字段 | 类型 | 必填 | 校验 | 说明 |
+  | body | email | string | 是 | email | 邮箱 |
+- 成功响应：200
+- 错误响应：
+  | 错误码 | HTTP Status | 条件 | 前端处理 |
+  | ERR_AUTH_INVALID | 401 | 凭证错误 | 显示错误 |
+
+## 4. 数据模型
+```ts
+interface LoginRequest { email: string; password: string }
+```
+""",
+        )
+
+        result = validate_contract_file(self.feature_dir / "api-contract.md")
+
+        self.assertTrue(result["ok"], result["issues"])
+
+    def write_plan(self, relative_path: str, role: str, body: str) -> None:
+        self.write_text(
+            relative_path,
+            f"""---
+stage: ship-delivery-plan
+artifact_role: {role}
+stage_status: ready
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+task_count: 1
+---
+
+{body}
+""",
+        )
+
+    def test_delivery_plan_requires_task_schema_and_detects_cycles(self) -> None:
+        self.write_plan(
+            "frontend-plan.md",
+            "frontend-plan",
+            """## Tasks
+### FE-AUTH-001
+- scope: login UI
+- allowed_files: src/login.tsx
+- depends_on: FE-AUTH-002
+- AC refs: AC-AUTH-001
+- contract refs: POST /api/v1/login
+- verification command: npm test
+- done evidence: test output
+
+### FE-AUTH-002
+- scope: api client
+- allowed_files: src/api.ts
+- depends_on: FE-AUTH-001
+- AC refs: AC-AUTH-001
+- contract refs: POST /api/v1/login
+- verification command: npm test
+- done evidence: test output
+""",
+        )
+        self.write_plan(
+            "backend-plan.md",
+            "backend-plan",
+            """## Tasks
+### BE-AUTH-001
+- scope: login endpoint
+- allowed_files: src/auth.ts
+- depends_on:
+- AC refs: AC-AUTH-001
+- contract refs: POST /api/v1/login
+- verification command: npm test
+- done evidence: test output
+""",
+        )
+
+        result = validate_delivery_plan(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "task_dependency_cycle" for issue in result["issues"]))
+
+    def test_delivery_plan_backend_only_valid_ready_passes(self) -> None:
+        self.write_plan(
+            "backend-plan.md",
+            "backend-plan",
+            """## Tasks
+### BE-AUTH-001
+- scope: login endpoint
+- allowed_files: src/auth.ts
+- depends_on:
+- AC refs: AC-AUTH-001
+- contract refs: POST /api/v1/login
+- verification command: npm test
+- done evidence: test output
+""",
+        )
+
+        result = validate_delivery_plan(self.feature_dir, project_scope="backend_only")
+
+        self.assertTrue(result["ok"], result["issues"])
+
+    def test_build_task_preflight_requires_single_ready_doing_task(self) -> None:
+        self.write_plan(
+            "backend-plan.md",
+            "backend-plan",
+            """## Tasks
+### BE-AUTH-001
+- status: DOING
+- scope: login endpoint
+- allowed_files: src/auth.ts
+- depends_on:
+- AC refs: AC-AUTH-001
+- contract refs: POST /api/v1/login
+- verification command: npm test
+- done evidence: test output
+""",
+        )
+
+        result = build_task_preflight(self.feature_dir, project_scope="backend_only")
+
+        self.assertTrue(result["ok"], result["issues"])
+        self.assertEqual(len(result["doing_tasks"]), 1)
+
+    def test_build_task_preflight_blocks_multiple_doing_tasks(self) -> None:
+        self.write_plan(
+            "backend-plan.md",
+            "backend-plan",
+            """## Tasks
+### BE-AUTH-001
+- status: DOING
+- scope: login endpoint
+- allowed_files: src/auth.ts
+- AC refs: AC-AUTH-001
+- verification command: npm test
+
+### BE-AUTH-002
+- status: DOING
+- scope: auth tests
+- allowed_files: src/auth.test.ts
+- AC refs: AC-AUTH-001
+- verification command: npm test
+""",
+        )
+
+        result = build_task_preflight(self.feature_dir, project_scope="backend_only")
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "doing_count_invalid" for issue in result["issues"]))
+
+    def write_verification(self, body: str, *, status: str = "ready", all_ac_verified: bool = False) -> None:
+        self.write_text(
+            "verification.md",
+            f"""---
+stage: ship-handoff
+stage_status: {status}
+updated_at: "2026-05-31T10:00:00+08:00"
+all_ac_verified: {str(all_ac_verified).lower()}
+---
+
+{body}
+""",
+        )
+
+    def test_verification_requires_tracks_and_linked_ac(self) -> None:
+        self.write_verification(
+            """## Test Runs
+track: backend-unit
+command: npm test
+status: PASS
+evidence: output
+failure_class: none
+linked_ac: AC-AUTH-001
+""",
+            status="ready",
+        )
+
+        result = validate_verification_file(self.feature_dir / "verification.md", project_scope="fullstack")
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "missing_required_test_tracks" for issue in result["issues"]))
+
+    def test_verification_backend_only_valid_ready_passes(self) -> None:
+        self.write_verification(
+            """## Test Runs
+track: backend-unit
+track: backend-integration
+track: backend-contract
+command: npm test
+status: PASS
+evidence: output
+failure_class: none
+linked_ac: AC-AUTH-001
+N/A frontend-component reason: backend_only scope
+N/A frontend-e2e reason: backend_only scope
+""",
+            status="ready",
+        )
+
+        result = validate_verification_file(self.feature_dir / "verification.md", project_scope="backend_only")
+
+        self.assertTrue(result["ok"], result["issues"])
+
+    def write_handoff(self) -> None:
+        self.write_text(
+            "handoff.md",
+            """---
+stage: ship-handoff
+stage_status: complete
+updated_at: "2026-05-31T10:00:00+08:00"
+---
+
+## 交付摘要
+完成登录。
+
+## 变更范围
+- src/auth.ts
+
+## 部署事项
+- 环境变量：无
+- 数据库迁移：无
+- 配置变更：无
+- 第三方依赖：无
+
+## 后续建议
+- 无
+
+## Spec Proposals
+- 无新增规范
+""",
+        )
+
+    def test_handoff_requires_ac_evidence_and_complete_flag(self) -> None:
+        self.write_requirements(status="ready")
+        self.write_verification("AC-AUTH-001 | PASS | 自动化 E2E\n", status="complete", all_ac_verified=False)
+        self.write_handoff()
+
+        result = validate_handoff(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        codes = {issue["code"] for issue in result["issues"]}
+        self.assertIn("pass_ac_missing_evidence", codes)
+        self.assertIn("complete_without_all_ac_verified", codes)
+
+    def test_handoff_valid_complete_passes(self) -> None:
+        self.write_requirements(status="ready")
+        self.write_verification("AC-AUTH-001 | PASS | evidence `e2e/auth.spec.ts:12`\n", status="complete", all_ac_verified=True)
+        self.write_handoff()
+
+        result = validate_handoff(self.feature_dir)
+
+        self.assertTrue(result["ok"], result["issues"])
+
+    def test_tech_discovery_requires_source_refs_when_ready(self) -> None:
+        self.write_text(
+            "tech-research.md",
+            """---
+stage: ship-tech-discovery
+artifact_role: research
+stage_status: ready
+updated_at: ""
+evidence_complete: true
+---
+
+# Research
+No sources.
+""",
+        )
+        self.write_text(
+            "tech-selection.md",
+            """---
+stage: ship-tech-discovery
+artifact_role: selection
+stage_status: ready
+updated_at: ""
+evidence_complete: true
+---
+
+# Selection
+Decision: use FastAPI.
+""",
+        )
+
+        result = validate_tech_discovery(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "research_missing_source_ids" for issue in result["issues"]))
+
+    def test_design_alignment_detects_unknown_frontend_endpoint(self) -> None:
+        self.write_text("api-contract.md", "---\nstage: ship-contract\nstage_status: ready\ncontract_forms: [rest]\nupdated_at: \"\"\nevidence_complete: true\n---\nPOST /api/v1/login\nERR_AUTH_INVALID\n")
+        self.write_text("frontend-design.md", "---\nstage: ship-frontend-design\nstage_status: ready\nupdated_at: \"\"\nevidence_complete: true\n---\nPOST /api/v1/logout\n")
+
+        result = validate_design_alignment(self.feature_dir, project_scope="frontend_only")
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "frontend_unknown_endpoint" for issue in result["issues"]))
+
+    def test_frontend_design_ready_requires_page_api_and_ac_refs(self) -> None:
+        self.write_text("frontend-design.md", "---\nstage: ship-frontend-design\nstage_status: ready\nupdated_at: \"\"\nevidence_complete: true\n---\n# Frontend\n")
+
+        result = validate_frontend_design(self.feature_dir / "frontend-design.md")
+
+        self.assertFalse(result["ok"])
+        codes = {issue["code"] for issue in result["issues"]}
+        self.assertIn("missing_api_refs", codes)
+        self.assertIn("missing_ac_refs", codes)
+
+    def test_backend_design_ready_requires_domain_and_endpoint_mapping(self) -> None:
+        self.write_text("backend-design.md", "---\nstage: ship-backend-design\nstage_status: ready\nupdated_at: \"\"\nevidence_complete: true\n---\n# Backend\n")
+
+        result = validate_backend_design(self.feature_dir / "backend-design.md")
+
+        self.assertFalse(result["ok"])
+        codes = {issue["code"] for issue in result["issues"]}
+        self.assertIn("missing_domain_refs", codes)
+        self.assertIn("missing_endpoint_mapping", codes)
+
+    def test_doctor_reports_blocked_stage_next_action(self) -> None:
+        self.write_meta(current_stage="ship-define", define_status="blocked")
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["stages"]["ship-define"]["block_reason"] = "awaiting_materials"
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        result = diagnose_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["next_action"]["action"], "fix_blocking_issues")
+        self.assertTrue(any(issue["code"] == "missing_artifact" for issue in result["issues"]))
+
+    def test_backend_only_scope_skips_frontend_design_for_design_review(self) -> None:
+        self.write_meta(
+            current_stage="ship-backend-design",
+            project_scope="backend_only",
+            scenario="prd_direct",
+            define_review_status="approved",
+        )
+        self.write_requirements(status="ready")
+        for relative_path, stage, role in (
+            ("review-define.md", "ship-define-review", None),
+        ):
+            if stage == "ship-define-review":
+                self.write_define_review(status="approved", signed=True)
+                continue
+            role_line = f"artifact_role: {role}\n" if role else ""
+            self.write_text(
+                relative_path,
+                f"""---
+stage: {stage}
+{role_line}stage_status: ready
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# {stage}
+""",
+            )
+        self.write_text(
+            "tech-research.md",
+            """---
+stage: ship-tech-discovery
+artifact_role: research
+stage_status: ready
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# Research
+- source_id: SRC-AUTH-001 official auth framework docs
+""",
+        )
+        self.write_text(
+            "tech-selection.md",
+            """---
+stage: ship-tech-discovery
+artifact_role: selection
+stage_status: ready
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# Selection
+Decision: use existing auth stack. source_id: SRC-AUTH-001
+Rejected: custom auth.
+ADR: ADR-AUTH-001
+tech_stack: Node service
+""",
+        )
+        self.write_text(
+            "api-contract.md",
+            """---
+stage: ship-contract
+stage_status: ready
+contract_forms: [rest]
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# API Contract
+
+## Summary
+REST contract for D-AUTH-001. OpenAPI artifact: resource/openapi.yaml. Change classification: additive.
+
+#### POST /api/v1/login
+- 关联 AC：AC-AUTH-001
+- 请求参数：body.email string required
+- 成功响应：200
+- 错误响应：ERR_AUTH_INVALID | HTTP Status 401 | 凭证错误
+
+## 数据模型
+interface LoginRequest { email: string; password: string }
+""",
+        )
+        self.write_text(
+            "backend-design.md",
+            """---
+stage: ship-backend-design
+stage_status: ready
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# Backend Design
+D-AUTH-001 maps to AuthController / AuthService / AuthRepository.
+
+| 接口 | Controller | Service | Repository |
+| POST /api/v1/login | AuthController.login | AuthService.login | AuthRepository.findByEmail |
+
+Migration strategy: no migration. rollback: no DB change. backfill: none.
+auth, rate limit, logging, metrics, error handling covered.
+""",
+        )
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        for stage in ("ship-define", "ship-tech-discovery", "ship-contract", "ship-backend-design"):
+            meta["stages"][stage]["status"] = "ready"
+        meta["stages"]["ship-define-review"]["status"] = "approved"
+        meta["stages"]["ship-define-review"]["approved"] = True
+        meta["stages"]["ship-frontend-design"]["status"] = "skipped"
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        result = check_transition(self.feature_dir, "ship-design-review")
+
+        self.assertTrue(result["allowed"], result["issues"])
+
+
+if __name__ == "__main__":
+    unittest.main()

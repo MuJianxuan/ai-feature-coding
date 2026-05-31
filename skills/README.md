@@ -230,6 +230,8 @@
 - 各阶段 SKILL 的详细输入输出
 - review gate frontmatter 协议
 - fast-track 的最小路径和升级/降级规则
+- `agents/openai.yaml` 的安装展示元数据
+- `ship-orchestrator/tests/regression-prompts.md` 的 workflow 回归场景
 
 这些内容以 `ship-orchestrator/_templates/protocol/workflow-protocol.md` 为准。
 
@@ -247,3 +249,25 @@
 - 检查与 `ship-orchestrator/_templates/protocol/workflow-protocol.md` 的协议对齐
 - 检查与 `ship-orchestrator/_templates/meta/meta.yml.template` 的字段对齐
 - 检查与 `ship-orchestrator/_templates/review/review.md.template` 的章节对齐
+
+常用校验与诊断命令：
+
+```bash
+python3 skills/ship-orchestrator/scripts/validate_workflow_docs.py
+python3 skills/ship-orchestrator/scripts/validate_feature_artifacts.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_product_brief.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_ui_artifacts.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_requirements.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_contract.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_tech_discovery.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_frontend_design.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_backend_design.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_design_alignment.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_delivery_plan.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_traceability.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/build_task_preflight.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_verification.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_handoff.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/workflow_doctor.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/stage_transition_check.py <target-project>/.docs/feature-YYYYMMDD-demo --target-stage ship-tech-discovery
+```

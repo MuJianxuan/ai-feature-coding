@@ -217,6 +217,22 @@ Phase 3: 集成联调
 - notes: ""
 ```
 
+### Task Readiness Preflight
+
+开始编码前运行或等价执行：
+
+```bash
+python3 skills/ship-orchestrator/scripts/build_task_preflight.py <feature-dir> --project-scope <fullstack|backend_only|frontend_only>
+```
+
+最低要求：
+
+- 全局恰好 1 个 `DOING` task。
+- 当前 `DOING` task 有 `allowed_files`。
+- 当前 `DOING` task 有 AC refs。
+- 当前 `DOING` task 有 verification command。
+- 若必须扩大文件范围，先记录 reason、impact、user approval，再更新任务记录。
+
 ### DOING 唯一性
 
 - 同一时刻整个 plan 中最多只能有 1 个任务处于 DOING

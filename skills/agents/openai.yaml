@@ -1,0 +1,35 @@
+schema_version: 1
+entrypoint: ship-orchestrator
+default_view:
+  - Discover
+  - Define
+  - Design
+  - Build
+  - Close
+notes:
+  - Use ship-orchestrator as the default user-facing entrypoint.
+  - Discover is conditional and appears only for greenfield/evolve scenarios.
+  - Canonical stage IDs and gate contracts are defined in ship-orchestrator/_templates/protocol/workflow-protocol.md.
+maintenance_commands:
+  - python3 skills/ship-orchestrator/scripts/validate_workflow_docs.py
+  - python3 -m unittest skills/ship-orchestrator/scripts/test_workflow_hardening.py skills/ship-orchestrator/scripts/test_spec_runtime.py
+validators:
+  workflow_state:
+    - skills/ship-orchestrator/scripts/workflow_doctor.py
+    - skills/ship-orchestrator/scripts/stage_transition_check.py
+  artifacts:
+    - skills/ship-orchestrator/scripts/validate_feature_artifacts.py
+    - skills/ship-orchestrator/scripts/validate_requirements.py
+    - skills/ship-orchestrator/scripts/validate_contract.py
+    - skills/ship-orchestrator/scripts/validate_product_brief.py
+    - skills/ship-orchestrator/scripts/validate_ui_artifacts.py
+    - skills/ship-orchestrator/scripts/validate_tech_discovery.py
+    - skills/ship-orchestrator/scripts/validate_frontend_design.py
+    - skills/ship-orchestrator/scripts/validate_backend_design.py
+    - skills/ship-orchestrator/scripts/validate_design_alignment.py
+    - skills/ship-orchestrator/scripts/validate_delivery_plan.py
+    - skills/ship-orchestrator/scripts/validate_traceability.py
+    - skills/ship-orchestrator/scripts/validate_verification.py
+    - skills/ship-orchestrator/scripts/validate_handoff.py
+  build:
+    - skills/ship-orchestrator/scripts/build_task_preflight.py

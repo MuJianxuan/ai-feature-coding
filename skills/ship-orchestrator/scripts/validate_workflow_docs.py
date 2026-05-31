@@ -140,6 +140,27 @@ def validate_readmes() -> None:
         require(snippet in templates_text, f"{templates_readme}: missing `{snippet}`")
     require((ROOT / "skills/ship-orchestrator/_templates/project/project.yml.template").exists(), "missing _templates/project/project.yml.template")
 
+    agents_meta = ROOT / "skills/agents/openai.yaml"
+    agents_text = read_text(agents_meta)
+    for snippet in (
+        "entrypoint: ship-orchestrator",
+        "validate_workflow_docs.py",
+        "workflow_doctor.py",
+        "build_task_preflight.py",
+    ):
+        require(snippet in agents_text, f"{agents_meta}: missing `{snippet}`")
+
+    regression_prompts = ROOT / "skills/ship-orchestrator/tests/regression-prompts.md"
+    regression_text = read_text(regression_prompts)
+    for snippet in (
+        "Unsigned Gate",
+        "Requirements Quality",
+        "Delivery Plan DAG",
+        "Build Preflight",
+        "Handoff Evidence",
+    ):
+        require(snippet in regression_text, f"{regression_prompts}: missing `{snippet}`")
+
 
 def validate_stage_reference_templates() -> None:
     skill_templates = {
@@ -263,8 +284,22 @@ def validate_review_template_delegation() -> None:
         "由主代理填写",
         "frontmatter 中的 `review_status` 必须仍为 `pending`",
         "子代理起草正式 gate 草案时",
+        "required_changes",
+        "fix_owner",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
+
+    reference_path = ROOT / "skills/ship-orchestrator/_templates/review/review-gate-reference.md"
+    reference_text = read_text(reference_path)
+    for snippet in (
+        "Review Gate Reference",
+        "required_changes",
+        "fix_owner",
+        "Decision Rules",
+        "user_sign_off",
+        "signed_at",
+    ):
+        require(snippet in reference_text, f"{reference_path}: missing `{snippet}`")
 
 
 def validate_orchestrator_doc() -> None:
