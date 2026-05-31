@@ -102,7 +102,7 @@
       white-space: pre-wrap;
     }
 
-    .mini-grid, .scenario-row, .macro-flow, .track, .artifact-grid, .gate-row, .rules-grid, .delegation-grid, .spec-grid {
+    .mini-grid, .scenario-row, .macro-flow, .track, .artifact-grid, .gate-row, .rules-grid, .delegation-grid, .spec-grid, .validator-grid {
       display: grid;
       gap: 14px;
     }
@@ -235,6 +235,7 @@
     .delegation { border-top: 6px solid var(--accent); min-height: 168px; }
     .spec-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .spec-card { border-top: 6px solid var(--accent); min-height: 184px; }
+    .validator-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
     .wide { grid-column: span 2; }
 
@@ -254,9 +255,10 @@
     .evidence { margin-top: 22px; padding: 22px 26px; }
     .evidence h2 { margin-bottom: 10px; font-size: 23px; }
     .evidence ul { margin: 0; padding-left: 19px; color: var(--muted); font-size: 14px; line-height: 1.75; }
+    .evidence p { margin: 0 0 12px; color: var(--muted); font-size: 14px; line-height: 1.65; }
 
     @media (max-width: 1180px) {
-      .hero, .scenario-row, .artifact-grid, .gate-row, .rules-grid, .delegation-grid, .spec-grid { grid-template-columns: 1fr; }
+      .hero, .scenario-row, .artifact-grid, .gate-row, .rules-grid, .delegation-grid, .spec-grid, .validator-grid { grid-template-columns: 1fr; }
       .macro-flow { grid-template-columns: 1fr; }
       .stage:after { content: "↓"; right: 18px; top: auto; bottom: -25px; }
       .stage:last-child:after { content: ""; }
@@ -274,28 +276,32 @@
   </style>
 </head>
 <body>
-  <!-- Visual system: warm paper + blueprint grid, compact cards, semantic accents. Content source: skills/README.md, workflow-protocol.md, ship-orchestrator/SKILL.md, workflow_stage_map.py. -->
+  <!-- Visual system: warm paper + blueprint grid, compact cards, semantic accents. Content source: skills/README.md, workflow-protocol.md, ship-orchestrator/SKILL.md, workflow_stage_map.py, validators, agents/openai.yaml. -->
   <main class="page">
     <div class="system-note">
-      本页是 <strong>skills workflow 使用指南</strong>，面向查看和对齐流程。事实源以 <code>skills/ship-orchestrator/_templates/protocol/workflow-protocol.md</code>、<code>skills/README.md</code>、<code>ship-orchestrator/SKILL.md</code> 和 <code>workflow_stage_map.py</code> 为准；本页只做可视化汇总。
+      本页是 <strong>skills workflow 使用指南</strong>，面向查看和对齐流程。事实源以 <code>skills/ship-orchestrator/_templates/protocol/workflow-protocol.md</code>、<code>skills/README.md</code>、<code>ship-orchestrator/SKILL.md</code>、<code>workflow_stage_map.py</code>、validators 和 <code>skills/agents/openai.yaml</code> 为准；本页只做可视化汇总。
     </div>
 
     <section class="hero">
       <div class="hero-main">
-        <p class="eyebrow">ShipKit Skills Workflow · 2026-05-30 Snapshot</p>
+        <p class="eyebrow">ShipKit Skills Workflow · 2026-05-31 Snapshot</p>
         <h1>一个入口，五个大阶段，十四个内部阶段。</h1>
         <p class="hero-copy">
-          默认从 <strong>ship-orchestrator</strong> 进入。用户看到的是 <strong>[Discover →] Define → Design → Build → Close</strong>；内部用 canonical stage、frontmatter、三道 hard gate、project-local <strong>ship-spec</strong> 和 delegation contract 保证流程可恢复、可审计、可验证。
+          默认从 <strong>ship-orchestrator</strong> 进入。用户看到的是 <strong>[Discover →] Define → Design → Build → Close</strong>；内部用 canonical stage、frontmatter、三道 hard gate、project-local <strong>ship-spec</strong>、delegation contract 和可执行 validators 保证流程可恢复、可审计、可验证。
         </p>
       </div>
       <aside class="hero-side">
         <div class="command">启动 ship-orchestrator，我想做一个“功能名”：一句话想法</div>
         <div class="command">继续 &lt;target-project&gt;/.docs/feature-YYYYMMDD-demo/</div>
+        <div class="command">python3 skills/ship-orchestrator/scripts/workflow_doctor.py &lt;feature-dir&gt;</div>
+        <div class="command">python3 skills/ship-orchestrator/scripts/validate_feature_artifacts.py &lt;feature-dir&gt;</div>
         <div class="command">python3 skills/ship-orchestrator/scripts/workflow_stage_map.py --list</div>
         <div class="mini-grid">
           <div class="mini"><strong>默认入口</strong><span>识别 NEW / CONTINUE / INSPECT，再路由到阶段 skill。</span></div>
           <div class="mini"><strong>事实源</strong><span>阶段文档 frontmatter 优先；<code>meta.yml</code> 是索引和恢复摘要。</span></div>
           <div class="mini"><strong>硬门禁</strong><span>Define、Design、Plan 三次评审必须 approved + 用户签字。</span></div>
+          <div class="mini"><strong>可执行护栏</strong><span>doctor、artifact lint、stage transition、traceability 和阶段 validators 已落地。</span></div>
+          <div class="mini"><strong>安装元数据</strong><span><code>skills/agents/openai.yaml</code> 声明入口、默认视图、维护命令和 validator 清单。</span></div>
           <div class="mini"><strong>规范边界</strong><span><code>ship-spec</code> 只消费 target project 的 <code>spec_root</code>。</span></div>
         </div>
       </aside>
@@ -376,11 +382,19 @@
         <div class="artifact"><strong>普通产物 frontmatter</strong><span><code>stage</code>、<code>artifact_role</code>、<code>stage_status</code>、<code>updated_at</code>、<code>evidence_complete</code> 是最小契约。</span></div>
         <div class="artifact"><strong><code>meta.yml</code></strong><span>只做恢复、汇总和路由索引。冲突时信任阶段文档 frontmatter，再回写修正。</span></div>
         <div class="artifact"><strong><code>skip_log</code></strong><span>记录用户显式强制跳过软门禁或默认前置阶段的审计事实，不改变 stage status 语义。</span></div>
+        <div class="artifact"><strong>Traceability</strong><span><code>validate_traceability.py</code> 检查 AC、Domain ID、contract、plan 和 test evidence 的可追溯关系。</span></div>
+        <div class="artifact"><strong>Evidence Pack</strong><span><code>validate_verification.py</code> 与 <code>validate_handoff.py</code> 约束测试轨道结果、验收证据和残余风险签收。</span></div>
       </div>
       <div class="gate-row" style="margin-top: 14px;">
         <div class="gate"><strong>Define Review</strong><span><code>review-define.md</code> 确认需求清晰、AC 可验证、无关键歧义。</span></div>
         <div class="gate"><strong>Design Review</strong><span><code>review-design.md</code> 交叉检查 contract ↔ frontend ↔ backend 的一致性。</span></div>
         <div class="gate"><strong>Plan Review</strong><span><code>review-plan.md</code> 审查任务粒度、依赖顺序和 AC 全覆盖。</span></div>
+      </div>
+      <div class="artifact-grid" style="margin-top: 14px;">
+        <div class="artifact"><strong>Shared Gate Reference</strong><span><code>review-gate-reference.md</code> 统一三道 gate 的 frontmatter、decision、finding、required changes 与 sign-off 语义。</span></div>
+        <div class="artifact"><strong>Machine-Readable Contract</strong><span><code>ship-contract</code> 要求 REST / gRPC / message / CLI / SDK 等契约形态提供可机器校验策略。</span></div>
+        <div class="artifact"><strong>Task Readiness</strong><span><code>build_task_preflight.py</code> 在进入正式 build 前检查单个 <code>DOING</code> 任务是否有 AC、contract、依赖和验证路径。</span></div>
+        <div class="artifact"><strong>Regression Prompts</strong><span><code>ship-orchestrator/tests/regression-prompts.md</code> 覆盖产品提供入口、未签 gate、需求质量、DAG、preflight 和 handoff 场景。</span></div>
       </div>
     </section>
 
@@ -425,13 +439,36 @@ python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec &lt;f
       </div>
     </section>
 
+    <section class="band">
+      <div class="band-header">
+        <h2>可执行护栏</h2>
+        <p>2026-05-31 已把主要自然语言协议补成可运行检查。修改 workflow、SKILL.md、模板或阶段产物时，优先用这些脚本验证。</p>
+      </div>
+      <div class="validator-grid">
+        <div class="artifact"><strong>Workflow Doctor</strong><span><code>workflow_doctor.py</code> 汇总 current stage、macro stage、artifact status、gate status、blocking issues 和 next action。</span></div>
+        <div class="artifact"><strong>Artifact Lint</strong><span><code>validate_feature_artifacts.py</code> 做统一 frontmatter、stage status 和阶段产物入口检查。</span></div>
+        <div class="artifact"><strong>Stage Transition</strong><span><code>stage_transition_check.py</code> 判断目标阶段是否允许推进，避免绕过 hard gate 或未 ready 产物。</span></div>
+        <div class="artifact"><strong>Requirements</strong><span><code>validate_requirements.py</code> 检查 Domain ID、AC、NFR、open questions、模糊词和 ready 条件。</span></div>
+        <div class="artifact"><strong>Discovery / UI</strong><span><code>validate_product_brief.py</code>、<code>validate_ui_artifacts.py</code> 检查 confidence、evidence、variants、wireframe 和 visual token 信号。</span></div>
+        <div class="artifact"><strong>Tech / Contract</strong><span><code>validate_tech_discovery.py</code>、<code>validate_contract.py</code> 检查 source_id、ADR、rejected alternatives、schema、error 和 AC mapping。</span></div>
+        <div class="artifact"><strong>Design Alignment</strong><span><code>validate_frontend_design.py</code>、<code>validate_backend_design.py</code>、<code>validate_design_alignment.py</code> 检查 page/API/state、endpoint implementation、migration/rollback 和 contract 对齐。</span></div>
+        <div class="artifact"><strong>Plan / Build / Close</strong><span><code>validate_delivery_plan.py</code>、<code>build_task_preflight.py</code>、<code>validate_verification.py</code>、<code>validate_handoff.py</code> 检查 DAG、单 DOING、测试轨道和验收证据。</span></div>
+      </div>
+      <pre>python3 -m unittest skills/ship-orchestrator/scripts/test_workflow_hardening.py skills/ship-orchestrator/scripts/test_spec_runtime.py
+python3 -m py_compile skills/ship-orchestrator/scripts/*.py
+python3 skills/ship-orchestrator/scripts/validate_workflow_docs.py</pre>
+    </section>
+
     <section class="evidence">
       <h2>复查清单</h2>
+      <p>最近复查日期：2026-05-31。计划内可执行工具、共享 reference、维护入口、regression prompts 与逐阶段审计缺口均已落地并通过验证。</p>
       <ul>
         <li>已覆盖四种入口场景：A 零到一、B 产品提供、C 迭代增强、D PRD 直通。</li>
         <li>已覆盖五个 macro stage、14 个 canonical stage、三道 hard gate、standard / fast-track、project_scope 裁剪。</li>
         <li>已覆盖 frontmatter 事实源、<code>meta.yml</code> 索引层、delegation contract、project-local spec boundary、恢复和查询协议。</li>
-        <li>维护时请同步检查 <code>workflow-protocol.md</code>、<code>meta.yml.template</code>、<code>workflow_stage_map.py</code> 与本页是否仍一致。</li>
+        <li>已覆盖 doctor、artifact lint、stage transition、requirements、traceability、contract、design alignment、delivery plan、build preflight、verification、handoff 等 validators。</li>
+        <li>已覆盖 <code>skills/agents/openai.yaml</code> 安装展示元数据、<code>ship-orchestrator/tests/README.md</code> 和 regression prompts。</li>
+        <li>维护时请同步检查 <code>workflow-protocol.md</code>、<code>meta.yml.template</code>、<code>workflow_stage_map.py</code>、validators、<code>agents/openai.yaml</code> 与本页是否仍一致。</li>
       </ul>
     </section>
   </main>
