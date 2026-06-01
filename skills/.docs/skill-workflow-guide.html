@@ -102,27 +102,32 @@
       white-space: pre-wrap;
     }
 
-    .mini-grid, .scenario-row, .macro-flow, .track, .artifact-grid, .gate-row, .rules-grid, .delegation-grid, .spec-grid, .validator-grid {
+    .mini-grid, .quick-grid, .scenario-row, .macro-flow, .track, .artifact-grid, .gate-row, .rules-grid, .delegation-grid, .spec-grid, .validator-grid {
       display: grid;
       gap: 14px;
     }
 
     .mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .quick-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
-    .mini, .scenario, .node, .artifact, .gate, .rule, .delegation, .spec-card {
+    .mini, .quick-card, .scenario, .node, .artifact, .gate, .rule, .delegation, .spec-card {
       padding: 16px;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: #fbf8f0;
     }
 
-    .mini strong, .scenario strong, .artifact strong, .gate strong, .rule strong, .delegation strong, .spec-card strong {
+    .quick-card { border-top: 6px solid var(--accent); min-height: 178px; }
+
+    .mini strong, .quick-card strong, .scenario strong, .artifact strong, .gate strong, .rule strong, .delegation strong, .spec-card strong {
       display: block;
       margin-bottom: 7px;
       font-size: 14px;
     }
 
-    .mini span, .scenario span, .artifact span, .gate span, .rule span, .delegation span, .spec-card span {
+    .quick-card strong { color: var(--accent); font-size: 17px; }
+
+    .mini span, .quick-card span, .scenario span, .artifact span, .gate span, .rule span, .delegation span, .spec-card span {
       display: block;
       color: var(--muted);
       font-size: 13px;
@@ -258,7 +263,7 @@
     .evidence p { margin: 0 0 12px; color: var(--muted); font-size: 14px; line-height: 1.65; }
 
     @media (max-width: 1180px) {
-      .hero, .scenario-row, .artifact-grid, .gate-row, .rules-grid, .delegation-grid, .spec-grid, .validator-grid { grid-template-columns: 1fr; }
+      .hero, .quick-grid, .scenario-row, .artifact-grid, .gate-row, .rules-grid, .delegation-grid, .spec-grid, .validator-grid { grid-template-columns: 1fr; }
       .macro-flow { grid-template-columns: 1fr; }
       .stage:after { content: "↓"; right: 18px; top: auto; bottom: -25px; }
       .stage:last-child:after { content: ""; }
@@ -284,14 +289,15 @@
 
     <section class="hero">
       <div class="hero-main">
-        <p class="eyebrow">ShipKit Skills Workflow · 2026-05-31 Snapshot</p>
-        <h1>一个入口，五个大阶段，十四个内部阶段。</h1>
+        <p class="eyebrow">ShipKit Skills Workflow · 2026-06-01 Snapshot</p>
+        <h1>先从一个入口启动，再按五个大阶段交付。</h1>
         <p class="hero-copy">
-          默认从 <strong>ship-orchestrator</strong> 进入。用户看到的是 <strong>[Discover →] Define → Design → Build → Close</strong>；内部用 canonical stage、frontmatter、三道 hard gate、workspace <strong>ship-spec</strong>、delegation contract 和可执行 validators 保证流程可恢复、可审计、可验证。
+          默认只和 <strong>ship-orchestrator</strong> 交互。日常视图是 <strong>[Discover →] Define → Design → Build → Close</strong>；维护视图再展开 14 个 canonical stage、frontmatter 事实源、三道 hard gate、workspace <strong>ship-spec</strong>、delegation contract 和 validators。
         </p>
       </div>
       <aside class="hero-side">
         <div class="command">启动 ship-orchestrator，我想做一个“功能名”：一句话想法</div>
+        <div class="command">启动 ship-orchestrator，为“功能名”开启完整工作流：PRD / Figma / 原型资料在 resource/...</div>
         <div class="command">继续 &lt;workspace&gt;/.docs/feature-YYYYMMDD-demo/</div>
         <div class="command">python3 skills/ship-orchestrator/scripts/workflow_doctor.py &lt;feature-dir&gt;</div>
         <div class="command">python3 skills/ship-orchestrator/scripts/validate_feature_artifacts.py &lt;feature-dir&gt;</div>
@@ -305,6 +311,23 @@
           <div class="mini"><strong>规范边界</strong><span><code>ship-spec</code> 消费 workspace 的 <code>spec_root</code>；project_group 的 <code>projects</code> 是默认执行范围。</span></div>
         </div>
       </aside>
+    </section>
+
+    <section class="band">
+      <div class="band-header">
+        <h2>快速使用</h2>
+        <p>默认用户只需要选入口、确认下一次决策点、按 macro stage 继续。只有诊断、恢复断点或维护协议时才需要展开内部阶段。</p>
+      </div>
+      <div class="quick-grid">
+        <div class="quick-card" style="--accent: var(--green)"><strong>新建功能</strong><span>说清楚目标和资料状态即可。没有资料时，orchestrator 必须先让用户在 PRD 直通、产品提供、零到一、迭代增强之间选择，不能自行猜测。</span><pre>启动 ship-orchestrator，我想做一个“团队待办”：支持多人共享任务</pre></div>
+        <div class="quick-card" style="--accent: var(--blue)"><strong>继续功能</strong><span>传入 feature 目录或说“继续”。若存在多个 active / blocked feature，必须列表让用户选择；只有一个也要确认继续还是新建。</span><pre>继续 &lt;workspace&gt;/.docs/feature-20260601-team-todo/</pre></div>
+        <div class="quick-card" style="--accent: var(--violet)"><strong>检查状态</strong><span>日常看 macro stage 和下一次用户动作；维护时用 doctor、stage transition、artifact validators 排查门禁、产物和状态冲突。</span><pre>python3 skills/ship-orchestrator/scripts/workflow_doctor.py &lt;feature-dir&gt;</pre></div>
+        <div class="quick-card" style="--accent: var(--amber)"><strong>直接 PRD</strong><span>完整 PRD + 原型/设计稿，且用户明确“不需要需求录入”时走 D。若只是有资料但还允许澄清，走 B。</span><pre>启动 ship-orchestrator，为“支付对账”开启完整工作流，PRD 已完整不需要需求录入</pre></div>
+        <div class="quick-card" style="--accent: var(--red)"><strong>硬门禁</strong><span>需求评审、设计评审、计划评审不可自动通过。必须有 <code>review_status: approved</code>、<code>user_sign_off</code>、<code>signed_at</code>。</span><pre>review-define.md
+review-design.md
+review-plan.md</pre></div>
+        <div class="quick-card" style="--accent: var(--green)"><strong>维护验证</strong><span>改 workflow、SKILL.md、模板或本指南后，至少跑文档一致性、脚本编译和核心 unittest。</span><pre>python3 skills/ship-orchestrator/scripts/validate_workflow_docs.py</pre></div>
+      </div>
     </section>
 
     <section class="band">
@@ -383,6 +406,9 @@
         <div class="artifact"><strong>普通产物 frontmatter</strong><span><code>stage</code>、<code>artifact_role</code>、<code>stage_status</code>、<code>updated_at</code>、<code>evidence_complete</code> 是最小契约。</span></div>
         <div class="artifact"><strong><code>meta.yml</code></strong><span>只做恢复、汇总和路由索引。冲突时信任阶段文档 frontmatter，再回写修正。</span></div>
         <div class="artifact"><strong><code>skip_log</code></strong><span>记录用户显式强制跳过软门禁或默认前置阶段的审计事实，不改变 stage status 语义。</span></div>
+        <div class="artifact"><strong>Requirements</strong><span><code>requirements.md</code> 是 Define 输出；场景 D 是 PRD 索引式提取，不复制原文，不做需求采访。</span></div>
+        <div class="artifact"><strong>Design Pack</strong><span><code>api-contract.md</code> 是共享基线；前端、后端设计可以并行，但必须回到 <code>review-design.md</code> 收口。</span></div>
+        <div class="artifact"><strong>Delivery Plan</strong><span><code>ship-delivery-plan</code> 阶段内固定 frontend -> backend -> sync；正式 build 仍保持单 <code>DOING</code>。</span></div>
         <div class="artifact"><strong>Traceability</strong><span><code>validate_traceability.py</code> 检查 AC、Domain ID、contract、plan 和 test evidence 的可追溯关系。</span></div>
         <div class="artifact"><strong>Evidence Pack</strong><span><code>validate_verification.py</code> 与 <code>validate_handoff.py</code> 约束测试轨道结果、验收证据和残余风险签收。</span></div>
       </div>
@@ -411,6 +437,12 @@
         <div class="delegation" style="--accent: var(--green)"><strong><code>assistive_only</code></strong><span>research 取证、资料索引、测试分轨、证据整理。不能改正式产物 frontmatter。</span></div>
         <div class="delegation" style="--accent: var(--amber)"><strong><code>user_gate_only</code></strong><span>批准、拒绝、继续下一个 build slice、关闭 feature、是否写回 spec proposal 都由用户决策。</span></div>
       </div>
+      <div class="artifact-grid" style="margin-top: 14px;">
+        <div class="artifact"><strong>合法执行值</strong><span><code>node_overrides</code> 只接受 <code>current_context</code>、<code>assistive_subagent</code>、<code>parallel_subagent</code>、<code>gate_check_subagent</code>。</span></div>
+        <div class="artifact"><strong>Canonical Node</strong><span>build 辅助节点包含 <code>ship-build.read-next-task</code>、<code>ship-build.spec-scan</code>、<code>ship-build.env-precheck</code>、<code>ship-build.evidence-pack</code>。</span></div>
+        <div class="artifact"><strong>Verify 轨道</strong><span><code>ship-verify.backend-unit</code>、integration、contract、frontend-component、frontend-e2e 可辅助分轨，主上下文更新 <code>verification.md</code>。</span></div>
+        <div class="artifact"><strong>Warning Log</strong><span>委派解析告警写入 <code>meta.yml.delegation.warnings</code>，不得复用 <code>spec_context.warnings</code>。</span></div>
+      </div>
     </section>
 
     <section class="band">
@@ -421,7 +453,7 @@
       <div class="spec-grid">
         <div class="spec-card" style="--accent: var(--blue)"><strong>边界</strong><span>显式配置源是 <code>&lt;workspace&gt;/.docs/ship/project.yml</code>。默认 <code>spec_root</code> 是 workspace 下的 <code>.docs/spec</code>。</span></div>
         <div class="spec-card" style="--accent: var(--green)"><strong>Warn Then Continue</strong><span>缺 <code>INDEX.md</code>、无匹配规范或 frontmatter 不合法时写 warning，默认继续；无法确定 workspace 才阻塞。</span></div>
-        <div class="spec-card" style="--accent: var(--violet)"><strong>Hook 点</strong><span><code>ship-tech-discovery</code>、前后端设计、<code>ship-build</code>、<code>ship-handoff</code> 会消费或汇总规范。</span></div>
+        <div class="spec-card" style="--accent: var(--violet)"><strong>Hook 点</strong><span><code>ship-tech-discovery</code>、前后端设计、<code>ship-build</code>、<code>ship-handoff</code> 会消费或汇总规范；<code>ship-spec</code> 不写入 stage map。</span></div>
         <div class="spec-card wide" style="--accent: var(--amber)"><strong>运行 helper</strong><span>helper 负责 init-workspace / scan / resolve / sync，不替阶段 skill 写正式产物。多项目父目录下必须先初始化 workspace config，再为 feature 选择 projects。</span><pre>python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py init-workspace &lt;workspace&gt; --workspace-mode project_group --workspace-name demo --project web --project api
 python3 skills/ship-orchestrator/scripts/spec_runtime.py scan --project-config &lt;workspace&gt;/.docs/ship/project.yml
 python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec &lt;feature&gt;/meta.yml --project-config &lt;workspace&gt;/.docs/ship/project.yml --stage ship-build --file web/src/app.ts</pre></div>
@@ -438,13 +470,16 @@ python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec &lt;f
         <div class="rule" style="--accent: var(--blue)"><strong>CONTINUE</strong><span>读取 feature <code>meta.yml</code>，优先信任已有 <code>spec_context.workspace_*</code>，再根据 stage status 路由。</span></div>
         <div class="rule" style="--accent: var(--green)"><strong>INSPECT</strong><span>扫描 workspace <code>feature_root/feature-*</code>，过滤 active / blocked，输出功能名、当前大阶段、更新时间和阻塞原因。</span></div>
         <div class="rule" style="--accent: var(--red)"><strong>冲突处理</strong><span><code>meta.yml</code> 与产物 frontmatter 不一致时，优先信任产物；孤立产物或阶段缺失要报告并询问处理。</span></div>
+        <div class="rule" style="--accent: var(--amber)"><strong>资料准备态</strong><span>场景 B/D 先创建 raw inbox 时，<code>ship-define</code> 可为 <code>blocked</code> + <code>awaiting_materials</code>；资料放入后解除阻塞。</span></div>
+        <div class="rule" style="--accent: var(--violet)"><strong>Project Reality First</strong><span>已有项目进入 Design 前，<code>ship-tech-discovery</code> 必须先查真实代码、表、API、页面、服务、权限和旧 feature 文档。</span></div>
+        <div class="rule" style="--accent: var(--green)"><strong>Scope 冻结</strong><span><code>project_scope</code> 只允许在 <code>ship-design-review</code> 前变更；设计评审通过后冻结。</span></div>
       </div>
     </section>
 
     <section class="band">
       <div class="band-header">
         <h2>可执行护栏</h2>
-        <p>2026-05-31 已把主要自然语言协议补成可运行检查。修改 workflow、SKILL.md、模板或阶段产物时，优先用这些脚本验证。</p>
+        <p>主要自然语言协议已补成可运行检查。修改 workflow、SKILL.md、模板、阶段产物或本指南时，优先用这些脚本验证。</p>
       </div>
       <div class="validator-grid">
         <div class="artifact"><strong>Workflow Doctor</strong><span><code>workflow_doctor.py</code> 汇总 current stage、macro stage、artifact status、gate status、blocking issues 和 next action。</span></div>
@@ -463,8 +498,9 @@ python3 skills/ship-orchestrator/scripts/validate_workflow_docs.py</pre>
 
     <section class="evidence">
       <h2>复查清单</h2>
-      <p>最近复查日期：2026-05-31。计划内可执行工具、共享 reference、维护入口、regression prompts 与逐阶段审计缺口均已落地并通过验证。</p>
+      <p>最近复查日期：2026-06-01。计划内可执行工具、共享 reference、维护入口、regression prompts 与逐阶段审计缺口均已落地；本页按 C 类目标重排为“首屏使用指南 + 后半维护细节”。</p>
       <ul>
+        <li>已把使用者入口前置：新建、继续、状态检查、PRD 直通、硬门禁和维护验证。</li>
         <li>已覆盖四种入口场景：A 零到一、B 产品提供、C 迭代增强、D PRD 直通。</li>
         <li>已覆盖五个 macro stage、14 个 canonical stage、三道 hard gate、standard / fast-track、project_scope 裁剪。</li>
         <li>已覆盖 frontmatter 事实源、<code>meta.yml</code> 索引层、delegation contract、workspace spec boundary、恢复和查询协议。</li>
