@@ -41,9 +41,11 @@ def validate_meta_template() -> None:
         "current_part: research",
         "ship-delivery-plan:",
         "current_part: frontend",
+        "workspace_mode: single_project",
+        "projects: []",
         "spec_context:",
-        'target_project_id: ""',
-        'target_project_root: "."',
+        'workspace_mode: ""',
+        'workspace_name: ""',
         'spec_root: ""',
         'feature_root: ""',
         'resolution_source: ""',
@@ -78,11 +80,12 @@ def validate_protocol_doc() -> None:
         f"{path}: missing next_user_decision references",
     )
     require("`ship-spec` 是 workflow utility" in text, f"{path}: missing ship-spec utility wording")
-    require("Project Resolution Contract" in text, f"{path}: missing project resolution section")
-    require(".docs/ship/project.yml" in text, f"{path}: missing project config contract")
+    require("Workspace Resolution Contract" in text, f"{path}: missing workspace resolution section")
+    require(".docs/ship/project.yml" in text, f"{path}: missing workspace config contract")
     require("spec_context" in text, f"{path}: missing spec_context references")
-    require("target_project_id" in text, f"{path}: missing target_project_id references")
-    require("target_project_root" in text, f"{path}: missing target_project_root references")
+    require("workspace_mode" in text, f"{path}: missing workspace_mode references")
+    require("workspace_name" in text, f"{path}: missing workspace_name references")
+    require("projects" in text, f"{path}: missing projects references")
     require("feature_root" in text, f"{path}: missing feature_root references")
     require("resolution_source" in text, f"{path}: missing resolution_source references")
     require("skip_log" in text, f"{path}: missing skip_log references")
@@ -106,9 +109,10 @@ def validate_protocol_doc() -> None:
         "canonical `node_id`",
         "ship-build.read-next-task",
         "ship-verify.backend-contract",
-        "只有无法确定 `target project` 时才阻塞",
-        "target project `spec_root`",
-        "归一化到 `target_project_root` 相对路径",
+        "只有无法确定 `workspace` 时才阻塞",
+        "workspace `spec_root`",
+        "归一化到 workspace root 相对路径",
+        "`projects` 是默认执行范围，不是硬安全边界",
         "Project Reality Scan",
         "Research Alignment Check 是 research 子段内部的过程动作，不是 hard gate",
         ".docs/spec/INDEX.md` 是唯一人工路由入口",
@@ -137,7 +141,7 @@ def validate_readmes() -> None:
         text = read_text(path)
         require("Discover" in text and "Define" in text and "Design" in text and "Build" in text and "Close" in text, f"{path}: missing 5-stage view")
         require("ship-spec" in text, f"{path}: missing ship-spec mention")
-        require(".docs/ship/project.yml" in text or "project.yml.template" in text, f"{path}: missing project-local spec config wording")
+        require(".docs/ship/project.yml" in text or "project.yml.template" in text, f"{path}: missing workspace config wording")
         for snippet in (
             "Project Reality First",
             ".docs/spec/INDEX.md",
@@ -148,7 +152,7 @@ def validate_readmes() -> None:
 
     templates_readme = ROOT / "skills/ship-orchestrator/_templates/README.md"
     templates_text = read_text(templates_readme)
-    for snippet in ("meta.yml.template", "review.md.template", "workflow-protocol.md", "spec_context", "delegation", "project.yml.template", "project_root", "spec_root", "feature_root", "project_level_only"):
+    for snippet in ("meta.yml.template", "review.md.template", "workflow-protocol.md", "spec_context", "delegation", "project.yml.template", "workspace_mode", "workspace_name", "feature_root", "projects"):
         require(snippet in templates_text, f"{templates_readme}: missing `{snippet}`")
     require((ROOT / "skills/ship-orchestrator/_templates/project/project.yml.template").exists(), "missing _templates/project/project.yml.template")
 
@@ -322,8 +326,9 @@ def validate_orchestrator_doc() -> None:
     require("Define → Design → Build → Close" in text, f"{path}: missing default stage sequence")
     require("ship-spec" in text, f"{path}: missing ship-spec utility references")
     require("spec_context" in text, f"{path}: missing spec_context references")
-    require(".docs/ship/project.yml" in text, f"{path}: missing target project config references")
-    require("target project" in text, f"{path}: missing target project wording")
+    require(".docs/ship/project.yml" in text, f"{path}: missing workspace config references")
+    require("workspace config" in text or "Workspace Config Gate" in text, f"{path}: missing workspace config wording")
+    require("Feature Scope Interview" in text, f"{path}: missing feature scope interview")
     require("delegation" in text, f"{path}: missing delegation references")
     require("ship-build 正式任务保持单 `DOING`" in text, f"{path}: missing build delegation wording")
     require("parallel_subagent" in text, f"{path}: missing parallel_subagent wording")
@@ -339,8 +344,9 @@ def validate_orchestrator_doc() -> None:
         "ask_on_assistive_node",
         "delegation.warnings",
         "ship-verify.backend-contract",
-        "负责 project resolution",
-        "NEW_FEATURE / CONTINUE_FEATURE / `sync-spec` 都以 target project 为边界",
+        "负责 workspace resolution",
+        "NEW_FEATURE 创建 feature 前必须先通过 Workspace Config Gate",
+        "project_group 下 feature 目录写入 workspace `feature_root`",
         "feature_root",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
@@ -360,8 +366,8 @@ def validate_ship_spec_doc() -> None:
         "feature_meta_runtime.py sync-spec",
         ".docs/ship/project.yml",
         "--project-config",
-        "target project",
-        "project_level_only",
+        "workspace",
+        "project_group",
         ".docs/spec/INDEX.md",
         "frontend / backend / shared",
         "唯一人工路由入口",
@@ -375,8 +381,9 @@ def validate_ship_spec_doc() -> None:
 def validate_project_local_stage_docs() -> None:
     expectations = {
         ROOT / "skills/ship-tech-discovery/SKILL.md": (
-            "target project `spec_root`",
-            "target project 未明确，不允许进入 `selection`",
+            "workspace `spec_root`",
+            "workspace 未明确，不允许进入 `selection`",
+            "feature `meta.yml.projects`",
             "Project Reality First",
             "Project Reality Scan",
             "Requirement-to-Reality Mapping",
@@ -386,15 +393,15 @@ def validate_project_local_stage_docs() -> None:
             "不是 hard gate",
         ),
         ROOT / "skills/ship-frontend-design/SKILL.md": (
-            "target project `spec_root`",
-            "不读取父目录或其他项目 spec",
+            "workspace `spec_root`",
+            "不从 `meta.yml.projects` 预设前后端角色",
             "Existing Surface Inventory",
             "frontend / shared",
             "reuse / extend / new / avoid / unknown",
         ),
         ROOT / "skills/ship-backend-design/SKILL.md": (
-            "target project `spec_root`",
-            "不读取父目录或其他项目 spec",
+            "workspace `spec_root`",
+            "不从 `meta.yml.projects` 预设前后端角色",
             "Project Reality Scan",
             "Existing Surface Inventory",
             "backend / shared",
@@ -406,11 +413,12 @@ def validate_project_local_stage_docs() -> None:
             "breaking change",
         ),
         ROOT / "skills/ship-build/SKILL.md": (
-            "target project `spec_root`",
-            "相对 `target_project_root` 的路径",
+            "workspace `spec_root`",
+            "相对 workspace root 的路径",
+            "project:",
         ),
         ROOT / "skills/ship-handoff/SKILL.md": (
-            "target project `spec_root`",
+            "workspace `spec_root`",
             "spec_context.warnings",
         ),
     }
@@ -436,7 +444,8 @@ def validate_root_readme_commands() -> None:
     require("feature_meta_runtime.py" in text, f"{path}: missing feature_meta_runtime helper command")
     require("spec_runtime.py" in text, f"{path}: missing spec_runtime helper command")
     require("--project-config" in text, f"{path}: missing project-config helper examples")
-    require(".docs/ship/project.yml" in text, f"{path}: missing project config example")
+    require(".docs/ship/project.yml" in text, f"{path}: missing workspace config example")
+    require("--project web --project api" in text, f"{path}: missing project_group helper example")
     require("14 个 canonical" in text or "14 个内部阶段名" in text or "14 个阶段" in text, f"{path}: missing 14-stage wording")
 
 

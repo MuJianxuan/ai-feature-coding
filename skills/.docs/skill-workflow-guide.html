@@ -287,12 +287,12 @@
         <p class="eyebrow">ShipKit Skills Workflow · 2026-05-31 Snapshot</p>
         <h1>一个入口，五个大阶段，十四个内部阶段。</h1>
         <p class="hero-copy">
-          默认从 <strong>ship-orchestrator</strong> 进入。用户看到的是 <strong>[Discover →] Define → Design → Build → Close</strong>；内部用 canonical stage、frontmatter、三道 hard gate、project-local <strong>ship-spec</strong>、delegation contract 和可执行 validators 保证流程可恢复、可审计、可验证。
+          默认从 <strong>ship-orchestrator</strong> 进入。用户看到的是 <strong>[Discover →] Define → Design → Build → Close</strong>；内部用 canonical stage、frontmatter、三道 hard gate、workspace <strong>ship-spec</strong>、delegation contract 和可执行 validators 保证流程可恢复、可审计、可验证。
         </p>
       </div>
       <aside class="hero-side">
         <div class="command">启动 ship-orchestrator，我想做一个“功能名”：一句话想法</div>
-        <div class="command">继续 &lt;target-project&gt;/.docs/feature-YYYYMMDD-demo/</div>
+        <div class="command">继续 &lt;workspace&gt;/.docs/feature-YYYYMMDD-demo/</div>
         <div class="command">python3 skills/ship-orchestrator/scripts/workflow_doctor.py &lt;feature-dir&gt;</div>
         <div class="command">python3 skills/ship-orchestrator/scripts/validate_feature_artifacts.py &lt;feature-dir&gt;</div>
         <div class="command">python3 skills/ship-orchestrator/scripts/workflow_stage_map.py --list</div>
@@ -302,7 +302,7 @@
           <div class="mini"><strong>硬门禁</strong><span>Define、Design、Plan 三次评审必须 approved + 用户签字。</span></div>
           <div class="mini"><strong>可执行护栏</strong><span>doctor、artifact lint、stage transition、traceability 和阶段 validators 已落地。</span></div>
           <div class="mini"><strong>安装元数据</strong><span><code>skills/agents/openai.yaml</code> 声明入口、默认视图、维护命令和 validator 清单。</span></div>
-          <div class="mini"><strong>规范边界</strong><span><code>ship-spec</code> 只消费 target project 的 <code>spec_root</code>。</span></div>
+          <div class="mini"><strong>规范边界</strong><span><code>ship-spec</code> 消费 workspace 的 <code>spec_root</code>；project_group 的 <code>projects</code> 是默认执行范围。</span></div>
         </div>
       </aside>
     </section>
@@ -360,12 +360,13 @@
     <section class="band">
       <div class="band-header">
         <h2>Scope 与模式</h2>
-        <p>scenario 决定是否进入 Discover；project_scope 决定前后端阶段和测试轨道裁剪。standard 是默认模式，fast-track 只能在规则允许时压缩路径。</p>
+        <p>scenario 决定是否进入 Discover；workspace_mode 决定单项目还是多项目组；project_scope 决定前后端阶段和测试轨道裁剪。standard 是默认模式，fast-track 只能在规则允许时压缩路径。</p>
       </div>
       <div class="rules-grid">
         <div class="rule" style="--accent: var(--blue)"><strong><code>fullstack</code></strong><span>默认范围。保留 contract、frontend design、backend design、双 plan、全量测试轨道。</span></div>
         <div class="rule" style="--accent: var(--green)"><strong><code>backend_only</code></strong><span>跳过 <code>ship-frontend-design</code>；A/C 场景下 <code>ship-shape</code> 也自动跳过。测试只保留后端轨。</span></div>
         <div class="rule" style="--accent: var(--violet)"><strong><code>frontend_only</code></strong><span>跳过 <code>ship-backend-design</code>；测试只保留前端 component / E2E 轨。</span></div>
+        <div class="rule" style="--accent: var(--blue)"><strong><code>project_group</code></strong><span>feature 目录写入 workspace <code>feature_root</code>；<code>projects: [web, api]</code> 记录默认关联项目，允许经用户确认临时扩展。</span></div>
         <div class="rule" style="--accent: var(--amber)"><strong><code>standard</code></strong><span>默认完整路径。所有硬门禁必须通过，设计、计划、验证产物完整留痕。</span></div>
         <div class="rule" style="--accent: var(--red)"><strong><code>fast-track</code></strong><span>小型功能或紧急修复可用。不能绕过需求定义、需求评审、测试和验收；复杂 UI 要升级回 standard。</span></div>
         <div class="rule" style="--accent: var(--green)"><strong>Contract-First</strong><span>实施顺序固定：契约层任务 → 前后端实现 → 集成联调。正式 build 始终单 <code>DOING</code>。</span></div>
@@ -378,7 +379,7 @@
         <p>普通产物看 <code>stage_status</code>；评审产物看 <code>review_status</code>、<code>user_sign_off</code> 和 <code>signed_at</code>。</p>
       </div>
       <div class="artifact-grid">
-        <div class="artifact"><strong>Feature 目录</strong><span><code>&lt;target-project&gt;/.docs/feature-YYYYMMDD-&lt;name&gt;/</code>。包含 <code>meta.yml</code>、阶段文档和 <code>resource/</code> 原始资料。</span></div>
+        <div class="artifact"><strong>Feature 目录</strong><span><code>&lt;workspace&gt;/.docs/feature-YYYYMMDD-&lt;name&gt;/</code>。包含 <code>meta.yml</code>、阶段文档和 <code>resource/</code> 原始资料。</span></div>
         <div class="artifact"><strong>普通产物 frontmatter</strong><span><code>stage</code>、<code>artifact_role</code>、<code>stage_status</code>、<code>updated_at</code>、<code>evidence_complete</code> 是最小契约。</span></div>
         <div class="artifact"><strong><code>meta.yml</code></strong><span>只做恢复、汇总和路由索引。冲突时信任阶段文档 frontmatter，再回写修正。</span></div>
         <div class="artifact"><strong><code>skip_log</code></strong><span>记录用户显式强制跳过软门禁或默认前置阶段的审计事实，不改变 stage status 语义。</span></div>
@@ -414,16 +415,17 @@
 
     <section class="band">
       <div class="band-header">
-        <h2>Project-Local Spec</h2>
-        <p><code>ship-spec</code> 是 workflow utility，不是 stage。orchestrator 负责解析 target project；阶段 skill 负责读取规范并在产物中留痕。</p>
+        <h2>Workspace Spec</h2>
+        <p><code>ship-spec</code> 是 workflow utility，不是 stage。orchestrator 负责解析 workspace；阶段 skill 负责读取规范并在产物中留痕。</p>
       </div>
       <div class="spec-grid">
-        <div class="spec-card" style="--accent: var(--blue)"><strong>边界</strong><span>显式配置源是 <code>&lt;target-project&gt;/.docs/ship/project.yml</code>。默认 <code>spec_root</code> 是 target project 下的 <code>.docs/spec</code>。</span></div>
-        <div class="spec-card" style="--accent: var(--green)"><strong>Warn Then Continue</strong><span>缺 <code>INDEX.md</code>、无匹配规范或 frontmatter 不合法时写 warning，默认继续；无法确定 target project 才阻塞。</span></div>
+        <div class="spec-card" style="--accent: var(--blue)"><strong>边界</strong><span>显式配置源是 <code>&lt;workspace&gt;/.docs/ship/project.yml</code>。默认 <code>spec_root</code> 是 workspace 下的 <code>.docs/spec</code>。</span></div>
+        <div class="spec-card" style="--accent: var(--green)"><strong>Warn Then Continue</strong><span>缺 <code>INDEX.md</code>、无匹配规范或 frontmatter 不合法时写 warning，默认继续；无法确定 workspace 才阻塞。</span></div>
         <div class="spec-card" style="--accent: var(--violet)"><strong>Hook 点</strong><span><code>ship-tech-discovery</code>、前后端设计、<code>ship-build</code>、<code>ship-handoff</code> 会消费或汇总规范。</span></div>
-        <div class="spec-card wide" style="--accent: var(--amber)"><strong>运行 helper</strong><span>helper 负责 scan / resolve / sync，不替阶段 skill 写正式产物。多项目父目录下必须先显式选定 project config。</span><pre>python3 skills/ship-orchestrator/scripts/spec_runtime.py scan --project-config &lt;target-project&gt;/.docs/ship/project.yml
-python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec &lt;feature&gt;/meta.yml --project-config &lt;target-project&gt;/.docs/ship/project.yml --stage ship-build --file src/app.ts</pre></div>
-        <div class="spec-card" style="--accent: var(--red)"><strong>Proposal-First</strong><span><code>ship-handoff</code> 只记录待沉淀 proposal；真正写回 target project <code>spec_root</code> 需要用户确认。</span></div>
+        <div class="spec-card wide" style="--accent: var(--amber)"><strong>运行 helper</strong><span>helper 负责 init-workspace / scan / resolve / sync，不替阶段 skill 写正式产物。多项目父目录下必须先初始化 workspace config，再为 feature 选择 projects。</span><pre>python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py init-workspace &lt;workspace&gt; --workspace-mode project_group --workspace-name demo --project web --project api
+python3 skills/ship-orchestrator/scripts/spec_runtime.py scan --project-config &lt;workspace&gt;/.docs/ship/project.yml
+python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec &lt;feature&gt;/meta.yml --project-config &lt;workspace&gt;/.docs/ship/project.yml --stage ship-build --file web/src/app.ts</pre></div>
+        <div class="spec-card" style="--accent: var(--red)"><strong>Proposal-First</strong><span><code>ship-handoff</code> 只记录待沉淀 proposal；真正写回 workspace <code>spec_root</code> 需要用户确认。</span></div>
       </div>
     </section>
 
@@ -433,8 +435,8 @@ python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec &lt;f
         <p>恢复时优先报告 macro stage；只有诊断、阻塞或高级调用时才展开内部阶段。</p>
       </div>
       <div class="rules-grid">
-        <div class="rule" style="--accent: var(--blue)"><strong>CONTINUE</strong><span>读取 feature <code>meta.yml</code>，优先信任已有 <code>spec_context.target_project_*</code>，再根据 stage status 路由。</span></div>
-        <div class="rule" style="--accent: var(--green)"><strong>INSPECT</strong><span>扫描 target project <code>feature_root/feature-*</code>，过滤 active / blocked，输出功能名、当前大阶段、更新时间和阻塞原因。</span></div>
+        <div class="rule" style="--accent: var(--blue)"><strong>CONTINUE</strong><span>读取 feature <code>meta.yml</code>，优先信任已有 <code>spec_context.workspace_*</code>，再根据 stage status 路由。</span></div>
+        <div class="rule" style="--accent: var(--green)"><strong>INSPECT</strong><span>扫描 workspace <code>feature_root/feature-*</code>，过滤 active / blocked，输出功能名、当前大阶段、更新时间和阻塞原因。</span></div>
         <div class="rule" style="--accent: var(--red)"><strong>冲突处理</strong><span><code>meta.yml</code> 与产物 frontmatter 不一致时，优先信任产物；孤立产物或阶段缺失要报告并询问处理。</span></div>
       </div>
     </section>
@@ -465,7 +467,7 @@ python3 skills/ship-orchestrator/scripts/validate_workflow_docs.py</pre>
       <ul>
         <li>已覆盖四种入口场景：A 零到一、B 产品提供、C 迭代增强、D PRD 直通。</li>
         <li>已覆盖五个 macro stage、14 个 canonical stage、三道 hard gate、standard / fast-track、project_scope 裁剪。</li>
-        <li>已覆盖 frontmatter 事实源、<code>meta.yml</code> 索引层、delegation contract、project-local spec boundary、恢复和查询协议。</li>
+        <li>已覆盖 frontmatter 事实源、<code>meta.yml</code> 索引层、delegation contract、workspace spec boundary、恢复和查询协议。</li>
         <li>已覆盖 doctor、artifact lint、stage transition、requirements、traceability、contract、design alignment、delivery plan、build preflight、verification、handoff 等 validators。</li>
         <li>已覆盖 <code>skills/agents/openai.yaml</code> 安装展示元数据、<code>ship-orchestrator/tests/README.md</code> 和 regression prompts。</li>
         <li>维护时请同步检查 <code>workflow-protocol.md</code>、<code>meta.yml.template</code>、<code>workflow_stage_map.py</code>、validators、<code>agents/openai.yaml</code> 与本页是否仍一致。</li>

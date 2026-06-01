@@ -21,6 +21,7 @@ AC_RE = re.compile(r"\bAC-[A-Z0-9]+-\d{3}\b")
 CONTRACT_REF_RE = re.compile(r"\b(?:GET|POST|PUT|PATCH|DELETE)\s+/[A-Za-z0-9_./:{}-]+|\bapi-contract\.md\b|\bcontract\b", re.IGNORECASE)
 
 REQUIRED_TASK_FIELDS = {
+    "project": ("project:", "project：", "目标项目"),
     "scope": ("scope", "范围"),
     "allowed_files": ("allowed_files", "allowed files", "允许文件"),
     "depends_on": ("depends_on", "depends on", "依赖"),

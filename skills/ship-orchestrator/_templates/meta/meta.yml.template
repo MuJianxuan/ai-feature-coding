@@ -33,6 +33,14 @@ pipeline_mode: standard       # standard | fast-track
 project_context: unknown      # unknown | new_project | existing_project
 project_context_evidence: ""  # 一句话证据，例: "已有 package.json 且 src/ 下有源码"
 
+# 工作区范围。由 .docs/ship/project.yml 初始化。
+workspace_mode: single_project # single_project | project_group
+
+# 本需求默认关联的项目列表。
+# project_group 时使用一级目录名；single_project 时保持空列表。
+# 这是默认执行范围，不是不可突破的硬边界。
+projects: []
+
 # 项目范围（决定哪些阶段被跳过）
 project_scope: fullstack          # fullstack | backend_only | frontend_only
 project_scope_evidence: ""        # 例: "用户声明纯后端 API 项目" 或 "tech_stack.frontend 为空"
@@ -64,13 +72,13 @@ tech_stack:
     frontend: ""              # 例: "Vitest + Testing Library + Playwright"
     backend: ""               # 例: "Vitest + Supertest"
 
-# ship-spec 摘要索引（Utility Hook；规范事实源是 target project 下的 spec_root）
+# ship-spec 摘要索引（Utility Hook；规范事实源是 workspace 下的 spec_root）
 spec_context:
-  target_project_id: ""      # 稳定项目标识，来自 .docs/ship/project.yml
-  target_project_root: "."   # 固定按 target project root 相对表示
+  workspace_mode: ""         # single_project | project_group
+  workspace_name: ""         # 来自 .docs/ship/project.yml
   spec_root: ""              # 例: ".docs/spec"
   feature_root: ""           # 例: ".docs"
-  resolution_source: ""      # project_config | meta_spec_context | explicit_paths
+  resolution_source: ""      # workspace_config | meta_spec_context | explicit_paths
   index_status: missing       # missing | ready | invalid
   last_checked_at: ""
   last_checked_stage: ""      # ship-tech-discovery | ship-frontend-design | ship-backend-design | ship-build | ship-handoff

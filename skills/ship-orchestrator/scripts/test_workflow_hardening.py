@@ -406,6 +406,7 @@ task_count: 1
             "frontend-plan",
             """## Tasks
 ### FE-AUTH-001
+- project: web
 - scope: login UI
 - allowed_files: src/login.tsx
 - depends_on: FE-AUTH-002
@@ -415,6 +416,7 @@ task_count: 1
 - done evidence: test output
 
 ### FE-AUTH-002
+- project: web
 - scope: api client
 - allowed_files: src/api.ts
 - depends_on: FE-AUTH-001
@@ -429,6 +431,7 @@ task_count: 1
             "backend-plan",
             """## Tasks
 ### BE-AUTH-001
+- project: api
 - scope: login endpoint
 - allowed_files: src/auth.ts
 - depends_on:
@@ -450,6 +453,7 @@ task_count: 1
             "backend-plan",
             """## Tasks
 ### BE-AUTH-001
+- project: api
 - scope: login endpoint
 - allowed_files: src/auth.ts
 - depends_on:
@@ -471,6 +475,7 @@ task_count: 1
             """## Tasks
 ### BE-AUTH-001
 - status: DOING
+- project: api
 - scope: login endpoint
 - allowed_files: src/auth.ts
 - depends_on:
@@ -493,6 +498,7 @@ task_count: 1
             """## Tasks
 ### BE-AUTH-001
 - status: DOING
+- project: api
 - scope: login endpoint
 - allowed_files: src/auth.ts
 - AC refs: AC-AUTH-001
@@ -500,6 +506,7 @@ task_count: 1
 
 ### BE-AUTH-002
 - status: DOING
+- project: api
 - scope: auth tests
 - allowed_files: src/auth.test.ts
 - AC refs: AC-AUTH-001

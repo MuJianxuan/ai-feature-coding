@@ -115,9 +115,9 @@ description: "ShipKit stage. Consumes verification.md from ship-verify, complete
 - 若发现重复模式、临时约定或 review 中反复出现的问题，生成待沉淀 proposal
 - proposal 摘要先写入 `meta.yml.spec_context.pending_proposals`
 - 详细 proposal 在 Step 7 编写 `handoff.md` 时落盘
-- proposal 默认指向 target project `spec_root`
+- proposal 默认指向 workspace `spec_root`
 - 若 `meta.yml.spec_context.warnings` 非空，必须在 handoff follow-up 中显式列出
-- 默认不直接创建或修改 target project `spec_root` 下的规范文件
+- 默认不直接创建或修改 workspace `spec_root` 下的规范文件
 
 **Step 7: 交付文档**
 - handoff.md 即使没有变更/部署事项，也要显式写"无"
@@ -284,7 +284,7 @@ python3 skills/ship-orchestrator/scripts/validate_handoff.py <feature-dir>
 - [P2] AuthService 魔法数字提取到 config（owner: TBD）
 ```
 
-**5. Spec Proposals**：记录本次是否产生规范沉淀建议；若产生，需与 `meta.yml.spec_context.pending_proposals` 一致，并指向 target project `spec_root`
+**5. Spec Proposals**：记录本次是否产生规范沉淀建议；若产生，需与 `meta.yml.spec_context.pending_proposals` 一致，并指向 workspace `spec_root`
 
 ## Anti-Rationalizations
 
@@ -341,7 +341,7 @@ python3 skills/ship-orchestrator/scripts/validate_handoff.py <feature-dir>
 - [ ] 已读取 `meta.yml.spec_context.referenced_spec_ids`
 - [ ] 若发现可沉淀模式，proposal 已同步写入 `meta.yml.spec_context.pending_proposals`
 - [ ] 若 `meta.yml.spec_context.warnings` 非空，已写入 handoff follow-up
-- [ ] 未经用户确认，不直接修改 target project `spec_root` 下的规范文件
+- [ ] 未经用户确认，不直接修改 workspace `spec_root` 下的规范文件
 
 ### Frontmatter
 - [ ] stage_status 与实际验收结果一致

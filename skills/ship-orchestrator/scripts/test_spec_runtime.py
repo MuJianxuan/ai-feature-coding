@@ -19,10 +19,12 @@ from feature_meta_runtime import (
     CURRENT_CONTEXT,
     GATE_CHECK_SUBAGENT,
     PARALLEL_SUBAGENT,
+    append_workspace_project,
     advance_stage,
     clear_delegation_warning_log,
     create_feature_meta,
     feature_dir_for,
+    list_project_candidates,
     mark_materials_ready,
     record_delegation_warning,
     record_skip,
@@ -33,6 +35,7 @@ from feature_meta_runtime import (
     set_lifecycle_status,
     set_node_override,
     sync_spec_context,
+    write_workspace_config,
 )
 from spec_runtime import load_project_context, resolve_specs, scan_specs
 
@@ -78,41 +81,38 @@ last_updated: "2026-05-23T10:00:00+08:00"
 
     def write_project_config(
         self,
-        project_root: Path,
+        workspace_root: Path,
         *,
         spec_root: str = ".docs/spec",
         feature_root: str = ".docs",
-        project_id: str = "project-a",
+        workspace_mode: str = "single_project",
+        workspace_name: str = "workspace-a",
+        projects: list[str] | None = None,
     ) -> Path:
-        path = project_root / ".docs/ship/project.yml"
+        path = workspace_root / ".docs/ship/project.yml"
+        payload = {
+            "schema_version": 2,
+            "workspace_mode": workspace_mode,
+            "workspace_name": workspace_name,
+            "feature_root": feature_root,
+            "projects": projects or [],
+        }
+        if spec_root != ".docs/spec":
+            payload["spec_root"] = spec_root
         self.write_text(
             path,
-            yaml.safe_dump(
-                {
-                    "schema_version": 1,
-                    "project_id": project_id,
-                    "project_name": "Project A",
-                    "project_root": ".",
-                    "spec_root": spec_root,
-                    "feature_root": feature_root,
-                    "module_layout": {
-                        "mode": "project_level_only",
-                        "module_roots": [],
-                    },
-                    "notes": "",
-                },
-                sort_keys=False,
-            ),
+            yaml.safe_dump(payload, sort_keys=False),
         )
         return path
 
     def test_scan_specs_returns_ready_for_valid_spec(self) -> None:
-        result = scan_specs(self.spec_root, project_root=self.root)
+        result = scan_specs(self.spec_root, workspace_root=self.root)
         self.assertEqual(result["index_status"], "ready")
         self.assertEqual(result["warnings"], [])
         self.assertEqual(result["specs"][0]["spec_id"], "react-query-data-fetching")
         self.assertEqual(result["specs"][0]["path"], ".docs/spec/coding/frontend-data.md")
-        self.assertEqual(result["target_project_root"], ".")
+        self.assertEqual(result["workspace_mode"], "single_project")
+        self.assertEqual(result["projects"], [])
 
     def test_scan_specs_marks_invalid_when_frontmatter_is_broken(self) -> None:
         self.write_text(
@@ -125,7 +125,7 @@ last_updated: ""
 ---
 """,
         )
-        result = scan_specs(self.spec_root, project_root=self.root)
+        result = scan_specs(self.spec_root, workspace_root=self.root)
         self.assertEqual(result["index_status"], "invalid")
         self.assertTrue(any("invalid spec frontmatter" in warning for warning in result["warnings"]))
 
@@ -136,7 +136,7 @@ last_updated: ""
             stack_tags=["react"],
             domains=["todo"],
             files=["src/features/todo/list/TodoList.tsx"],
-            project_root=self.root,
+            workspace_root=self.root,
         )
         self.assertEqual(result["matched_spec_ids"], ["react-query-data-fetching"])
 
@@ -146,7 +146,7 @@ last_updated: ""
             stack_tags=["vue"],
             domains=["todo"],
             files=["src/features/todo/list/TodoList.tsx"],
-            project_root=self.root,
+            workspace_root=self.root,
         )
         self.assertEqual(miss["matched_spec_ids"], [])
         self.assertTrue(any("no matching specs found" in warning for warning in miss["warnings"]))
@@ -186,7 +186,7 @@ last_updated: ""
         self.assertEqual(saved["delegation"]["node_overrides"], {})
         self.assertEqual(saved["delegation"]["warnings"], [])
 
-    def test_scan_specs_uses_project_root_for_custom_spec_root_paths(self) -> None:
+    def test_scan_specs_uses_workspace_root_for_custom_spec_root_paths(self) -> None:
         custom_root = self.root / "custom-spec"
         self.write_text(
             custom_root / "x.md",
@@ -202,30 +202,57 @@ last_updated: ""
 """,
         )
 
-        result = scan_specs(custom_root, project_root=self.root)
+        result = scan_specs(custom_root, workspace_root=self.root)
 
         self.assertEqual(result["specs"][0]["path"], "custom-spec/x.md")
 
-    def test_project_config_resolves_spec_and_feature_roots(self) -> None:
+    def test_single_project_config_resolves_spec_and_feature_roots(self) -> None:
         config_path = self.write_project_config(
             self.root,
             spec_root=".docs/spec",
             feature_root="docs/features",
         )
 
-        project_context = load_project_context(config_path)
+        workspace_context = load_project_context(config_path)
 
-        self.assertEqual(project_context.target_project_id, "project-a")
-        self.assertEqual(project_context.target_project_root, ".")
-        self.assertEqual(project_context.spec_root, ".docs/spec")
-        self.assertEqual(project_context.feature_root, "docs/features")
-        self.assertEqual(project_context.resolved_spec_root, (self.root / ".docs/spec").resolve())
-        self.assertEqual(project_context.resolved_feature_root, (self.root / "docs/features").resolve())
+        self.assertEqual(workspace_context.workspace_mode, "single_project")
+        self.assertEqual(workspace_context.workspace_name, "workspace-a")
+        self.assertEqual(workspace_context.projects, ())
+        self.assertEqual(workspace_context.spec_root, ".docs/spec")
+        self.assertEqual(workspace_context.feature_root, "docs/features")
+        self.assertEqual(workspace_context.resolved_spec_root, (self.root / ".docs/spec").resolve())
+        self.assertEqual(workspace_context.resolved_feature_root, (self.root / "docs/features").resolve())
 
-    def test_resolve_specs_normalizes_files_against_target_project_root(self) -> None:
+    def test_project_group_config_resolves_projects(self) -> None:
+        (self.root / "web").mkdir()
+        (self.root / "api").mkdir()
+        config_path = self.write_project_config(
+            self.root,
+            workspace_mode="project_group",
+            workspace_name="workspace-a",
+            projects=["web", "api"],
+        )
+
+        workspace_context = load_project_context(config_path)
+
+        self.assertEqual(workspace_context.workspace_mode, "project_group")
+        self.assertEqual(workspace_context.workspace_name, "workspace-a")
+        self.assertEqual(workspace_context.projects, ("web", "api"))
+
+    def test_project_group_rejects_nested_workspace_projects(self) -> None:
+        config_path = self.write_project_config(
+            self.root,
+            workspace_mode="project_group",
+            projects=["apps/web"],
+        )
+
+        with self.assertRaisesRegex(ValueError, "first-level directory names"):
+            load_project_context(config_path)
+
+    def test_resolve_specs_normalizes_files_against_workspace_root(self) -> None:
         workspace_root = self.root
-        project_root = workspace_root / "project-a"
-        spec_root = project_root / ".docs/spec"
+        (workspace_root / "project-a").mkdir()
+        spec_root = workspace_root / ".docs/spec"
         self.write_text(
             spec_root / "INDEX.md",
             "---\ndoc_type: spec-index\ndoc_status: active\nschema_version: 2\nupdated_at: \"\"\n---\n",
@@ -240,18 +267,22 @@ stage_hooks:
 stack_tags: []
 domains: []
 applies_to:
-  - "src/app.ts"
+  - "project-a/src/app.ts"
 last_updated: "2026-05-29T10:00:00+08:00"
 ---
 """,
         )
-        config_path = self.write_project_config(project_root)
+        config_path = self.write_project_config(
+            workspace_root,
+            workspace_mode="project_group",
+            projects=["project-a"],
+        )
         previous_cwd = Path.cwd()
         os.chdir(workspace_root)
         try:
             result = resolve_specs(
                 spec_root=None,
-                project_context=load_project_context(config_path),
+                workspace_context=load_project_context(config_path),
                 stage_hook="ship-build",
                 files=["project-a/src/app.ts"],
             )
@@ -259,12 +290,12 @@ last_updated: "2026-05-29T10:00:00+08:00"
             os.chdir(previous_cwd)
 
         self.assertEqual(result["matched_spec_ids"], ["backend-rule"])
-        self.assertEqual(result["normalized_files"], ["src/app.ts"])
+        self.assertEqual(result["normalized_files"], ["project-a/src/app.ts"])
 
     def test_scan_specs_returns_warning_when_project_spec_root_missing(self) -> None:
         config_path = self.write_project_config(self.root, spec_root=".docs/missing-spec")
 
-        result = scan_specs(project_context=load_project_context(config_path))
+        result = scan_specs(workspace_context=load_project_context(config_path))
 
         self.assertEqual(result["index_status"], "missing")
         self.assertTrue(any("spec directory does not exist" in warning for warning in result["warnings"]))
@@ -434,31 +465,27 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
 
     def write_project_config(
         self,
-        project_root: Path,
+        workspace_root: Path,
         *,
         spec_root: str = ".docs/spec",
         feature_root: str = ".docs",
-        project_id: str = "project-a",
+        workspace_mode: str = "single_project",
+        workspace_name: str = "workspace-a",
+        projects: list[str] | None = None,
     ) -> Path:
-        path = project_root / ".docs/ship/project.yml"
+        path = workspace_root / ".docs/ship/project.yml"
         path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "schema_version": 2,
+            "workspace_mode": workspace_mode,
+            "workspace_name": workspace_name,
+            "feature_root": feature_root,
+            "projects": projects or [],
+        }
+        if spec_root != ".docs/spec":
+            payload["spec_root"] = spec_root
         path.write_text(
-            yaml.safe_dump(
-                {
-                    "schema_version": 1,
-                    "project_id": project_id,
-                    "project_name": "Project A",
-                    "project_root": ".",
-                    "spec_root": spec_root,
-                    "feature_root": feature_root,
-                    "module_layout": {
-                        "mode": "project_level_only",
-                        "module_roots": [],
-                    },
-                    "notes": "",
-                },
-                sort_keys=False,
-            ),
+            yaml.safe_dump(payload, sort_keys=False),
             encoding="utf-8",
         )
         return path
@@ -484,15 +511,15 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
         self.assertEqual(saved["lifecycle_status"], "active")
         self.assertEqual(saved["skip_log"], [])
 
-    def test_feature_dir_for_uses_target_project_feature_root(self) -> None:
-        project_root = self.root / "project-a"
-        project_context = load_project_context(
-            self.write_project_config(project_root, feature_root="docs/features")
+    def test_feature_dir_for_uses_workspace_feature_root(self) -> None:
+        workspace_root = self.root / "workspace-a"
+        workspace_context = load_project_context(
+            self.write_project_config(workspace_root, feature_root="docs/features")
         )
 
-        feature_dir = feature_dir_for("feature-20260529-demo", project_context)
+        feature_dir = feature_dir_for("feature-20260529-demo", workspace_context)
 
-        self.assertEqual(feature_dir, (project_root / "docs/features/feature-20260529-demo").resolve())
+        self.assertEqual(feature_dir, (workspace_root / "docs/features/feature-20260529-demo").resolve())
 
     def test_create_feature_meta_initializes_prd_direct_at_define_and_skips_discover(self) -> None:
         feature_dir = self.root / "prd-direct"
@@ -600,10 +627,19 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
         self.assertEqual(saved["stages"]["ship-frontend-design"]["status"], "skipped")
         self.assertEqual(saved["stages"]["ship-delivery-plan"]["current_part"], "backend")
 
-    def test_create_feature_meta_writes_target_project_spec_context(self) -> None:
-        project_root = self.root / "project-a"
-        project_context = load_project_context(self.write_project_config(project_root))
-        feature_dir = feature_dir_for("feature-project-local", project_context)
+    def test_create_feature_meta_writes_workspace_spec_context_and_projects(self) -> None:
+        workspace_root = self.root / "workspace-a"
+        (workspace_root / "web").mkdir(parents=True)
+        (workspace_root / "api").mkdir()
+        workspace_context = load_project_context(
+            self.write_project_config(
+                workspace_root,
+                workspace_mode="project_group",
+                workspace_name="workspace-a",
+                projects=["web", "api"],
+            )
+        )
+        feature_dir = feature_dir_for("feature-project-local", workspace_context)
 
         create_feature_meta(
             feature_dir=feature_dir,
@@ -613,20 +649,65 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
             project_context="existing_project",
             project_scope="fullstack",
             scenario="product_provided",
-            project_spec_context=project_context,
+            workspace_context=workspace_context,
+            projects=["web", "api"],
         )
 
         saved = self.load_meta(feature_dir)
-        self.assertEqual(saved["spec_context"]["target_project_id"], "project-a")
-        self.assertEqual(saved["spec_context"]["target_project_root"], ".")
+        self.assertEqual(saved["workspace_mode"], "project_group")
+        self.assertEqual(saved["projects"], ["web", "api"])
+        self.assertEqual(saved["spec_context"]["workspace_mode"], "project_group")
+        self.assertEqual(saved["spec_context"]["workspace_name"], "workspace-a")
         self.assertEqual(saved["spec_context"]["spec_root"], ".docs/spec")
         self.assertEqual(saved["spec_context"]["feature_root"], ".docs")
-        self.assertEqual(saved["spec_context"]["resolution_source"], "project_config")
+        self.assertEqual(saved["spec_context"]["resolution_source"], "workspace_config")
 
-    def test_sync_spec_context_updates_target_project_fields(self) -> None:
-        project_root = self.root / "project-a"
-        spec_root = project_root / ".docs/spec"
-        project_config = self.write_project_config(project_root)
+    def test_project_group_feature_meta_requires_projects(self) -> None:
+        workspace_root = self.root / "workspace-projects-required"
+        (workspace_root / "web").mkdir(parents=True)
+        workspace_context = load_project_context(
+            self.write_project_config(
+                workspace_root,
+                workspace_mode="project_group",
+                projects=["web"],
+            )
+        )
+
+        with self.assertRaisesRegex(ValueError, "requires at least one --project"):
+            create_feature_meta(
+                feature_dir=feature_dir_for("feature-missing-projects", workspace_context),
+                feature_name="Missing Projects",
+                feature_id="feature-missing-projects",
+                pipeline_mode="standard",
+                project_context="existing_project",
+                project_scope="fullstack",
+                scenario="product_provided",
+                workspace_context=workspace_context,
+            )
+
+    def test_workspace_config_helpers_support_candidates_init_and_append(self) -> None:
+        workspace_root = self.root / "workspace-helpers"
+        for name in ("web", "api", ".docs", "node_modules", "admin"):
+            (workspace_root / name).mkdir(parents=True, exist_ok=True)
+
+        self.assertEqual(list_project_candidates(workspace_root), ["admin", "api", "web"])
+
+        config_path = write_workspace_config(
+            workspace_root,
+            workspace_mode="project_group",
+            workspace_name="workspace-helpers",
+            projects=["web", "api"],
+        )
+        payload = append_workspace_project(config_path, "admin")
+        self.assertEqual(payload["projects"], ["web", "api", "admin"])
+
+        loaded = load_project_context(config_path)
+        self.assertEqual(loaded.projects, ("web", "api", "admin"))
+
+    def test_sync_spec_context_updates_workspace_fields(self) -> None:
+        workspace_root = self.root / "workspace-a"
+        spec_root = workspace_root / ".docs/spec"
+        project_config = self.write_project_config(workspace_root)
         (spec_root / "coding").mkdir(parents=True, exist_ok=True)
         (spec_root / "INDEX.md").write_text(
             "---\ndoc_type: spec-index\ndoc_status: active\nschema_version: 2\nupdated_at: \"\"\n---\n",
@@ -670,13 +751,13 @@ last_updated: "2026-05-23T10:00:00+08:00"
         )
 
         saved = self.load_meta(feature_dir)
-        self.assertEqual(saved["spec_context"]["target_project_id"], "project-a")
-        self.assertEqual(saved["spec_context"]["target_project_root"], ".")
+        self.assertEqual(saved["spec_context"]["workspace_mode"], "single_project")
+        self.assertEqual(saved["spec_context"]["workspace_name"], "workspace-a")
         self.assertEqual(saved["spec_context"]["spec_root"], ".docs/spec")
         self.assertEqual(saved["spec_context"]["feature_root"], ".docs")
         self.assertEqual(saved["spec_context"]["referenced_spec_ids"], ["react-query-data-fetching"])
 
-    def test_sync_spec_context_requires_project_config_or_meta_target_project(self) -> None:
+    def test_sync_spec_context_requires_workspace_config_or_meta_context(self) -> None:
         feature_dir = self.root / "feature-missing-target"
         feature_dir.mkdir(parents=True, exist_ok=True)
         (feature_dir / "meta.yml").write_text(
@@ -692,7 +773,7 @@ last_updated: "2026-05-23T10:00:00+08:00"
             encoding="utf-8",
         )
 
-        with self.assertRaisesRegex(ValueError, "provide --project-config"):
+        with self.assertRaisesRegex(ValueError, "initialize .docs/ship/project.yml first"):
             sync_spec_context(
                 meta_path=feature_dir / "meta.yml",
                 stage_hook="ship-build",
@@ -701,14 +782,12 @@ last_updated: "2026-05-23T10:00:00+08:00"
                 files=["src/app.ts"],
             )
 
-    def test_resolve_project_context_does_not_guess_between_multiple_child_projects(self) -> None:
+    def test_resolve_project_context_requires_workspace_config(self) -> None:
         workspace_root = self.root / "workspace"
-        project_a = workspace_root / "project-a"
-        project_b = workspace_root / "project-b"
-        self.write_project_config(project_a, project_id="project-a")
-        self.write_project_config(project_b, project_id="project-b")
+        (workspace_root / "project-a").mkdir(parents=True)
+        (workspace_root / "project-b").mkdir()
 
-        with self.assertRaisesRegex(ValueError, "provide --project-config"):
+        with self.assertRaisesRegex(ValueError, "initialize .docs/ship/project.yml first"):
             resolve_project_context(search_from=workspace_root)
 
     def test_record_spec_proposal_only_allows_handoff_source(self) -> None:

@@ -24,8 +24,9 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from spec_runtime import (  # noqa: E402
     VALID_STAGE_HOOKS,
-    ProjectSpecContext,
-    build_explicit_project_context,
+    VALID_WORKSPACE_MODES,
+    WorkspaceSpecContext,
+    build_explicit_workspace_context,
     load_project_context,
     locate_project_config,
     resolve_specs,
@@ -77,6 +78,22 @@ DISCOVER_SCENARIOS: frozenset[str] = frozenset({"greenfield", "evolve"})
 DEFINE_SCENARIOS: frozenset[str] = frozenset({"product_provided", "prd_direct"})
 VALID_LIFECYCLE_STATUSES: tuple[str, ...] = ("active", "blocked", "completed", "abandoned")
 AWAITING_MATERIALS = "awaiting_materials"
+IGNORED_PROJECT_CANDIDATE_DIRS: frozenset[str] = frozenset(
+    {
+        ".docs",
+        ".git",
+        ".idea",
+        ".vscode",
+        "__pycache__",
+        "build",
+        "coverage",
+        "dist",
+        "node_modules",
+        "target",
+        "tmp",
+        "vendor",
+    }
+)
 
 SCOPE_SKIP_MAP: dict[str, list[str]] = {
     "fullstack": [],
@@ -334,8 +351,8 @@ def ensure_macro_stage(data: dict) -> dict:
 
 def ensure_spec_context(data: dict) -> dict:
     spec_context = data.setdefault("spec_context", {})
-    spec_context.setdefault("target_project_id", "")
-    spec_context.setdefault("target_project_root", "")
+    spec_context.setdefault("workspace_mode", "")
+    spec_context.setdefault("workspace_name", "")
     spec_context.setdefault("spec_root", "")
     spec_context.setdefault("feature_root", "")
     spec_context.setdefault("resolution_source", "")
@@ -684,36 +701,72 @@ def _feature_root_parts(feature_root: str) -> tuple[str, ...]:
     return tuple(part for part in Path(feature_root).parts if part not in ("", "."))
 
 
-def feature_dir_for(feature_name: str, project_spec_context: ProjectSpecContext) -> Path:
-    return project_spec_context.resolved_feature_root / feature_name
+def feature_dir_for(feature_name: str, workspace_context: WorkspaceSpecContext) -> Path:
+    return workspace_context.resolved_feature_root / feature_name
 
 
-def _sync_project_spec_context(spec_context: dict, project_spec_context: ProjectSpecContext) -> None:
-    spec_context["target_project_id"] = project_spec_context.target_project_id
-    spec_context["target_project_root"] = project_spec_context.target_project_root
-    spec_context["spec_root"] = project_spec_context.spec_root
-    spec_context["feature_root"] = project_spec_context.feature_root
-    spec_context["resolution_source"] = project_spec_context.resolution_source
+def _sync_workspace_spec_context(spec_context: dict, workspace_context: WorkspaceSpecContext) -> None:
+    spec_context["workspace_mode"] = workspace_context.workspace_mode
+    spec_context["workspace_name"] = workspace_context.workspace_name
+    spec_context["spec_root"] = workspace_context.spec_root
+    spec_context["feature_root"] = workspace_context.feature_root
+    spec_context["resolution_source"] = workspace_context.resolution_source
 
 
-def _resolve_project_context_from_meta(meta_path: Path, data: dict) -> ProjectSpecContext:
+def _normalize_feature_projects(
+    projects: list[str] | tuple[str, ...] | None,
+    workspace_context: WorkspaceSpecContext,
+) -> list[str]:
+    normalized: list[str] = []
+    for project in projects or []:
+        if not isinstance(project, str) or not project.strip():
+            raise ValueError("projects entries must be non-empty strings")
+        name = project.strip()
+        if "/" in name or "\\" in name or name in {".", ".."}:
+            raise ValueError("projects entries must be first-level directory names")
+        if name not in normalized:
+            normalized.append(name)
+
+    if workspace_context.workspace_mode == "single_project":
+        if normalized:
+            raise ValueError("single_project workspace does not accept feature projects")
+        return []
+
+    if not normalized:
+        raise ValueError(
+            "workspace_mode=project_group requires at least one --project before creating feature meta"
+        )
+
+    unknown = [project for project in normalized if project not in workspace_context.projects]
+    if unknown:
+        raise ValueError(
+            "feature projects must be declared in .docs/ship/project.yml first: "
+            + ", ".join(unknown)
+        )
+    return normalized
+
+
+def _resolve_project_context_from_meta(meta_path: Path, data: dict) -> WorkspaceSpecContext:
     spec_context = data.get("spec_context") or {}
-    target_project_id = str(spec_context.get("target_project_id", "")).strip()
+    workspace_mode = str(spec_context.get("workspace_mode", "")).strip()
+    workspace_name = str(spec_context.get("workspace_name", "")).strip()
     spec_root = str(spec_context.get("spec_root", "")).strip()
     feature_root = str(spec_context.get("feature_root", "")).strip()
-    if not target_project_id or not spec_root or not feature_root:
+    if not workspace_mode or not workspace_name or not spec_root or not feature_root:
         raise ValueError(
-            "unable to determine target project from meta.yml; provide --project-config"
+            "unable to determine workspace from meta.yml; initialize .docs/ship/project.yml first"
         )
 
     parts = _feature_root_parts(feature_root)
     feature_dir = meta_path.parent.resolve()
-    project_root = feature_dir.parent if not parts else feature_dir.parents[len(parts)]
-    return build_explicit_project_context(
+    workspace_root = feature_dir.parent if not parts else feature_dir.parents[len(parts)]
+    return build_explicit_workspace_context(
         spec_root=Path(spec_root),
-        project_root=project_root,
+        workspace_root=workspace_root,
         feature_root=Path(feature_root),
-        target_project_id=target_project_id,
+        workspace_mode=workspace_mode,
+        workspace_name=workspace_name,
+        projects=tuple(data.get("projects") or ()),
         resolution_source="meta_spec_context",
     )
 
@@ -724,7 +777,7 @@ def resolve_project_context(
     search_from: Path | None = None,
     meta_path: Path | None = None,
     data: dict | None = None,
-) -> ProjectSpecContext:
+) -> WorkspaceSpecContext:
     if project_config is not None:
         return load_project_context(project_config)
     if search_from is not None:
@@ -733,23 +786,23 @@ def resolve_project_context(
             return load_project_context(discovered)
     if meta_path is not None and data is not None:
         return _resolve_project_context_from_meta(meta_path, data)
-    raise ValueError("unable to determine target project; provide --project-config")
+    raise ValueError("unable to determine workspace; initialize .docs/ship/project.yml first")
 
 
-def resolve_feature_dir(feature_arg: str, project_spec_context: ProjectSpecContext) -> Path:
+def resolve_feature_dir(feature_arg: str, workspace_context: WorkspaceSpecContext) -> Path:
     raw = Path(feature_arg)
     if raw.is_absolute():
         feature_dir = raw.resolve()
     elif raw.parent == Path("."):
-        feature_dir = feature_dir_for(raw.name, project_spec_context)
+        feature_dir = feature_dir_for(raw.name, workspace_context)
     else:
         feature_dir = raw.resolve()
 
     try:
-        feature_dir.relative_to(project_spec_context.resolved_feature_root)
+        feature_dir.relative_to(workspace_context.resolved_feature_root)
     except ValueError as exc:
         raise ValueError(
-            f"feature_dir must be inside target project feature_root `{project_spec_context.feature_root}`"
+            f"feature_dir must be inside workspace feature_root `{workspace_context.feature_root}`"
         ) from exc
     return feature_dir
 
@@ -847,10 +900,17 @@ def create_feature_meta(
     project_context: str,
     project_scope: str = "fullstack",
     scenario: str = "",
-    project_spec_context: ProjectSpecContext | None = None,
+    workspace_context: WorkspaceSpecContext | None = None,
+    projects: list[str] | tuple[str, ...] | None = None,
 ) -> Path:
     if scenario not in VALID_SCENARIOS:
         raise ValueError(f"invalid scenario: {scenario}")
+
+    feature_projects = (
+        _normalize_feature_projects(projects, workspace_context)
+        if workspace_context is not None
+        else list(projects or [])
+    )
 
     feature_dir.mkdir(parents=True, exist_ok=True)
     create_material_intake_files(feature_dir, scenario)
@@ -868,13 +928,16 @@ def create_feature_meta(
     data["pipeline_mode"] = pipeline_mode
     data["project_context"] = project_context
     data["project_scope"] = project_scope
+    if workspace_context is not None:
+        data["workspace_mode"] = workspace_context.workspace_mode
+    data["projects"] = feature_projects
     data["lifecycle_status"] = "active"
     apply_scenario_initial_state(data, scenario)
     apply_scope_skips(data)
     ensure_macro_stage(data)
     ensure_spec_context(data)
-    if project_spec_context is not None:
-        _sync_project_spec_context(data["spec_context"], project_spec_context)
+    if workspace_context is not None:
+        _sync_workspace_spec_context(data["spec_context"], workspace_context)
     ensure_delegation(data)
     ensure_skip_log(data)
     ensure_lifecycle_status(data)
@@ -937,22 +1000,24 @@ def sync_spec_context(
     ensure_delegation(data)
     ensure_skip_log(data)
     ensure_lifecycle_status(data)
-    project_spec_context = resolve_project_context(
+    workspace_context = resolve_project_context(
         project_config=project_config,
         meta_path=meta_path,
         data=data,
     )
     if spec_root is not None:
-        project_spec_context = build_explicit_project_context(
+        workspace_context = build_explicit_workspace_context(
             spec_root=spec_root,
-            project_root=project_spec_context.resolved_project_root,
-            feature_root=Path(project_spec_context.feature_root),
-            target_project_id=project_spec_context.target_project_id,
-            resolution_source=project_spec_context.resolution_source,
+            workspace_root=workspace_context.resolved_workspace_root,
+            feature_root=Path(workspace_context.feature_root),
+            workspace_mode=workspace_context.workspace_mode,
+            workspace_name=workspace_context.workspace_name,
+            projects=workspace_context.projects,
+            resolution_source=workspace_context.resolution_source,
         )
     result = resolve_specs(
         spec_root=None,
-        project_context=project_spec_context,
+        workspace_context=workspace_context,
         stage_hook=stage_hook,
         stack_tags=stack_tags,
         domains=domains,
@@ -963,7 +1028,7 @@ def sync_spec_context(
     existing_spec_ids = set(spec_context.get("referenced_spec_ids", []))
     existing_spec_ids.update(result["matched_spec_ids"])
 
-    _sync_project_spec_context(spec_context, project_spec_context)
+    _sync_workspace_spec_context(spec_context, workspace_context)
     spec_context["index_status"] = result["index_status"]
     spec_context["last_checked_at"] = iso_now()
     spec_context["last_checked_stage"] = stage_hook
@@ -1053,6 +1118,69 @@ def set_lifecycle_status(meta_path: Path, lifecycle_status: str) -> dict:
     return {"lifecycle_status": lifecycle_status}
 
 
+def list_project_candidates(workspace_root: Path) -> list[str]:
+    candidates: list[str] = []
+    for child in sorted(workspace_root.iterdir(), key=lambda path: path.name):
+        name = child.name
+        if not child.is_dir():
+            continue
+        if name.startswith(".") or name in IGNORED_PROJECT_CANDIDATE_DIRS:
+            continue
+        candidates.append(name)
+    return candidates
+
+
+def write_workspace_config(
+    workspace_root: Path,
+    *,
+    workspace_mode: str,
+    workspace_name: str,
+    feature_root: str = ".docs",
+    projects: list[str] | tuple[str, ...] | None = None,
+) -> Path:
+    if workspace_mode not in VALID_WORKSPACE_MODES:
+        raise ValueError(f"invalid workspace_mode: {workspace_mode}")
+    config_path = workspace_root / ".docs/ship/project.yml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema_version": 2,
+        "workspace_mode": workspace_mode,
+        "workspace_name": workspace_name,
+        "feature_root": feature_root,
+        "projects": list(projects or []),
+    }
+    config_path.write_text(yaml.safe_dump(payload, allow_unicode=False, sort_keys=False), encoding="utf-8")
+    return config_path
+
+
+def append_workspace_project(project_config: Path, project: str, *, allow_missing: bool = False) -> dict:
+    data = yaml.safe_load(project_config.read_text(encoding="utf-8")) or {}
+    if not isinstance(data, dict):
+        raise ValueError(f"{project_config}: workspace config must be a YAML mapping")
+    if data.get("workspace_mode") != "project_group":
+        raise ValueError("projects can only be appended when workspace_mode=project_group")
+    if not isinstance(project, str) or not project.strip():
+        raise ValueError("project must be a non-empty string")
+    workspace_project = project.strip()
+    if "/" in workspace_project or "\\" in workspace_project or workspace_project in {".", ".."}:
+        raise ValueError("project must be a first-level directory name")
+
+    workspace_root = project_config.resolve().parents[2]
+    project_dir = workspace_root / workspace_project
+    if not project_dir.is_dir() and not allow_missing:
+        raise ValueError(
+            f"{workspace_project}: first-level directory does not exist; pass --allow-missing to register it anyway"
+        )
+
+    projects = data.setdefault("projects", [])
+    if not isinstance(projects, list):
+        raise ValueError("`projects` must be a list")
+    if workspace_project not in projects:
+        projects.append(workspace_project)
+    project_config.write_text(yaml.safe_dump(data, allow_unicode=False, sort_keys=False), encoding="utf-8")
+    return {"project": workspace_project, "projects": projects}
+
+
 def advance_stage(
     meta_path: Path,
     from_stage: str,
@@ -1094,7 +1222,13 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("feature_dir", help="Feature directory path")
     init_parser.add_argument(
         "--project-config",
-        help="Path to target project .docs/ship/project.yml",
+        help="Path to workspace .docs/ship/project.yml",
+    )
+    init_parser.add_argument(
+        "--project",
+        action="append",
+        default=[],
+        help="Default associated project for project_group workspaces; repeatable",
     )
     init_parser.add_argument("--feature-name", required=True, help="Human-readable feature name")
     init_parser.add_argument("--feature-id", required=True, help="Stable feature id")
@@ -1131,7 +1265,7 @@ def build_parser() -> argparse.ArgumentParser:
     sync_parser.add_argument("--stage", required=True, choices=VALID_STAGE_HOOKS)
     sync_parser.add_argument(
         "--project-config",
-        help="Path to target project .docs/ship/project.yml",
+        help="Path to workspace .docs/ship/project.yml",
     )
     sync_parser.add_argument("--spec-root", help="Low-level override for spec root directory")
     sync_parser.add_argument("--stack-tag", action="append", default=[], help="Stack tag used for spec matching")
@@ -1164,6 +1298,30 @@ def build_parser() -> argparse.ArgumentParser:
     )
     materials_parser.add_argument("meta_path", help="Path to meta.yml")
 
+    workspace_parser = subparsers.add_parser(
+        "workspace-candidates",
+        help="List first-level project candidates for workspace config initialization",
+    )
+    workspace_parser.add_argument("workspace_root", help="Workspace root path")
+
+    init_workspace_parser = subparsers.add_parser(
+        "init-workspace",
+        help="Initialize .docs/ship/project.yml for a workspace",
+    )
+    init_workspace_parser.add_argument("workspace_root", help="Workspace root path")
+    init_workspace_parser.add_argument("--workspace-mode", required=True, choices=VALID_WORKSPACE_MODES)
+    init_workspace_parser.add_argument("--workspace-name", required=True)
+    init_workspace_parser.add_argument("--feature-root", default=".docs")
+    init_workspace_parser.add_argument("--project", action="append", default=[])
+
+    append_project_parser = subparsers.add_parser(
+        "append-project",
+        help="Append a project name to workspace config projects",
+    )
+    append_project_parser.add_argument("project_config", help="Path to .docs/ship/project.yml")
+    append_project_parser.add_argument("--project", required=True)
+    append_project_parser.add_argument("--allow-missing", action="store_true")
+
     advance_parser = subparsers.add_parser("advance-stage", help="Advance current_stage")
     advance_parser.add_argument("meta_path", help="Path to meta.yml")
     advance_parser.add_argument("--from-stage", required=True, choices=CANONICAL_STAGE_ORDER)
@@ -1178,11 +1336,11 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv[1:])
 
     if args.command == "init":
-        project_spec_context = resolve_project_context(
+        workspace_context = resolve_project_context(
             project_config=Path(args.project_config) if args.project_config else None,
             search_from=Path(args.feature_dir),
         )
-        feature_dir = resolve_feature_dir(args.feature_dir, project_spec_context)
+        feature_dir = resolve_feature_dir(args.feature_dir, workspace_context)
         meta_path = create_feature_meta(
             feature_dir=feature_dir,
             feature_name=args.feature_name,
@@ -1191,7 +1349,8 @@ def main(argv: list[str]) -> int:
             project_context=args.project_context,
             project_scope=args.project_scope,
             scenario=args.scenario,
-            project_spec_context=project_spec_context,
+            workspace_context=workspace_context,
+            projects=args.project,
         )
         print(meta_path)
         return 0
@@ -1233,6 +1392,31 @@ def main(argv: list[str]) -> int:
 
     if args.command == "mark-materials-ready":
         payload = mark_materials_ready(Path(args.meta_path))
+        print(json.dumps(payload, ensure_ascii=True, indent=2))
+        return 0
+
+    if args.command == "workspace-candidates":
+        payload = {"projects": list_project_candidates(Path(args.workspace_root))}
+        print(json.dumps(payload, ensure_ascii=True, indent=2))
+        return 0
+
+    if args.command == "init-workspace":
+        config_path = write_workspace_config(
+            Path(args.workspace_root),
+            workspace_mode=args.workspace_mode,
+            workspace_name=args.workspace_name,
+            feature_root=args.feature_root,
+            projects=args.project,
+        )
+        print(config_path)
+        return 0
+
+    if args.command == "append-project":
+        payload = append_workspace_project(
+            Path(args.project_config),
+            args.project,
+            allow_missing=args.allow_missing,
+        )
         print(json.dumps(payload, ensure_ascii=True, indent=2))
         return 0
 

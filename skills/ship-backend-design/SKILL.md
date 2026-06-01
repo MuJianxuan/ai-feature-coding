@@ -113,7 +113,7 @@ Bounded Context → 业务域（与 requirements.md 的 Domain ID 对齐）
 - `parallel_subagent` 仅作用于当前节点；允许只启动后端设计，不要求与前端成对启动
 - `assistive_subagent` 在本阶段无效；若 `ask_on_parallel_stage = false` 且没有显式 `node_overrides[ship-backend-design] = parallel_subagent`，则回退 `current_context`
 - 子代理仍不得推进 `ship-design-review`，正式阶段切换由 orchestrator 统一收口
-- 本阶段只消费 target project `spec_root` 下的规范，不读取父目录或其他项目 spec
+- 本阶段只消费 workspace `spec_root` 下的规范，不从 `meta.yml.projects` 预设前后端角色；项目是否包含 API / service / job / persistence 必须基于 Project Reality First 证据判断
 
 ### 步骤详解
 
@@ -143,7 +143,7 @@ D-PAY-001  支付处理  →   src/modules/payment/
 
 - 先读 `.docs/spec/INDEX.md`，优先从 `backend / shared` 分类选择候选 spec
 - 基于 `tech-selection.md` 的技术栈标签、`requirements.md` 的 Domain ID 和涉及文件匹配规范
-- 规范匹配边界固定为 target project `spec_root`
+- 规范匹配边界固定为 workspace `spec_root`
 - 将命中的 `spec_id` 记录到 `backend-design.md.referenced_spec_ids`
 - 无匹配规范时显式写“无匹配规范”，并把 warning 写入 `spec_warnings`
 - 若 INDEX 与 frontmatter 不一致，记录 warning，默认 Warn Then Continue

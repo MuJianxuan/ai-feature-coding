@@ -17,7 +17,7 @@ npx skills add MuJianxuan/ai-feature-coding
 
 这 5 个大阶段是默认对外视图，其中 `Discover` 只在场景 A（零到一）和场景 C（迭代增强）出现。内部仍然保留细阶段、硬门禁、文档产物和恢复协议，用于精确推进与诊断。
 
-`ship-spec` 以 workflow utility 形态接入，不占用 stage map；它会在 `ship-tech-discovery`、`ship-frontend-design`、`ship-backend-design`、`ship-build`、`ship-handoff` 被自动消费并通过 `meta.yml.spec_context` 留痕。规范边界始终是 `target project`，不是当前 cwd。
+`ship-spec` 以 workflow utility 形态接入，不占用 stage map；它会在 `ship-tech-discovery`、`ship-frontend-design`、`ship-backend-design`、`ship-build`、`ship-handoff` 被自动消费并通过 `meta.yml.spec_context` 留痕。规范边界始终是 workspace，project_group 下的 `projects` 是默认执行范围，不是硬边界。
 
 Design 大阶段现在采用 Project Reality First：已有项目上的需求必须先通过 `ship-tech-discovery` 发现真实功能、表、API、页面、服务、权限、worker/MQ、日志/metrics 和既有 feature 文档，再进入技术调研、选型、contract、frontend/backend design。规范路由从单一 `.docs/spec/INDEX.md` 开始，INDEX 只使用 `frontend / backend / shared` 分类，frontmatter schema 不新增 `spec_type`。
 
@@ -48,7 +48,7 @@ Design 大阶段现在采用 Project Reality First：已有项目上的需求必
 ### 继续已有 feature
 
 ```text
-继续 <target-project>/<feature-root>/feature-YYYYMMDD-<short-name>/
+继续 <workspace>/<feature-root>/feature-YYYYMMDD-<short-name>/
 ```
 
 ### 高级模式
@@ -63,9 +63,9 @@ Design 大阶段现在采用 Project Reality First：已有项目上的需求必
 - `skills/agents/openai.yaml`：安装后默认入口与维护命令元数据
 - `skills/ship-orchestrator/tests/regression-prompts.md`：workflow 回归场景
 - `skills/ship-*/references/`：阶段内参考模板，不属于共享协议
-- `.docs/ship/project.yml`：target project 级显式配置，声明 `project_root / spec_root / feature_root`
+- `.docs/ship/project.yml`：workspace 级显式配置，声明 `workspace_mode / workspace_name / feature_root / projects`
 - `.docs/spec/INDEX.md`：唯一人工 spec 路由入口，按 `frontend / backend / shared` 分类列出候选规范
-- `target project` 下的 `.docs/`：默认 feature 运行时产物和规范沉淀位置
+- workspace 下的 `.docs/`：默认 feature 运行时产物和规范沉淀位置
 
 ## 维护
 
@@ -79,47 +79,45 @@ Design 大阶段现在采用 Project Reality First：已有项目上的需求必
 
 ```bash
 python3 skills/ship-orchestrator/scripts/validate_workflow_docs.py
-python3 skills/ship-orchestrator/scripts/validate_feature_artifacts.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_product_brief.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_ui_artifacts.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_requirements.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_contract.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_tech_discovery.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_frontend_design.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_backend_design.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_design_alignment.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_delivery_plan.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_traceability.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/build_task_preflight.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_verification.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_handoff.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/workflow_doctor.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/stage_transition_check.py <target-project>/.docs/feature-YYYYMMDD-demo --target-stage ship-tech-discovery
+python3 skills/ship-orchestrator/scripts/validate_feature_artifacts.py <workspace>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_product_brief.py <workspace>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_ui_artifacts.py <workspace>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_requirements.py <workspace>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_contract.py <workspace>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_tech_discovery.py <workspace>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_frontend_design.py <workspace>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_backend_design.py <workspace>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_design_alignment.py <workspace>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_delivery_plan.py <workspace>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_traceability.py <workspace>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/build_task_preflight.py <workspace>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_verification.py <workspace>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/validate_handoff.py <workspace>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/workflow_doctor.py <workspace>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/stage_transition_check.py <workspace>/.docs/feature-YYYYMMDD-demo --target-stage ship-tech-discovery
 python3 skills/ship-orchestrator/scripts/workflow_stage_map.py --list
-python3 skills/ship-orchestrator/scripts/spec_runtime.py scan --project-config <target-project>/.docs/ship/project.yml
+python3 skills/ship-orchestrator/scripts/spec_runtime.py scan --project-config <workspace>/.docs/ship/project.yml
 ```
 
 最小 runtime helper：
 
 ```bash
-python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py init feature-YYYYMMDD-demo --project-config <target-project>/.docs/ship/project.yml --feature-name "Demo Feature" --feature-id "feature-YYYYMMDD-demo" --scenario product_provided
-python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py refresh <target-project>/.docs/feature-YYYYMMDD-demo/meta.yml
-python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec <target-project>/.docs/feature-YYYYMMDD-demo/meta.yml --project-config <target-project>/.docs/ship/project.yml --stage ship-build --file src/app.ts
+python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py init-workspace <workspace> --workspace-mode project_group --workspace-name demo-workspace --project web --project api
+python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py init feature-YYYYMMDD-demo --project-config <workspace>/.docs/ship/project.yml --project web --project api --feature-name "Demo Feature" --feature-id "feature-YYYYMMDD-demo" --scenario product_provided
+python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py refresh <workspace>/.docs/feature-YYYYMMDD-demo/meta.yml
+python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec <workspace>/.docs/feature-YYYYMMDD-demo/meta.yml --project-config <workspace>/.docs/ship/project.yml --stage ship-build --file web/src/app.ts
 ```
 
-最小 project config 示例：
+最小 workspace config 示例：
 
 ```yaml
-schema_version: 1
-project_id: demo-project
-project_name: Demo Project
-project_root: "."
-spec_root: ".docs/spec"
+schema_version: 2
+workspace_mode: project_group
+workspace_name: demo-workspace
 feature_root: ".docs"
-module_layout:
-  mode: project_level_only
-  module_roots: []
-notes: ""
+projects:
+  - web
+  - api
 ```
 
-多项目父目录场景下，必须先选定 target project；缺少 spec 只会 warning，缺少 target project 会直接阻塞。
+多项目父目录场景下，必须先初始化 workspace config，再为 feature 选择关联 projects；缺少 spec 只会 warning，缺少 workspace config 会直接阻塞。

@@ -35,7 +35,7 @@
 - 状态默认显示大阶段，不要求记住内部阶段名
 - 只有在恢复断点、排查阻塞、直接调用某阶段时，才展开内部细阶段
 - `ship-spec` 作为 workflow utility 隐式接入，不作为单独阶段暴露给默认用户视图
-- `ship-spec` 只消费 `target project` 的 `spec_root`；多项目父目录下必须先选定 `.docs/ship/project.yml`
+- `ship-spec` 只消费 workspace 的 `spec_root`；多项目父目录下必须先初始化 `.docs/ship/project.yml`，再为 feature 选择默认关联 projects
 - 进入 Design 后，`ship-tech-discovery` 对已有项目必须 Project Reality First：先查真实功能、表、API、页面、服务、权限和既有 feature 文档，再做技术调研/选型
 - 规范路由从单一 `.docs/spec/INDEX.md` 开始；INDEX 只区分 `frontend / backend / shared`，frontmatter schema 不新增 `spec_type`
 
@@ -219,8 +219,10 @@
 - `current_stage` 记录内部细阶段
 - `scenario` 记录入口场景（greenfield / product_provided / evolve）
 - `macro_stage` 记录默认对外展示的大阶段摘要
+- `workspace_mode` 记录当前 feature 来自 `single_project` 还是 `project_group`
+- `projects` 记录本 feature 默认关联的一级项目名列表
 - `spec_context` 记录最近一次规范解析状态、已引用规范和待沉淀 proposal
-- `spec_context.target_project_id / spec_root / feature_root` 记录本 feature 绑定的 target project 解析结果
+- `spec_context.workspace_mode / workspace_name / spec_root / feature_root` 记录本 feature 绑定的 workspace 解析结果
 
 ## Advanced
 
@@ -237,14 +239,15 @@
 
 这些内容以 `ship-orchestrator/_templates/protocol/workflow-protocol.md` 为准。
 
-## Project-Local Spec Boundary
+## Workspace Spec Boundary
 
-- `ship-spec` 的显式配置源是 `target project/.docs/ship/project.yml`
-- 默认 `spec_root` 是 `target project/.docs/spec`
-- 默认 `feature_root` 是 `target project/.docs`
+- `ship-spec` 的显式配置源是 workspace `.docs/ship/project.yml`
+- 默认 `spec_root` 是 workspace `.docs/spec`
+- 默认 `feature_root` 是 workspace `.docs`
+- `project_group` 下 `projects` 是默认执行范围，不是硬安全边界
 - `.docs/spec/INDEX.md` 是唯一人工路由入口；agent 先读 INDEX，再按当前阶段、domain、tech_stack 和文件范围读取候选 spec
 - INDEX 分类只使用 `frontend / backend / shared`；runtime helper 仍用各 spec frontmatter 做 scan / resolve / 校验
-- 缺少 `spec_root` / `INDEX.md` / 匹配 spec 时只 warning；无法确定 target project 时直接阻塞
+- 缺少 `spec_root` / `INDEX.md` / 匹配 spec 时只 warning；无法确定 workspace 时直接阻塞
 
 ## 维护
 

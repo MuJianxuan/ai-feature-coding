@@ -1,0 +1,63 @@
+ 我想重构设计这块，我的一个想法是，在需求目录创建阶段，如何识别是多项目组根目录 or 单项目根目录，在需求第一个流程即问用户，是单or
+  多，如果多，那么需要指明有哪些项目名在这个需求范围内，然后需求目录里添加信息记录这个；那么根据这个设想，我想到当使用 skills/ship-
+  orchestrator 技能引导需求场景创建时，是不是可以定义固定询问的问题：1、创建需求目录的名称？可给推荐；2、当前workspace是多项目组根目
+  录 or 单项目根目录，如果说多项目，则需要让用户给出哪些项目名，这样子这个需求就围绕这些项目来执行了，包括技术探索阶段，可以基于此信
+  息来了解项目情况；比如还有其他问题；我理解我说的这个场景是创建需求的场景下发生的，这个重构设计不需要考虑旧的信息兼容
+
+    我建议不要简单问“单 or 多”后就结束，而是把它设计成固定的 Feature Scope Interview，在创建目录前完成：
+
+  1. 需求目录名称
+      - agent 先根据需求生成推荐名，例如 feature-20260531-user-billing-sync
+      - 用户确认或改名
+      - 这个名称决定最终 feature directory
+
+  2. workspace 类型
+      - single_project：当前根就是一个项目
+      - project_group：当前根是多个项目的父目录
+      - agent 可以先扫描 .docs/ship/project.yml 和子目录项目配置，给出推荐判断，但最终让用户确认
+
+  3. 本需求涉及项目
+      - 仅 project_group 必填
+      - 用户需要给出项目名/目录名
+      - 更好再记录每个项目的角色，例如 frontend / backend / shared / integration / unknown
+      - 后续 ship-tech-discovery 只扫描这些项目，不扩散到整个 workspace
+
+  4. 主项目或需求归属位置
+      - 这是最关键的设计点：多项目需求目录放哪里？
+      - 选项 A：放在 project group 根目录的 .docs/feature-*
+      - 选项 B：放在某个 primary project 的 .docs/feature-*
+      - 我倾向 A，因为这是跨项目需求，不应该归属某一个子项目；子项目只是参与方
+
+  对应 meta.yml 可以新增类似结构：
+
+  workspace_scope:
+    mode: project_group
+    workspace_root: "."
+    feature_root: ".docs"
+    detection_source: user_confirmed
+
+  project_scope:
+    primary_project_id: ""
+    projects:
+      - project_id: web-app
+        project_name: Web App
+        project_root: "apps/web"
+        role: frontend
+        project_config: "apps/web/.docs/ship/project.yml"
+      - project_id: api-server
+        project_name: API Server
+        project_root: "services/api"
+        role: backend
+        project_config: "services/api/.docs/ship/project.yml"
+
+  这样后面的阶段就清楚了：
+
+  - ship-define：需求按 feature 统一建模，但 AC 可以标记影响哪些 projects
+  - ship-tech-discovery：按 project_scope.projects[] 逐项目做 Project Reality First
+  - ship-contract：跨项目需求时变成 project boundary contract，不只是 frontend/backend contract
+  - ship-frontend-design / ship-backend-design：根据 involved projects 和 role 路由
+  - ship-build：任务必须绑定 project_id，避免“该在哪个项目改”不清楚
+  - ship-spec：从单 target_project.spec_root 升级为按 involved projects 读取多个 spec_root
+
+
+  

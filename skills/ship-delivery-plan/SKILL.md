@@ -17,6 +17,7 @@ description: "ShipKit stage. Combines frontend and backend planning into one del
 - **Contract-First**：接口对齐任务和 checkpoint 先定义
 - **Frontend-First Within Stage**：默认先写前端计划，再写后端计划
 - **Cross-Checked**：阶段末必须做一次前后端计划一致性校验
+- **Project-Explicit**：project_group 需求下，每个任务必须写明目标 `project:`，或在任务标题中显式标明目标项目
 
 ## When to Use
 
@@ -123,6 +124,7 @@ frontend 子段遵循前端计划规则：
 - Contract Tasks 必须排在所有页面/组件任务之前
 - 覆盖类型、API layer、Mock、共享组件、页面、集成测试
 - 每个任务至少关联一个 AC
+- 每个任务必须能看出目标项目；project_group 下优先写 `project: web`
 - 每个任务可在一次 AI 对话中完成并验证
 
 `frontend-plan.md` 必须至少包含：
@@ -140,6 +142,7 @@ backend 子段遵循后端计划规则：
 - Infrastructure Tasks 必须排在所有业务任务之前
 - 覆盖脚手架、数据库、路由骨架、中间件、业务域、集成测试、契约测试
 - 每个任务至少关联一个 AC 或 Domain / API ID
+- 每个任务必须能看出目标项目；project_group 下优先写 `project: api`
 - 每个任务可在一次 AI 对话中完成并验证
 
 `backend-plan.md` 必须至少包含：
@@ -180,6 +183,7 @@ sync 子段是新增要求，必须显式检查：
 - [ ] backend-plan.md frontmatter 已设置 `stage: ship-delivery-plan` 和 `artifact_role: backend-plan`
 - [ ] frontend-plan.md 中所有页面/组件已拆解为任务
 - [ ] backend-plan.md 中所有业务域/接口已拆解为任务
+- [ ] project_group 下所有任务都显式包含 `project:` 或任务标题中的目标项目
 - [ ] 两份计划的 contract-first 顺序已明确
 - [ ] 两份计划的依赖关系无循环
 - [ ] sync 子段已完成，checkpoint 与 AC 覆盖一致

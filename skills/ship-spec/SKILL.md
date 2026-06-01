@@ -1,6 +1,6 @@
 ---
 name: ship-spec
-description: "ShipKit utility. Manages project coding specifications and connects them into the workflow through stage hooks rather than canonical stages."
+description: "ShipKit utility. Manages workspace coding specifications and connects them into the workflow through stage hooks rather than canonical stages."
 ---
 
 # 规范管理 (Spec Management)
@@ -9,7 +9,7 @@ description: "ShipKit utility. Manages project coding specifications and connect
 
 `ship-spec` 是一个 **workflow utility**，不是 canonical stage，不进入 `workflow_stage_map.py`，也不占用 `meta.yml.current_stage`。它的职责是：
 
-- 维护 `target project` 下 `spec_root` 的规范文件
+- 维护 workspace 下 `spec_root` 的规范文件
 - 通过 helper 在关键阶段解析和匹配规范
 - 让各阶段产物与任务证据显式记录引用过的 `spec_id`
 - 在 `ship-handoff` 阶段生成待沉淀 proposal，而不是静默修改规范
@@ -44,24 +44,17 @@ project-a/
         └── shared/<topic>.md
 ```
 
-多项目父目录：
+多项目组：
 
 ```text
 workspace/
-├── project-a/.docs/ship/project.yml
-│             /spec/...
-└── project-b/.docs/ship/project.yml
-              /spec/...
-```
-
-模块化项目：
-
-```text
-project-a/
-├── .docs/ship/project.yml
-├── .docs/spec/
-├── apps/web/
-└── packages/shared/
+├── .docs/
+│   ├── ship/project.yml
+│   └── spec/
+│       ├── INDEX.md
+│       └── shared/<topic>.md
+├── web/
+└── api/
 ```
 
 约束：
@@ -71,7 +64,7 @@ project-a/
 - 运行时 helper 仍可读取每个规范文件的 frontmatter 做 scan / resolve / 校验；frontmatter 不新增 `spec_type` 或 `discipline`
 - `INDEX.md` 与 spec 文件 frontmatter 必须保持一致；不一致时记录 warning，默认 Warn Then Continue
 - 缺少 `INDEX.md` 时默认告警但不中断流程
-- 本期只支持 `project_level_only`；不扫描 module-level spec root
+- project_group 只支持一级目录项目名；不支持 `apps/web` 作为 project registry 基础模型
 
 ## INDEX.md Template
 
@@ -96,28 +89,28 @@ project-a/
 - `文件路径` 使用相对 `.docs/spec/` 的路径
 - 表格是人工路由入口，不替代 spec 文件 frontmatter
 
-## Project Config
+## Workspace Config
 
-`ship-spec` 的 project boundary 由 `target project/.docs/ship/project.yml` 显式声明：
+`ship-spec` 的 workspace boundary 由 workspace `.docs/ship/project.yml` 显式声明：
 
 ```yaml
-schema_version: 1
-project_id: demo-project
-project_name: Demo Project
-project_root: "."
-spec_root: ".docs/spec"
+schema_version: 2
+workspace_mode: project_group
+workspace_name: demo-workspace
 feature_root: ".docs"
-module_layout:
-  mode: project_level_only
-  module_roots: []
-notes: ""
+projects:
+  - web
+  - api
 ```
 
 规则：
 
-- `project_root / spec_root / feature_root` 都按 target project relative 表示
-- 缺少 target project 配置时，不允许 silent guess
-- target project 无法确定时阻塞；target project 已确定但 spec 缺失时只 warning
+- `workspace_mode` 只能是 `single_project` 或 `project_group`
+- `feature_root` 按 workspace root relative 表示
+- `project_group` 下 `projects` 必须是 workspace 下一级目录名
+- feature `projects` 是默认执行范围，不是硬安全边界
+- 缺少 workspace 配置时，不允许 silent guess
+- workspace 无法确定时阻塞；workspace 已确定但 spec 缺失时只 warning
 
 ## Spec Schema
 
@@ -160,11 +153,11 @@ last_updated: "2026-05-23T10:00:00+08:00"
 
 | Hook 点 | 用途 | 运行时行为 |
 |--------|------|-----------|
-| `ship-tech-discovery` | 检查选型与规范兼容性 | 先读 `.docs/spec/INDEX.md`，再在 target project `spec_root` 下按 `stage_hooks + stack_tags` 匹配 |
+| `ship-tech-discovery` | 检查选型与规范兼容性 | 先读 `.docs/spec/INDEX.md`，再在 workspace `spec_root` 下按 `stage_hooks + stack_tags` 匹配 |
 | `ship-frontend-design` | 加载前端设计约束 | 先读 `INDEX.md` 中 `frontend/shared` 候选，再按 `stage_hooks + stack_tags + domains` 匹配 |
 | `ship-backend-design` | 加载后端设计约束 | 先读 `INDEX.md` 中 `backend/shared` 候选，再按 `stage_hooks + stack_tags + domains` 匹配 |
-| `ship-build` | 约束任务级实现 | 在 target project `spec_root` 下按 `stage_hooks + applies_to` 匹配，并记录 `spec_id` |
-| `ship-handoff` | 生成待沉淀规范提案 | 汇总 `meta.yml.spec_context.referenced_spec_ids`，proposal 默认指向 target project `spec_root` |
+| `ship-build` | 约束任务级实现 | 在 workspace `spec_root` 下按 `stage_hooks + applies_to` 匹配，并记录 `spec_id` |
+| `ship-handoff` | 生成待沉淀规范提案 | 汇总 `meta.yml.spec_context.referenced_spec_ids`，proposal 默认指向 workspace `spec_root` |
 
 默认策略是 **Warn Then Continue**：
 
@@ -189,17 +182,17 @@ last_updated: "2026-05-23T10:00:00+08:00"
 
 推荐 helper：
 
-- `python3 skills/ship-orchestrator/scripts/spec_runtime.py scan --project-config <target-project>/.docs/ship/project.yml`
-- `python3 skills/ship-orchestrator/scripts/spec_runtime.py resolve ship-build --project-config <target-project>/.docs/ship/project.yml --file src/app.ts`
-- `python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec <target-project>/.docs/feature-YYYYMMDD-demo/meta.yml --project-config <target-project>/.docs/ship/project.yml --stage ship-build --file src/app.ts`
-- `python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py record-spec-proposal <target-project>/.docs/feature-YYYYMMDD-demo/meta.yml --proposal-id proposal-001 --title "抽取统一错误处理规范" --source-stage ship-handoff --target-spec-id error-handling --summary "来自本次交付的重复错误处理模式"`
+- `python3 skills/ship-orchestrator/scripts/spec_runtime.py scan --project-config <workspace>/.docs/ship/project.yml`
+- `python3 skills/ship-orchestrator/scripts/spec_runtime.py resolve ship-build --project-config <workspace>/.docs/ship/project.yml --file web/src/app.ts`
+- `python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec <workspace>/.docs/feature-YYYYMMDD-demo/meta.yml --project-config <workspace>/.docs/ship/project.yml --stage ship-build --file web/src/app.ts`
+- `python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py record-spec-proposal <workspace>/.docs/feature-YYYYMMDD-demo/meta.yml --proposal-id proposal-001 --title "抽取统一错误处理规范" --source-stage ship-handoff --target-spec-id error-handling --summary "来自本次交付的重复错误处理模式"`
 
 约束：
 
 - `spec_runtime.py` 负责 scan / resolve，不负责修改阶段产物
 - `feature_meta_runtime.py sync-spec` 负责把最近一次解析结果同步到 `meta.yml.spec_context`
 - 阶段 skill 必须自行把 `spec_checked_at`、`referenced_spec_ids`、`spec_warnings` 写入产物或任务证据
-- 多项目父目录下必须先显式选定 `--project-config`
+- 多项目父目录下必须先显式初始化 workspace config，并在 feature meta 中记录默认关联 projects
 - 本轮 runtime helper 不把 `INDEX.md` 变成唯一机器事实源；若后续增强 INDEX 表格校验，只能产生 warning，不阻塞流程
 
 ## Proposal-First Writeback
@@ -208,7 +201,7 @@ last_updated: "2026-05-23T10:00:00+08:00"
 
 - 先在 `handoff.md` 和 `meta.yml.spec_context.pending_proposals` 记录待沉淀 proposal
 - proposal 至少包含 `proposal_id`、`title`、`source_stage`、`target_spec_id`、`summary`
-- 不在 `ship-handoff` 中直接创建或修改 target project `spec_root` 下的规范文件
+- 不在 `ship-handoff` 中直接创建或修改 workspace `spec_root` 下的规范文件
 - 用户确认后，才执行真正的规范写回
 
 ## Authoring Checklist
