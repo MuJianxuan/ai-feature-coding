@@ -146,6 +146,7 @@ description: "ShipKit hard gate. Reviews requirements for completeness and corre
 评审开始前，检查 `requirements.md` 的 `generation_mode` 字段：
 
 - `generation_mode: prd_direct` → 执行 **PRD Direct 评审流程**（含 PRD 源文件质量审核 + 提取准确性审核 + 标准 Checklist）
+- `generation_mode: technical_plan` → 执行 **技术方案选区评审流程**（含 selected scope 边界审核 + 最小 AC 审核 + 标准 Checklist）
 - 其他（无此字段或 `interview`）→ 执行标准评审流程
 
 ### 标准评审流程
@@ -227,6 +228,30 @@ Phase 2 发现的问题归入 Major（提取错误）或 Minor（引用位置偏
 2. 修改完成后重新进入 ship-define-review，执行完整评审流程
 3. 不可只检查"修改的部分"，必须全量重审
 ```
+
+### 技术方案选区评审流程
+
+当 `generation_mode: technical_plan` 时，评审分三个阶段执行：
+
+```
+Phase 1: selected scope 边界审核
+  ↓
+Phase 2: 最小 AC 与用户确认审核
+  ↓
+Phase 3: 标准 Checklist（8 项）
+  ↓
+汇总 → 呈现 → 用户确认
+```
+
+检查项：
+
+| ID | 检查项 | 通过标准 | 不通过标准 |
+|----|--------|----------|------------|
+| TP-1 | selected scope 明确 | `source_documents` 或等价来源索引指向技术方案文件/片段和章节、接口、模块或标题 | selected scope 缺失、不可定位，或只写“按方案” |
+| TP-2 | 未选中内容未被错误纳入 | In Scope / Domain / AC 只覆盖 selected scope；未选中内容在 Out of Scope 或资料索引中说明 | 未选中章节、接口或模块进入本期 scope |
+| TP-3 | AC 覆盖 selected scope | 每个 selected scope 关键结果至少有一条 AC，且 AC 可测试 | 只有实现步骤，没有用户可验收结果 |
+| TP-4 | 既有项目前提确认 | meta.yml 为 `technical_plan_provided` 时 `project_context: existing_project`，后续需要 Project Reality Scan | 试图把技术方案选区用于新项目 |
+| TP-5 | 最小 AC 草案需用户确认 | 由 agent 推导的 AC 标为待确认；未确认时不得 ready | 推导 AC 被当作已确认事实 |
 
 ## Severity Classification (问题分级标准)
 

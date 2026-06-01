@@ -14,6 +14,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from validate_feature_artifacts import read_frontmatter  # noqa: E402
+from feature_meta_runtime import load_meta  # noqa: E402
 
 TASK_ID_RE = re.compile(r"\b(?:FE|BE|FS|TASK)-[A-Z0-9]+-\d{3}\b")
 TASK_HEADING_RE = re.compile(r"(?m)^(?:#{2,6}\s+|[-*]\s+)?((?:FE|BE|FS|TASK)-[A-Z0-9]+-\d{3})\b")
@@ -92,7 +93,49 @@ def _find_cycle(graph: dict[str, list[str]]) -> list[str]:
     return []
 
 
-def validate_plan_file(path: Path, expected_role: str) -> dict[str, Any]:
+def _selected_scope_terms(meta: dict[str, Any]) -> list[str]:
+    technical_plan_source = meta.get("technical_plan_source")
+    if not isinstance(technical_plan_source, dict):
+        return []
+    terms: list[str] = []
+    for item in technical_plan_source.get("selected_scope") or []:
+        if isinstance(item, dict):
+            for key in ("label", "source_file"):
+                value = str(item.get(key, "")).strip()
+                if value:
+                    terms.append(value)
+        elif isinstance(item, str) and item.strip():
+            terms.append(item.strip())
+    for source_file in technical_plan_source.get("source_files") or []:
+        value = str(source_file).strip()
+        if value:
+            terms.append(value)
+    pasted = str(technical_plan_source.get("pasted_excerpt_file", "")).strip()
+    if pasted:
+        terms.append(pasted)
+    return terms
+
+
+def _technical_plan_task_issues(blocks: list[tuple[str, str]], terms: list[str], path_name: str) -> list[dict[str, str]]:
+    if not terms:
+        return []
+    issues: list[dict[str, str]] = []
+    lowered_terms = [term.lower() for term in terms]
+    for task_id, block in blocks:
+        lowered_block = block.lower()
+        if not any(term in lowered_block for term in lowered_terms):
+            issues.append(
+                _issue(
+                    "error",
+                    "task_missing_selected_scope_ref",
+                    f"{task_id} must reference selected scope or technical source",
+                    path_name,
+                )
+            )
+    return issues
+
+
+def validate_plan_file(path: Path, expected_role: str, selected_scope_terms: list[str] | None = None) -> dict[str, Any]:
     issues: list[dict[str, str]] = []
     if not path.exists():
         return {
@@ -151,6 +194,7 @@ def validate_plan_file(path: Path, expected_role: str) -> dict[str, Any]:
 
     if ready and not any(row["contract_refs"] for row in task_rows):
         issues.append(_issue("warning", "missing_contract_task_refs", "ready plan has no explicit contract refs", path.name))
+    issues.extend(_technical_plan_task_issues(blocks, selected_scope_terms or [], path.name))
 
     return {
         "path": str(path),
@@ -164,6 +208,15 @@ def validate_delivery_plan(feature_dir: Path, project_scope: str = "fullstack") 
     feature_dir = feature_dir.resolve()
     issues: list[dict[str, str]] = []
     plan_results: list[dict[str, Any]] = []
+    selected_scope_terms: list[str] = []
+    meta_path = feature_dir / "meta.yml"
+    if meta_path.exists():
+        try:
+            meta = load_meta(meta_path)
+        except Exception:
+            meta = {}
+        if meta.get("scenario") == "technical_plan_provided":
+            selected_scope_terms = _selected_scope_terms(meta)
     expected = []
     if project_scope in ("fullstack", "frontend_only"):
         expected.append(("frontend-plan.md", "frontend-plan"))
@@ -171,7 +224,7 @@ def validate_delivery_plan(feature_dir: Path, project_scope: str = "fullstack") 
         expected.append(("backend-plan.md", "backend-plan"))
 
     for relative_path, role in expected:
-        result = validate_plan_file(feature_dir / relative_path, role)
+        result = validate_plan_file(feature_dir / relative_path, role, selected_scope_terms)
         plan_results.append(result)
         issues.extend(result["issues"])
 

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -563,6 +564,110 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
         self.assertEqual(saved["stages"]["ship-define"]["status"], "blocked")
         self.assertEqual(saved["stages"]["ship-define"]["block_reason"], "awaiting_materials")
         self.assertEqual(saved["stages"]["ship-define"]["generation_mode"], "interview")
+
+    def test_create_feature_meta_initializes_technical_plan_entry(self) -> None:
+        feature_dir = self.root / "technical-plan"
+        create_feature_meta(
+            feature_dir=feature_dir,
+            feature_name="Technical Plan",
+            feature_id="feature-technical-plan",
+            pipeline_mode="standard",
+            project_context="existing_project",
+            project_scope="fullstack",
+            scenario="technical_plan_provided",
+            technical_source_files=["resource/order-export-tech-design.md"],
+            technical_selection_mode="referenced_sections",
+            technical_selected_scopes=["3.2 Order export async task"],
+        )
+
+        saved = self.load_meta(feature_dir)
+        self.assertEqual(saved["scenario"], "technical_plan_provided")
+        self.assertEqual(saved["project_context"], "existing_project")
+        self.assertEqual(saved["current_stage"], "ship-define")
+        self.assertEqual(saved["stages"]["ship-discover"]["status"], "skipped")
+        self.assertEqual(saved["stages"]["ship-shape"]["status"], "skipped")
+        self.assertEqual(saved["stages"]["ship-define"]["generation_mode"], "technical_plan")
+        self.assertEqual(saved["technical_plan_source"]["repository_scan_required"], True)
+        self.assertEqual(saved["technical_plan_source"]["repository_scan_status"], "pending")
+        self.assertEqual(saved["technical_plan_source"]["selected_scope"][0]["label"], "3.2 Order export async task")
+        self.assertFalse((feature_dir / "requirements.md").exists())
+        self.assertTrue((feature_dir / "resource/README.md").exists())
+
+    def test_create_feature_meta_rejects_technical_plan_for_new_project(self) -> None:
+        with self.assertRaisesRegex(ValueError, "existing_project"):
+            create_feature_meta(
+                feature_dir=self.root / "technical-plan-new-project",
+                feature_name="Technical Plan New Project",
+                feature_id="feature-technical-plan-new-project",
+                pipeline_mode="standard",
+                project_context="new_project",
+                project_scope="fullstack",
+                scenario="technical_plan_provided",
+                technical_source_files=["resource/design.md"],
+                technical_selection_mode="referenced_sections",
+                technical_selected_scopes=["3.2 Export"],
+            )
+
+    def test_create_feature_meta_supports_technical_plan_pasted_excerpt(self) -> None:
+        feature_dir = self.root / "technical-plan-excerpt"
+        create_feature_meta(
+            feature_dir=feature_dir,
+            feature_name="Technical Plan Excerpt",
+            feature_id="feature-technical-plan-excerpt",
+            pipeline_mode="standard",
+            project_context="existing_project",
+            project_scope="fullstack",
+            scenario="technical_plan_provided",
+            technical_selection_mode="pasted_excerpt",
+            technical_selected_scopes=["POST /api/v1/orders/export"],
+            technical_pasted_excerpt_file="resource/technical-plan-excerpt.md",
+        )
+
+        saved = self.load_meta(feature_dir)
+        self.assertEqual(saved["technical_plan_source"]["selection_mode"], "pasted_excerpt")
+        self.assertEqual(saved["technical_plan_source"]["pasted_excerpt_file"], "resource/technical-plan-excerpt.md")
+        self.assertEqual(saved["technical_plan_source"]["selected_scope"][0]["type"], "api")
+
+    def test_cli_init_supports_technical_plan_entry(self) -> None:
+        workspace_root = self.root / "workspace-technical-plan"
+        project_config = self.write_project_config(workspace_root)
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT_DIR / "feature_meta_runtime.py"),
+                "init",
+                "feature-technical-plan-cli",
+                "--project-config",
+                str(project_config),
+                "--feature-name",
+                "Technical Plan CLI",
+                "--feature-id",
+                "feature-technical-plan-cli",
+                "--scenario",
+                "technical_plan_provided",
+                "--project-context",
+                "existing_project",
+                "--technical-source-file",
+                "resource/order-export-tech-design.md",
+                "--technical-selected-scope",
+                "3.2 Order export async task",
+                "--technical-selection-mode",
+                "referenced_sections",
+            ],
+            cwd=workspace_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        meta_path = Path(result.stdout.strip())
+        saved = yaml.safe_load(meta_path.read_text(encoding="utf-8"))
+        self.assertEqual(saved["scenario"], "technical_plan_provided")
+        self.assertEqual(saved["current_stage"], "ship-define")
+        self.assertEqual(saved["stages"]["ship-define"]["generation_mode"], "technical_plan")
+        self.assertEqual(saved["technical_plan_source"]["selected_scope"][0]["label"], "3.2 Order export async task")
+        self.assertFalse((meta_path.parent / "requirements.md").exists())
 
     def test_mark_materials_ready_keeps_empty_template_blocked(self) -> None:
         feature_dir = self.root / "empty-materials"

@@ -87,3 +87,96 @@ backend_only feature 目录里出现 frontend-plan.md，或 frontend_only 目录
 期望：
 
 - `validate_feature_artifacts.py` 报告 `scope_forbidden_artifact`
+
+## 9. Technical Plan File + Section Entry
+
+```text
+启动 ship-orchestrator，基于 resource/order-export-tech-design.md 的 3.2 订单导出异步任务章节生成 delivery plan。
+```
+
+期望：
+
+- scenario = `technical_plan_provided`
+- `project_context = existing_project`
+- `technical_plan_source.selected_scope` 非空
+- `ship-discover` / `ship-shape` skipped
+- `stages.ship-define.generation_mode = technical_plan`
+
+## 10. Technical Plan Pasted Excerpt Entry
+
+```text
+这是技术方案片段，只计划 POST /api/v1/orders/export 这一部分，先探索仓库再生成 plan：
+<粘贴内容>
+```
+
+期望：
+
+- `technical_plan_source.selection_mode = pasted_excerpt`
+- 粘贴内容归档为 `resource/technical-plan-excerpt.md`
+- `technical_plan_source.pasted_excerpt_file` 非空
+- 不创建 raw PRD inbox
+
+## 11. Technical Plan Rejects New Project
+
+```text
+这是一个全新项目，但我有技术方案，按其中 3.2 章节直接生成计划。
+```
+
+期望：
+
+- `feature_meta_runtime.py init --scenario technical_plan_provided --project-context new_project` 拒绝创建
+- 报错说明必须是 `existing_project`
+
+## 12. Technical Plan Missing Selected Scope
+
+```text
+我有技术方案文件 resource/design.md，按方案生成计划。
+```
+
+期望：
+
+- `validate_feature_artifacts.py` 报告 `missing_selected_scope`
+- orchestrator 要求用户补充章节名、接口名、模块名或直接粘贴片段
+
+## 13. Technical Plan Direct Delivery Plan Blocked
+
+```text
+技术方案选区已提供，跳过设计评审，直接生成 ship-delivery-plan。
+```
+
+期望：
+
+- `stage_transition_check.py --target-stage ship-delivery-plan` 不允许推进
+- 缺少 `review-design.md approved + user_sign_off + signed_at` 时阻塞
+
+## 14. Technical Plan Plan Contains Unselected Task
+
+```text
+selected scope 是 3.2 订单导出，但 backend-plan.md 中生成了订单导入任务。
+```
+
+期望：
+
+- `validate_delivery_plan.py` 报告 task 脱离 selected scope
+- 未选中内容不得作为实现任务进入 plan
+
+## 15. Technical Plan Init Does Not Create Raw PRD Inbox
+
+```text
+使用 technical_plan_provided 初始化 feature。
+```
+
+期望：
+
+- 创建 `resource/README.md`
+- 不创建 raw PRD inbox 模板形式的 `requirements.md`
+
+## 16. Technical Plan Requirements Source Index
+
+```text
+requirements.md 是 generation_mode: technical_plan 且 stage_status: ready，但没有 selected scope 来源索引。
+```
+
+期望：
+
+- `validate_requirements.py` 报告 `technical_plan_missing_source_index`

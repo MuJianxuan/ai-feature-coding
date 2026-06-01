@@ -63,12 +63,13 @@ description: "ShipKit stage 1 (Define). Parses requirement materials (PRD, proto
 
 ## Execution Mode (执行模式)
 
-`ship-define` 支持两种执行模式，由 `meta.yml.scenario` 决定：
+`ship-define` 支持三种执行模式，由 `meta.yml.scenario` 决定：
 
 | 模式 | 触发条件 | 行为 |
 |------|----------|------|
 | `interview`（默认） | scenario = greenfield / product_provided / evolve | 多轮采访 + 完整生成 requirements.md |
 | `prd_direct` | scenario = prd_direct；用户提供完整 PRD + 原型且明确表示不需要需求录入 | 零提问、纯提取、产出索引式 requirements.md |
+| `technical_plan` | scenario = technical_plan_provided；用户提供技术方案并指定 selected scope | 只提取 selected scope 的最小 requirements / Domain / AC；不把整份技术方案转成 PRD |
 
 `requirements.md` 在 PRD 直通和产品提供入口中可能先由 `ship-orchestrator` 初始化为 raw PRD inbox。该状态下它只是原始输入，不是下游 contract；本阶段必须先执行 normalize，将 raw PRD 原文迁移或保留到 `resource/raw-prd.md`，再把 `requirements.md` 改写为结构化需求文档。
 
@@ -78,7 +79,8 @@ description: "ShipKit stage 1 (Define). Parses requirement materials (PRD, proto
 
 1. 若 `requirements.md` 是 raw PRD inbox → 先执行 [Raw Inbox Normalize](#raw-inbox-normalize)
 2. 若 `scenario: prd_direct` → 跳转到 [PRD Direct Mode](#prd-direct-mode) 执行
-3. 否则 → 走下方标准 interview 流程
+3. 若 `scenario: technical_plan_provided` 或 `generation_mode: technical_plan` → 跳转到 [Technical Plan Mode](#technical-plan-mode) 执行
+4. 否则 → 走下方标准 interview 流程
 
 ---
 
@@ -267,6 +269,8 @@ description: "ShipKit stage 1 (Define). Parses requirement materials (PRD, proto
 stage: ship-define
 stage_status: draft  # draft → 待确认问题未清零; ready → 可进入下一阶段
 generation_mode: interview  # interview | prd_direct；raw_prd_input 只允许出现在 normalize 前
+source_documents: []        # technical_plan 模式必须引用 selected scope 来源位置
+selected_scope: []          # technical_plan 模式必须列出本次选区
 updated_at: "2026-05-22T00:00:00+08:00"
 evidence_complete: false  # 所有资料是否已收集完整
 ---
@@ -588,3 +592,41 @@ evidence_complete: true
 | 存在阻塞性 `[GAP]`（核心业务逻辑缺失、安全需求未明确） | `draft` |
 | 无阻塞性 GAP，非阻塞 GAP 已标记 | `ready` |
 | 源文件不完整或不可读 | `draft` + `evidence_complete: false` |
+
+## Technical Plan Mode
+
+当 `meta.yml.scenario: technical_plan_provided` 或 `requirements.md.generation_mode: technical_plan` 时激活。该模式只服务已有项目迭代：技术方案原文描述“怎么实现”，不是 `requirements.md` 合同本身；本阶段必须只围绕 `technical_plan_source.selected_scope` 提取“做到什么算完成”的最小 requirements 和最小 AC。
+
+执行规则：
+
+1. 读取 `meta.yml.technical_plan_source`，确认 `source_files` 或 `pasted_excerpt_file` 至少存在一种，且 `selected_scope` 非空。
+2. 只解析 selected scope；未选中内容写入 Out of Scope 或资料索引说明，不得进入 In Scope、Domain ID 或 AC。
+3. 若未选中内容是前置依赖或冲突，只写入待确认问题 / risk，不自动扩大 selected scope。
+4. 为 selected scope 建立最小 Domain ID，避免把整份技术方案拆成完整 PRD。
+5. 若技术方案已有明确验收标准，标准化为 AC ID；若没有，只提取最小可验收结果草案，并在待确认问题中要求用户在 `ship-define-review` 确认。
+6. `requirements.md.stage_status: ready` 必须满足：Domain ID、AC ID、In Scope / Out of Scope、待确认问题、资料索引、`source_documents` 或等价 selected scope 来源索引齐全，且不存在阻塞性 AC 缺口。
+
+Technical Plan frontmatter 示例：
+
+```yaml
+---
+stage: ship-define
+stage_status: draft
+generation_mode: technical_plan
+source_documents:
+  - path: "resource/order-export-tech-design.md"
+    selected_scope: "3.2 Order export async task"
+selected_scope:
+  - "3.2 Order export async task"
+updated_at: ""
+evidence_complete: true
+---
+```
+
+退出检查：
+
+- [ ] In Scope 只覆盖 selected scope
+- [ ] Out of Scope 明确说明未选中技术方案内容不进入本期
+- [ ] 每个 AC 都绑定 Domain ID，并能回指 selected scope 来源位置
+- [ ] 没有把未选中章节、接口或模块纳入 requirements 合同
+- [ ] 缺失 AC 或用户未确认的最小 AC 草案未被标记为 ready

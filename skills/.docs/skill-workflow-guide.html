@@ -158,7 +158,7 @@
       text-wrap: pretty;
     }
 
-    .scenario-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .scenario-row { grid-template-columns: repeat(5, minmax(0, 1fr)); }
     .scenario { min-height: 190px; border-top: 6px solid var(--accent); }
     .scenario strong { color: var(--accent); font-size: 18px; }
 
@@ -298,6 +298,7 @@
       <aside class="hero-side">
         <div class="command">启动 ship-orchestrator，我想做一个“功能名”：一句话想法</div>
         <div class="command">启动 ship-orchestrator，为“功能名”开启完整工作流：PRD / Figma / 原型资料在 resource/...</div>
+        <div class="command">启动 ship-orchestrator，基于 resource/order-export-tech-design.md 的 3.2 订单导出异步任务章节生成 delivery plan。</div>
         <div class="command">继续 &lt;workspace&gt;/.docs/feature-YYYYMMDD-demo/</div>
         <div class="command">python3 skills/ship-orchestrator/scripts/workflow_doctor.py &lt;feature-dir&gt;</div>
         <div class="command">python3 skills/ship-orchestrator/scripts/validate_feature_artifacts.py &lt;feature-dir&gt;</div>
@@ -319,10 +320,11 @@
         <p>默认用户只需要选入口、确认下一次决策点、按 macro stage 继续。只有诊断、恢复断点或维护协议时才需要展开内部阶段。</p>
       </div>
       <div class="quick-grid">
-        <div class="quick-card" style="--accent: var(--green)"><strong>新建功能</strong><span>说清楚目标和资料状态即可。没有资料时，orchestrator 必须先让用户在 PRD 直通、产品提供、零到一、迭代增强之间选择，不能自行猜测。</span><pre>启动 ship-orchestrator，我想做一个“团队待办”：支持多人共享任务</pre></div>
+        <div class="quick-card" style="--accent: var(--green)"><strong>新建功能</strong><span>说清楚目标和资料状态即可。没有资料时，orchestrator 必须先让用户在 PRD 直通、产品提供、零到一、迭代增强、技术方案选区之间选择，不能自行猜测。</span><pre>启动 ship-orchestrator，我想做一个“团队待办”：支持多人共享任务</pre></div>
         <div class="quick-card" style="--accent: var(--blue)"><strong>继续功能</strong><span>传入 feature 目录或说“继续”。若存在多个 active / blocked feature，必须列表让用户选择；只有一个也要确认继续还是新建。</span><pre>继续 &lt;workspace&gt;/.docs/feature-20260601-team-todo/</pre></div>
         <div class="quick-card" style="--accent: var(--violet)"><strong>检查状态</strong><span>日常看 macro stage 和下一次用户动作；维护时用 doctor、stage transition、artifact validators 排查门禁、产物和状态冲突。</span><pre>python3 skills/ship-orchestrator/scripts/workflow_doctor.py &lt;feature-dir&gt;</pre></div>
         <div class="quick-card" style="--accent: var(--amber)"><strong>直接 PRD</strong><span>完整 PRD + 原型/设计稿，且用户明确“不需要需求录入”时走 D。若只是有资料但还允许澄清，走 B。</span><pre>启动 ship-orchestrator，为“支付对账”开启完整工作流，PRD 已完整不需要需求录入</pre></div>
+        <div class="quick-card" style="--accent: var(--blue)"><strong>技术方案选区</strong><span>已有技术方案文件或粘贴片段，只围绕 selected scope 生成计划。仅适用于 <code>existing_project</code>，未选中内容默认 out_of_scope。</span><pre>启动 ship-orchestrator，基于 resource/order-export-tech-design.md 的 3.2 订单导出异步任务章节生成 delivery plan。</pre></div>
         <div class="quick-card" style="--accent: var(--red)"><strong>硬门禁</strong><span>需求评审、设计评审、计划评审不可自动通过。必须有 <code>review_status: approved</code>、<code>user_sign_off</code>、<code>signed_at</code>。</span><pre>review-define.md
 review-design.md
 review-plan.md</pre></div>
@@ -340,13 +342,14 @@ review-plan.md</pre></div>
         <div class="scenario" style="--accent: var(--blue)"><strong>B 产品提供</strong><span>已有 PRD、Figma、原型或 UIUX 材料，但允许继续澄清缺口。跳过 Discover，<code>ship-define</code> 走 interview mode。</span><div class="tag">Define 起步</div></div>
         <div class="scenario" style="--accent: var(--violet)"><strong>C 迭代增强</strong><span>基于已有 feature 目录、代码路径或现有功能做变更。必须有现状基线，否则先问清楚增强对象。</span><div class="tag">Discover evolve</div></div>
         <div class="scenario" style="--accent: var(--amber)"><strong>D PRD 直通</strong><span>完整 PRD + 原型/设计稿，且用户明确不需要需求录入。跳过 Discover，<code>ship-define</code> 走 prd_direct。</span><div class="tag">零提问提取</div></div>
+        <div class="scenario" style="--accent: var(--red)"><strong>E 技术方案选区</strong><span>已有技术方案文件或粘贴片段，并指定章节、接口或模块。仅限已有项目；跳过 Discover，<code>ship-define</code> 走 technical_plan。</span><div class="tag">selected scope</div></div>
       </div>
     </section>
 
     <section class="band">
       <div class="band-header">
         <h2>五阶段视图</h2>
-        <p>macro stage 是展示层；<code>current_stage</code> 仍然只写 canonical stage id。Discover 只在 A/C 出现。</p>
+        <p>macro stage 是展示层；<code>current_stage</code> 仍然只写 canonical stage id。Discover 只在 A/C 出现；B/D/E 直接从 Define 起步。</p>
       </div>
       <div class="macro-flow">
         <div class="stage" style="--accent: var(--green)"><strong>Discover</strong><p>把模糊想法或变更请求结构化，必要时产出 UIUX 原型。</p><small><code>ship-discover</code>, <code>ship-shape</code></small></div>
@@ -365,7 +368,7 @@ review-plan.md</pre></div>
       <div class="track">
         <div class="node" style="--accent: var(--green)"><span class="order">00a</span><h3>ship-discover</h3><p><code>product-brief.md</code><br>greenfield / evolve 需求探索。</p></div>
         <div class="node" style="--accent: var(--green)"><span class="order">00b</span><h3>ship-shape</h3><p><code>design-brief.md</code><br>HTML wireframes，多变体 UIUX 方向。</p></div>
-        <div class="node" style="--accent: var(--blue)"><span class="order">01</span><h3>ship-define</h3><p><code>requirements.md</code><br>需求结构化，支持 interview / prd_direct。</p></div>
+        <div class="node" style="--accent: var(--blue)"><span class="order">01</span><h3>ship-define</h3><p><code>requirements.md</code><br>需求结构化，支持 interview / prd_direct / technical_plan。</p></div>
         <div class="node" style="--accent: var(--blue)"><span class="order">02</span><h3>ship-define-review</h3><p><code>review-define.md</code><br>需求质量门。</p><span class="gate-mark">hard gate</span></div>
         <div class="node" style="--accent: var(--violet)"><span class="order">03</span><h3>ship-tech-discovery</h3><p><code>tech-research.md</code><br><code>tech-selection.md</code><br>先 research，后 selection。</p></div>
         <div class="node" style="--accent: var(--violet)"><span class="order">04</span><h3>ship-contract</h3><p><code>api-contract.md</code><br>前后端共享契约，不分叉。</p></div>
@@ -383,7 +386,7 @@ review-plan.md</pre></div>
     <section class="band">
       <div class="band-header">
         <h2>Scope 与模式</h2>
-        <p>scenario 决定是否进入 Discover；workspace_mode 决定单项目还是多项目组；project_scope 决定前后端阶段和测试轨道裁剪。standard 是默认模式，fast-track 只能在规则允许时压缩路径。</p>
+        <p>scenario 决定是否进入 Discover；workspace_mode 决定单项目还是多项目组；project_scope 决定前后端阶段和测试轨道裁剪。standard 是默认模式，fast-track 只能在规则允许时压缩路径；technical_plan_provided 只计划 selected scope。</p>
       </div>
       <div class="rules-grid">
         <div class="rule" style="--accent: var(--blue)"><strong><code>fullstack</code></strong><span>默认范围。保留 contract、frontend design、backend design、双 plan、全量测试轨道。</span></div>
@@ -392,6 +395,7 @@ review-plan.md</pre></div>
         <div class="rule" style="--accent: var(--blue)"><strong><code>project_group</code></strong><span>feature 目录写入 workspace <code>feature_root</code>；<code>projects: [web, api]</code> 记录默认关联项目，允许经用户确认临时扩展。</span></div>
         <div class="rule" style="--accent: var(--amber)"><strong><code>standard</code></strong><span>默认完整路径。所有硬门禁必须通过，设计、计划、验证产物完整留痕。</span></div>
         <div class="rule" style="--accent: var(--red)"><strong><code>fast-track</code></strong><span>小型功能或紧急修复可用。不能绕过需求定义、需求评审、测试和验收；复杂 UI 要升级回 standard。</span></div>
+        <div class="rule" style="--accent: var(--blue)"><strong><code>technical_plan_provided</code></strong><span>要求 <code>existing_project</code> 和 <code>technical_plan_source.selected_scope</code>。不创建 raw PRD inbox；Project Reality Scan 必须围绕选区执行。</span></div>
         <div class="rule" style="--accent: var(--green)"><strong>Contract-First</strong><span>实施顺序固定：契约层任务 → 前后端实现 → 集成联调。正式 build 始终单 <code>DOING</code>。</span></div>
       </div>
     </section>
@@ -406,6 +410,7 @@ review-plan.md</pre></div>
         <div class="artifact"><strong>普通产物 frontmatter</strong><span><code>stage</code>、<code>artifact_role</code>、<code>stage_status</code>、<code>updated_at</code>、<code>evidence_complete</code> 是最小契约。</span></div>
         <div class="artifact"><strong><code>meta.yml</code></strong><span>只做恢复、汇总和路由索引。冲突时信任阶段文档 frontmatter，再回写修正。</span></div>
         <div class="artifact"><strong><code>skip_log</code></strong><span>记录用户显式强制跳过软门禁或默认前置阶段的审计事实，不改变 stage status 语义。</span></div>
+        <div class="artifact"><strong><code>technical_plan_source</code></strong><span>技术方案选区入口的索引层。记录 source files、selected scope、pasted excerpt、out_of_scope 策略和 repository scan 状态。</span></div>
         <div class="artifact"><strong>Requirements</strong><span><code>requirements.md</code> 是 Define 输出；场景 D 是 PRD 索引式提取，不复制原文，不做需求采访。</span></div>
         <div class="artifact"><strong>Design Pack</strong><span><code>api-contract.md</code> 是共享基线；前端、后端设计可以并行，但必须回到 <code>review-design.md</code> 收口。</span></div>
         <div class="artifact"><strong>Delivery Plan</strong><span><code>ship-delivery-plan</code> 阶段内固定 frontend -> backend -> sync；正式 build 仍保持单 <code>DOING</code>。</span></div>
@@ -421,7 +426,7 @@ review-plan.md</pre></div>
         <div class="artifact"><strong>Shared Gate Reference</strong><span><code>review-gate-reference.md</code> 统一三道 gate 的 frontmatter、decision、finding、required changes 与 sign-off 语义。</span></div>
         <div class="artifact"><strong>Machine-Readable Contract</strong><span><code>ship-contract</code> 要求 REST / gRPC / message / CLI / SDK 等契约形态提供可机器校验策略。</span></div>
         <div class="artifact"><strong>Task Readiness</strong><span><code>build_task_preflight.py</code> 在进入正式 build 前检查单个 <code>DOING</code> 任务是否有 AC、contract、依赖和验证路径。</span></div>
-        <div class="artifact"><strong>Regression Prompts</strong><span><code>ship-orchestrator/tests/regression-prompts.md</code> 覆盖产品提供入口、未签 gate、需求质量、DAG、preflight 和 handoff 场景。</span></div>
+        <div class="artifact"><strong>Regression Prompts</strong><span><code>ship-orchestrator/tests/regression-prompts.md</code> 覆盖产品提供、技术方案选区、未签 gate、需求质量、DAG、preflight 和 handoff 场景。</span></div>
       </div>
     </section>
 
@@ -470,9 +475,10 @@ python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec &lt;f
         <div class="rule" style="--accent: var(--blue)"><strong>CONTINUE</strong><span>读取 feature <code>meta.yml</code>，优先信任已有 <code>spec_context.workspace_*</code>，再根据 stage status 路由。</span></div>
         <div class="rule" style="--accent: var(--green)"><strong>INSPECT</strong><span>扫描 workspace <code>feature_root/feature-*</code>，过滤 active / blocked，输出功能名、当前大阶段、更新时间和阻塞原因。</span></div>
         <div class="rule" style="--accent: var(--red)"><strong>冲突处理</strong><span><code>meta.yml</code> 与产物 frontmatter 不一致时，优先信任产物；孤立产物或阶段缺失要报告并询问处理。</span></div>
-        <div class="rule" style="--accent: var(--amber)"><strong>资料准备态</strong><span>场景 B/D 先创建 raw inbox 时，<code>ship-define</code> 可为 <code>blocked</code> + <code>awaiting_materials</code>；资料放入后解除阻塞。</span></div>
+        <div class="rule" style="--accent: var(--amber)"><strong>资料准备态</strong><span>场景 B/D 先创建 raw inbox 时，<code>ship-define</code> 可为 <code>blocked</code> + <code>awaiting_materials</code>；场景 E 只创建 resource README，不创建 raw PRD inbox。</span></div>
         <div class="rule" style="--accent: var(--violet)"><strong>Project Reality First</strong><span>已有项目进入 Design 前，<code>ship-tech-discovery</code> 必须先查真实代码、表、API、页面、服务、权限和旧 feature 文档。</span></div>
         <div class="rule" style="--accent: var(--green)"><strong>Scope 冻结</strong><span><code>project_scope</code> 只允许在 <code>ship-design-review</code> 前变更；设计评审通过后冻结。</span></div>
+        <div class="rule" style="--accent: var(--blue)"><strong>选区裁剪</strong><span>技术方案入口下，requirements、contract、frontend/backend design 和 delivery plan 都只覆盖 selected scope；未选中内容只进 risk / open question。</span></div>
       </div>
     </section>
 
@@ -485,11 +491,11 @@ python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec &lt;f
         <div class="artifact"><strong>Workflow Doctor</strong><span><code>workflow_doctor.py</code> 汇总 current stage、macro stage、artifact status、gate status、blocking issues 和 next action。</span></div>
         <div class="artifact"><strong>Artifact Lint</strong><span><code>validate_feature_artifacts.py</code> 做统一 frontmatter、stage status 和阶段产物入口检查。</span></div>
         <div class="artifact"><strong>Stage Transition</strong><span><code>stage_transition_check.py</code> 判断目标阶段是否允许推进，避免绕过 hard gate 或未 ready 产物。</span></div>
-        <div class="artifact"><strong>Requirements</strong><span><code>validate_requirements.py</code> 检查 Domain ID、AC、NFR、open questions、模糊词和 ready 条件。</span></div>
+        <div class="artifact"><strong>Requirements</strong><span><code>validate_requirements.py</code> 检查 Domain ID、AC、NFR、open questions、模糊词、technical_plan source index 和 ready 条件。</span></div>
         <div class="artifact"><strong>Discovery / UI</strong><span><code>validate_product_brief.py</code>、<code>validate_ui_artifacts.py</code> 检查 confidence、evidence、variants、wireframe 和 visual token 信号。</span></div>
         <div class="artifact"><strong>Tech / Contract</strong><span><code>validate_tech_discovery.py</code>、<code>validate_contract.py</code> 检查 source_id、ADR、rejected alternatives、schema、error 和 AC mapping。</span></div>
         <div class="artifact"><strong>Design Alignment</strong><span><code>validate_frontend_design.py</code>、<code>validate_backend_design.py</code>、<code>validate_design_alignment.py</code> 检查 page/API/state、endpoint implementation、migration/rollback 和 contract 对齐。</span></div>
-        <div class="artifact"><strong>Plan / Build / Close</strong><span><code>validate_delivery_plan.py</code>、<code>build_task_preflight.py</code>、<code>validate_verification.py</code>、<code>validate_handoff.py</code> 检查 DAG、单 DOING、测试轨道和验收证据。</span></div>
+        <div class="artifact"><strong>Plan / Build / Close</strong><span><code>validate_delivery_plan.py</code>、<code>build_task_preflight.py</code>、<code>validate_verification.py</code>、<code>validate_handoff.py</code> 检查 DAG、selected scope refs、单 DOING、测试轨道和验收证据。</span></div>
       </div>
       <pre>python3 -m unittest skills/ship-orchestrator/scripts/test_workflow_hardening.py skills/ship-orchestrator/scripts/test_spec_runtime.py
 python3 -m py_compile skills/ship-orchestrator/scripts/*.py
@@ -500,8 +506,8 @@ python3 skills/ship-orchestrator/scripts/validate_workflow_docs.py</pre>
       <h2>复查清单</h2>
       <p>最近复查日期：2026-06-01。计划内可执行工具、共享 reference、维护入口、regression prompts 与逐阶段审计缺口均已落地；本页按 C 类目标重排为“首屏使用指南 + 后半维护细节”。</p>
       <ul>
-        <li>已把使用者入口前置：新建、继续、状态检查、PRD 直通、硬门禁和维护验证。</li>
-        <li>已覆盖四种入口场景：A 零到一、B 产品提供、C 迭代增强、D PRD 直通。</li>
+        <li>已把使用者入口前置：新建、继续、状态检查、PRD 直通、技术方案选区、硬门禁和维护验证。</li>
+        <li>已覆盖五种入口场景：A 零到一、B 产品提供、C 迭代增强、D PRD 直通、E 技术方案选区。</li>
         <li>已覆盖五个 macro stage、14 个 canonical stage、三道 hard gate、standard / fast-track、project_scope 裁剪。</li>
         <li>已覆盖 frontmatter 事实源、<code>meta.yml</code> 索引层、delegation contract、workspace spec boundary、恢复和查询协议。</li>
         <li>已覆盖 doctor、artifact lint、stage transition、requirements、traceability、contract、design alignment、delivery plan、build preflight、verification、handoff 等 validators。</li>

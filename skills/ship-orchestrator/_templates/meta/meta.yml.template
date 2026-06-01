@@ -12,11 +12,12 @@ lifecycle_status: active      # active | blocked | completed | abandoned（featu
 current_stage: ""             # ship-discover | ship-shape | ship-define | ship-define-review | ship-tech-discovery | ship-contract | ship-frontend-design | ship-backend-design | ship-design-review | ship-delivery-plan | ship-plan-review | ship-build | ship-verify | ship-handoff
 
 # 场景识别（NEW_FEATURE 入口判定，决定是否进入 Discover 大阶段）
-scenario: ""                  # greenfield | product_provided | prd_direct | evolve
+scenario: ""                  # greenfield | product_provided | prd_direct | evolve | technical_plan_provided
 # greenfield: 场景 A，零到一头脑风暴
 # product_provided: 场景 B，已有完整 PRD/原型/UIUX，跳过 Discover，走 interview 模式录入
 # prd_direct: 场景 D，已有完整 PRD/原型/UIUX 且用户明确不需要需求录入，跳过 Discover，走 prd_direct 模式提取
 # evolve: 场景 C，基于已有功能做迭代增强
+# technical_plan_provided: 场景 E，已有技术方案 + selected scope，仅围绕选区生成后续计划；只适用于 existing_project
 
 # 默认对外展示的大阶段视图
 macro_stage:
@@ -86,6 +87,17 @@ spec_context:
   warnings: []                # 最近一次 helper 解析产生的告警
   pending_proposals: []       # ship-handoff 生成、待用户确认沉淀的规范提案
 
+# 技术方案选区入口索引层（scenario=technical_plan_provided 时必填）
+# 原始技术方案或粘贴片段必须归档到 resource/ 或用户提供的可读路径；未选中内容默认 out_of_scope。
+technical_plan_source:
+  source_files: []            # 例: ["resource/order-export-tech-design.md"]
+  selection_mode: ""          # referenced_sections | pasted_excerpt
+  selected_scope: []          # 例: [{type: section, label: "3.2 订单导出异步任务", source_file: "resource/order-export-tech-design.md", locator: heading}]
+  pasted_excerpt_file: ""     # 例: resource/technical-plan-excerpt.md
+  ignored_source_policy: out_of_scope
+  repository_scan_required: true
+  repository_scan_status: pending # pending | in_progress | ready | blocked
+
 # 各阶段摘要状态（由 orchestrator 维护；与文档冲突时以文档 frontmatter 为准）
 stages:
   ship-discover:
@@ -100,7 +112,7 @@ stages:
     asset_protocol_invoked: false  # 是否走了 Core Asset Protocol
   ship-define:
     status: pending           # pending | in_progress | ready | blocked | completed
-    generation_mode: ""       # interview | prd_direct（由 scenario 决定；prd_direct 时零提问纯提取）
+    generation_mode: ""       # interview | prd_direct | technical_plan（由 scenario 决定；technical_plan 只提取 selected scope）
     block_reason: ""          # awaiting_materials 表示已创建目录但等待用户补 PRD/原型/设计稿等资料
     evidence_complete: false
   ship-define-review:

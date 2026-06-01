@@ -35,6 +35,27 @@ def _section_present(text: str, names: tuple[str, ...]) -> bool:
     return any(name.lower() in lowered for name in names)
 
 
+def _technical_plan_source_present(frontmatter: dict[str, Any], body: str) -> bool:
+    source_documents = frontmatter.get("source_documents")
+    if isinstance(source_documents, list) and source_documents:
+        return True
+    if isinstance(source_documents, str) and source_documents.strip():
+        return True
+    selected_scope = frontmatter.get("selected_scope")
+    if isinstance(selected_scope, list) and selected_scope:
+        return True
+    if isinstance(selected_scope, str) and selected_scope.strip():
+        return True
+    lowered = body.lower()
+    return (
+        "technical_plan_source" in lowered
+        or "selected scope" in lowered
+        or "selected_scope" in lowered
+        or "技术方案选区" in body
+        or "选中范围" in body
+    )
+
+
 def _lines_with(pattern: re.Pattern[str], text: str) -> list[str]:
     return [line.strip() for line in text.splitlines() if pattern.search(line)]
 
@@ -95,6 +116,14 @@ def validate_requirements_file(requirements_path: Path) -> dict[str, Any]:
         issues.append(_issue("error", "invalid_stage_status", f"invalid stage_status: {stage_status!r}"))
     if generation_mode in ("raw_prd_input", "raw_prd") and ready:
         issues.append(_issue("error", "raw_prd_marked_ready", "raw PRD inbox cannot be marked ready before normalize"))
+    if generation_mode == "technical_plan" and not _technical_plan_source_present(frontmatter, body):
+        issues.append(
+            _issue(
+                "error" if ready else "warning",
+                "technical_plan_missing_source_index",
+                "technical_plan requirements must reference selected scope source_documents or equivalent source index",
+            )
+        )
 
     domain_ids = sorted(set(DOMAIN_RE.findall(body)))
     ac_ids = sorted(set(AC_RE.findall(body)))

@@ -73,9 +73,16 @@ VALID_DELEGATION_MODES: tuple[str, ...] = (
 )
 
 VALID_PROJECT_SCOPES: tuple[str, ...] = ("fullstack", "backend_only", "frontend_only")
-VALID_SCENARIOS: tuple[str, ...] = ("greenfield", "product_provided", "prd_direct", "evolve")
+VALID_SCENARIOS: tuple[str, ...] = (
+    "greenfield",
+    "product_provided",
+    "prd_direct",
+    "evolve",
+    "technical_plan_provided",
+)
 DISCOVER_SCENARIOS: frozenset[str] = frozenset({"greenfield", "evolve"})
 DEFINE_SCENARIOS: frozenset[str] = frozenset({"product_provided", "prd_direct"})
+TECHNICAL_PLAN_SCENARIOS: frozenset[str] = frozenset({"technical_plan_provided"})
 VALID_LIFECYCLE_STATUSES: tuple[str, ...] = ("active", "blocked", "completed", "abandoned")
 AWAITING_MATERIALS = "awaiting_materials"
 IGNORED_PROJECT_CANDIDATE_DIRS: frozenset[str] = frozenset(
@@ -839,6 +846,22 @@ def apply_scenario_initial_state(data: dict, scenario: str) -> None:
         shape.setdefault("status", "pending")
         define["block_reason"] = ""
         define["generation_mode"] = "interview"
+    elif scenario in TECHNICAL_PLAN_SCENARIOS:
+        data["current_stage"] = "ship-define"
+        discover["status"] = "skipped"
+        shape["status"] = "skipped"
+        define["status"] = "blocked"
+        define["block_reason"] = AWAITING_MATERIALS
+        define["evidence_complete"] = False
+        define["generation_mode"] = "technical_plan"
+        technical_plan_source = data.setdefault("technical_plan_source", {})
+        technical_plan_source.setdefault("source_files", [])
+        technical_plan_source.setdefault("selection_mode", "")
+        technical_plan_source.setdefault("selected_scope", [])
+        technical_plan_source.setdefault("pasted_excerpt_file", "")
+        technical_plan_source["ignored_source_policy"] = "out_of_scope"
+        technical_plan_source["repository_scan_required"] = True
+        technical_plan_source.setdefault("repository_scan_status", "pending")
     else:
         data["current_stage"] = "ship-define"
         discover["status"] = "skipped"
@@ -861,6 +884,53 @@ def create_material_intake_files(feature_dir: Path, scenario: str) -> None:
         requirements_path = feature_dir / "requirements.md"
         if not requirements_path.exists():
             shutil.copyfile(RAW_PRD_INBOX_TEMPLATE_PATH, requirements_path)
+
+
+def _selected_scope_items(
+    selected_scopes: list[str] | tuple[str, ...] | None,
+    source_files: list[str],
+) -> list[dict[str, str]]:
+    items: list[dict[str, str]] = []
+    default_source = source_files[0] if source_files else ""
+    for raw_scope in selected_scopes or []:
+        if not isinstance(raw_scope, str) or not raw_scope.strip():
+            raise ValueError("technical selected scope entries must be non-empty strings")
+        label = raw_scope.strip()
+        scope_type = "api" if "/" in label and any(method in label.upper() for method in ("GET", "POST", "PUT", "PATCH", "DELETE")) else "section"
+        items.append(
+            {
+                "type": scope_type,
+                "label": label,
+                "source_file": default_source,
+                "locator": "heading" if scope_type == "section" else "api",
+            }
+        )
+    return items
+
+
+def build_technical_plan_source(
+    *,
+    source_files: list[str] | tuple[str, ...] | None = None,
+    selection_mode: str = "",
+    selected_scopes: list[str] | tuple[str, ...] | None = None,
+    pasted_excerpt_file: str = "",
+) -> dict:
+    normalized_source_files = [str(path).strip() for path in source_files or [] if str(path).strip()]
+    normalized_selection_mode = selection_mode.strip()
+    normalized_pasted_excerpt_file = pasted_excerpt_file.strip()
+    if normalized_selection_mode not in ("referenced_sections", "pasted_excerpt"):
+        raise ValueError("technical selection mode must be referenced_sections or pasted_excerpt")
+
+    selected_scope = _selected_scope_items(selected_scopes, normalized_source_files)
+    return {
+        "source_files": normalized_source_files,
+        "selection_mode": normalized_selection_mode,
+        "selected_scope": selected_scope,
+        "pasted_excerpt_file": normalized_pasted_excerpt_file,
+        "ignored_source_policy": "out_of_scope",
+        "repository_scan_required": True,
+        "repository_scan_status": "pending",
+    }
 
 
 def _is_raw_prd_inbox_empty(requirements_path: Path) -> bool:
@@ -903,6 +973,10 @@ def create_feature_meta(
     scenario: str = "",
     workspace_context: WorkspaceSpecContext | None = None,
     projects: list[str] | tuple[str, ...] | None = None,
+    technical_source_files: list[str] | tuple[str, ...] | None = None,
+    technical_selection_mode: str = "",
+    technical_selected_scopes: list[str] | tuple[str, ...] | None = None,
+    technical_pasted_excerpt_file: str = "",
 ) -> Path:
     if scenario not in VALID_SCENARIOS:
         raise ValueError(f"invalid scenario: {scenario}")
@@ -911,6 +985,17 @@ def create_feature_meta(
     if project_scope in {"backend_only", "frontend_only"} and not project_scope_evidence.strip():
         raise ValueError(
             "project_scope_evidence is required when project_scope is backend_only or frontend_only"
+        )
+    if scenario in TECHNICAL_PLAN_SCENARIOS and project_context != "existing_project":
+        raise ValueError("technical_plan_provided requires project_context=existing_project")
+
+    technical_plan_source = None
+    if scenario in TECHNICAL_PLAN_SCENARIOS:
+        technical_plan_source = build_technical_plan_source(
+            source_files=technical_source_files,
+            selection_mode=technical_selection_mode,
+            selected_scopes=technical_selected_scopes,
+            pasted_excerpt_file=technical_pasted_excerpt_file,
         )
 
     feature_projects = (
@@ -940,6 +1025,8 @@ def create_feature_meta(
         data["workspace_mode"] = workspace_context.workspace_mode
     data["projects"] = feature_projects
     data["lifecycle_status"] = "active"
+    if technical_plan_source is not None:
+        data["technical_plan_source"] = technical_plan_source
     apply_scenario_initial_state(data, scenario)
     apply_scope_skips(data)
     ensure_macro_stage(data)
@@ -1244,7 +1331,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--scenario",
         required=True,
         choices=VALID_SCENARIOS,
-        help="Entry scenario: greenfield, product_provided, prd_direct, or evolve",
+        help="Entry scenario: greenfield, product_provided, prd_direct, evolve, or technical_plan_provided",
     )
     init_parser.add_argument(
         "--pipeline-mode",
@@ -1268,6 +1355,29 @@ def build_parser() -> argparse.ArgumentParser:
         "--project-scope-evidence",
         default="",
         help="Required evidence when project_scope is backend_only or frontend_only",
+    )
+    init_parser.add_argument(
+        "--technical-source-file",
+        action="append",
+        default=[],
+        help="Technical plan source file path for technical_plan_provided; repeatable",
+    )
+    init_parser.add_argument(
+        "--technical-selected-scope",
+        action="append",
+        default=[],
+        help="Selected technical plan section/API/module label; repeatable",
+    )
+    init_parser.add_argument(
+        "--technical-selection-mode",
+        default="",
+        choices=("", "referenced_sections", "pasted_excerpt"),
+        help="Selection mode for technical_plan_provided",
+    )
+    init_parser.add_argument(
+        "--technical-pasted-excerpt-file",
+        default="",
+        help="Archived pasted excerpt path, e.g. resource/technical-plan-excerpt.md",
     )
 
     refresh_parser = subparsers.add_parser("refresh", help="Refresh macro_stage from current_stage")
@@ -1365,6 +1475,10 @@ def main(argv: list[str]) -> int:
             scenario=args.scenario,
             workspace_context=workspace_context,
             projects=args.project,
+            technical_source_files=args.technical_source_file,
+            technical_selection_mode=args.technical_selection_mode,
+            technical_selected_scopes=args.technical_selected_scope,
+            technical_pasted_excerpt_file=args.technical_pasted_excerpt_file,
         )
         print(meta_path)
         return 0

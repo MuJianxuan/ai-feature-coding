@@ -73,6 +73,7 @@ description: "ShipKit stage. Designs frontend architecture based on UI/UX protot
 - `assistive_subagent` 在本阶段无效；若 `ask_on_parallel_stage = false` 且没有显式 `node_overrides[ship-frontend-design] = parallel_subagent`，则回退 `current_context`
 - 子代理仍不得推进 `ship-design-review`，正式阶段切换由 orchestrator 统一收口
 - 本阶段只消费 workspace `spec_root` 下的规范，不从 `meta.yml.projects` 预设前后端角色；项目是否包含 UI / page / component 必须基于 Project Reality First 证据判断
+- 当 `meta.yml.scenario: technical_plan_provided` 时，frontend design 必须按 `technical_plan_source.selected_scope` 裁剪：只覆盖 selected scope 相关页面、组件、API client、状态和错误 UX。未选中技术方案内容不得进入本期设计，除非作为依赖风险或 open question 记录。
 
 ## Process
 

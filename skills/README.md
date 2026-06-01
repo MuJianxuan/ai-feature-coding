@@ -19,7 +19,7 @@
 | `Build` | 完成实施计划、编码执行、自动化验证 | 是否可以开始编码、当前进展、下一次确认点 | 始终 |
 | `Close` | 完成 AC 映射验收与交付总结 | 是否已可交付、残余风险、handoff 结论 | 始终 |
 
-### 四种入口场景
+### 五种入口场景
 
 | 场景 | 描述 | 起点 | Discover |
 |------|------|------|----------|
@@ -27,16 +27,18 @@
 | B 产品提供 | 已有完整 PRD/Figma/原型/UIUX | `ship-define` (interview mode) | 跳过 |
 | C 迭代增强 | 基于已有功能做修改/扩展，有旧代码但无新 PRD | `ship-discover` (evolve) | 激活 |
 | D PRD 直通 | 已有完整 PRD + 原型 + 设计稿，用户明确不需要需求录入 | `ship-define` (prd_direct mode) | 跳过 |
+| E 技术方案选区 | 已有技术方案文件或粘贴片段，只围绕指定章节/接口/模块生成计划；仅适用于 `existing_project` | `ship-define` (`technical_plan` mode) | 跳过 |
 
 默认原则：
 
 - 用户默认只和 `ship-orchestrator` 交互
-- orchestrator 自动识别场景（A/B/C/D）并路由到正确的起点
+- orchestrator 自动识别场景（A/B/C/D/E）并路由到正确的起点
 - 状态默认显示大阶段，不要求记住内部阶段名
 - 只有在恢复断点、排查阻塞、直接调用某阶段时，才展开内部细阶段
 - `ship-spec` 作为 workflow utility 隐式接入，不作为单独阶段暴露给默认用户视图
 - `ship-spec` 只消费 workspace 的 `spec_root`；多项目父目录下必须先初始化 `.docs/ship/project.yml`，再为 feature 选择默认关联 projects
 - 进入 Design 后，`ship-tech-discovery` 对已有项目必须 Project Reality First：先查真实功能、表、API、页面、服务、权限和既有 feature 文档，再做技术调研/选型
+- `technical_plan_provided` 入口只计划 selected scope；不会把整份技术方案纳入计划，未选中内容默认 `out_of_scope`
 - 规范路由从单一 `.docs/spec/INDEX.md` 开始；INDEX 只区分 `frontend / backend / shared`，frontmatter schema 不新增 `spec_type`
 
 ## 为什么这样设计
@@ -104,6 +106,18 @@
 - 当前处于 `Discover`
 - 系统将扫描现有代码与文档，分析变更影响
 - 下一次需要你的动作：确认变更范围和影响分析
+
+#### 场景 E：技术方案选区
+
+```text
+启动 ship-orchestrator，基于 resource/order-export-tech-design.md 的 3.2 订单导出异步任务章节生成 delivery plan。
+```
+
+默认响应：
+- 识别为场景 E，scenario = `technical_plan_provided`，起点 `ship-define`（technical_plan mode），跳过 Discover
+- 要求 `project_context: existing_project`
+- 当前只围绕 selected scope 提取最小 requirements / AC，未选中技术方案内容不会进入 plan
+- Design 大阶段仍必须做 Project Reality Scan，并且进入 `ship-delivery-plan` 前必须通过 `ship-design-review`
 
 ### 继续已有 feature
 
@@ -217,7 +231,8 @@
 其中：
 
 - `current_stage` 记录内部细阶段
-- `scenario` 记录入口场景（greenfield / product_provided / evolve）
+- `scenario` 记录入口场景（greenfield / product_provided / evolve / prd_direct / technical_plan_provided）
+- `technical_plan_source` 记录技术方案选区入口的来源文件、selected scope、`ignored_source_policy: out_of_scope` 和仓库探索状态
 - `macro_stage` 记录默认对外展示的大阶段摘要
 - `workspace_mode` 记录当前 feature 来自 `single_project` 还是 `project_group`
 - `projects` 记录本 feature 默认关联的一级项目名列表

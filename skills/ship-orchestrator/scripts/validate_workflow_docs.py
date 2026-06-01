@@ -64,6 +64,10 @@ def validate_meta_template() -> None:
         "gate_check_subagent",
         "ship-verify.backend-contract: assistive_subagent",
         "scenario: \"\"",
+        "technical_plan_provided",
+        "technical_plan_source:",
+        "repository_scan_required: true",
+        "generation_mode: \"\"       # interview | prd_direct | technical_plan",
         "project_scope: fullstack",
         "project_scope_evidence: \"\"",
     ):
@@ -93,6 +97,16 @@ def validate_protocol_doc() -> None:
     require("skip_log" in text, f"{path}: missing skip_log references")
     require("lifecycle_status" in text, f"{path}: missing lifecycle_status references")
     require("scenario" in text, f"{path}: missing scenario references")
+    for snippet in (
+        "technical_plan_provided",
+        "technical_plan_source",
+        "selected scope",
+        "out_of_scope",
+        "generation_mode: technical_plan",
+        "不新增 canonical stage",
+        "ship-design-review",
+    ):
+        require(snippet in text, f"{path}: missing `{snippet}`")
     require("parallel_owned_outputs" in text, f"{path}: missing delegation mode wording")
     require("parallel_subagent" in text, f"{path}: missing parallel_subagent wording")
     require("gate_check_switchable" in text, f"{path}: missing hard-gate execution mode wording")
@@ -154,7 +168,16 @@ def validate_readmes() -> None:
             require(snippet in text, f"{path}: missing `{snippet}`")
         require("4 个大阶段" not in text and "4 大阶段" not in text, f"{path}: contains legacy 4-stage wording")
     skills_readme = read_text(ROOT / "skills/README.md")
-    require("场景（A/B/C/D）" in skills_readme, "skills/README.md: default principle must include scenario D")
+    require("场景（A/B/C/D/E）" in skills_readme, "skills/README.md: default principle must include scenario E")
+    for path in workflow_readme_paths:
+        text = read_text(path)
+        for snippet in (
+            "technical_plan_provided",
+            "技术方案选区",
+            "existing_project",
+            "不会把整份技术方案纳入计划",
+        ):
+            require(snippet in text, f"{path}: missing `{snippet}`")
 
     templates_readme = ROOT / "skills/ship-orchestrator/_templates/README.md"
     templates_text = read_text(templates_readme)
@@ -343,6 +366,15 @@ def validate_orchestrator_doc() -> None:
     require("workspace config" in text or "Workspace Config Gate" in text, f"{path}: missing workspace config wording")
     require("Feature Scope Interview" in text, f"{path}: missing feature scope interview")
     require("delegation" in text, f"{path}: missing delegation references")
+    for snippet in (
+        "technical_plan_provided",
+        "E 技术方案选区入口",
+        "selected scope",
+        "ignored_source_policy: out_of_scope",
+        "repository_scan_required",
+        "ship-design-review",
+    ):
+        require(snippet in text, f"{path}: missing `{snippet}`")
     require("ship-build 正式任务保持单 `DOING`" in text, f"{path}: missing build delegation wording")
     require("parallel_subagent" in text, f"{path}: missing parallel_subagent wording")
     require("gate_check_switchable" in text, f"{path}: missing gate_check_switchable wording")
@@ -426,6 +458,9 @@ def validate_project_local_stage_docs() -> None:
             "Evidence and Uncertainty",
             "Research Alignment Check",
             "不是 hard gate",
+            "technical_plan_provided",
+            "selected scope",
+            "未选中内容",
         ),
         ROOT / "skills/ship-frontend-design/SKILL.md": (
             "workspace `spec_root`",
@@ -433,6 +468,8 @@ def validate_project_local_stage_docs() -> None:
             "Existing Surface Inventory",
             "frontend / shared",
             "reuse / extend / new / avoid / unknown",
+            "technical_plan_provided",
+            "selected scope",
         ),
         ROOT / "skills/ship-backend-design/SKILL.md": (
             "workspace `spec_root`",
@@ -441,11 +478,15 @@ def validate_project_local_stage_docs() -> None:
             "Existing Surface Inventory",
             "backend / shared",
             "DB / ORM / migration",
+            "technical_plan_provided",
+            "selected scope",
         ),
         ROOT / "skills/ship-contract/SKILL.md": (
             "Requirement-to-Reality Mapping",
             "Existing Surface Inventory",
             "breaking change",
+            "technical_plan_provided",
+            "selected scope",
         ),
         ROOT / "skills/ship-build/SKILL.md": (
             "workspace `spec_root`",
@@ -477,8 +518,37 @@ def validate_project_local_stage_docs() -> None:
         "四类证据",
         "不得静默落盘为单侧 scope",
         "在用户确认之前不得写回单侧 `project_scope`",
+        "technical_plan_provided",
+        "technical_plan_source",
+        "selected_scope",
+        "最小 AC",
     ):
         require(snippet in protocol_text, f"{ROOT / 'skills/ship-orchestrator/_templates/protocol/workflow-protocol.md'}: missing `{snippet}`")
+    define_text = read_text(ROOT / "skills/ship-define/SKILL.md")
+    for snippet in (
+        "generation_mode: technical_plan",
+        "Technical Plan Mode",
+        "selected scope",
+        "source_documents",
+        "最小 AC",
+    ):
+        require(snippet in define_text, f"{ROOT / 'skills/ship-define/SKILL.md'}: missing `{snippet}`")
+    define_review_text = read_text(ROOT / "skills/ship-define-review/SKILL.md")
+    for snippet in (
+        "generation_mode: technical_plan",
+        "技术方案选区评审",
+        "selected scope",
+        "未选中内容",
+    ):
+        require(snippet in define_review_text, f"{ROOT / 'skills/ship-define-review/SKILL.md'}: missing `{snippet}`")
+    delivery_plan_text = read_text(ROOT / "skills/ship-delivery-plan/SKILL.md")
+    for snippet in (
+        "technical_plan_provided",
+        "selected scope",
+        "未选中内容",
+        "仓库探索证据",
+    ):
+        require(snippet in delivery_plan_text, f"{ROOT / 'skills/ship-delivery-plan/SKILL.md'}: missing `{snippet}`")
 
 
 def validate_stage_map_script() -> None:

@@ -41,6 +41,16 @@ description: "ShipKit stage. Performs project-reality-first technical discovery,
 
 说明：即使本次“无新技术引入、无架构决策”，只要是在已有项目上做功能迭代，仍需要最小 Project Reality Scan；不能因为技术栈固定就跳过项目事实发现。
 
+### technical_plan_provided 裁剪规则
+
+当 `meta.yml.scenario: technical_plan_provided` 时，本阶段仍必须执行 Project Reality Scan，但扫描范围只围绕 `technical_plan_source.selected_scope`：
+
+- 优先按 selected scope 的章节名、接口、模块、标题、代码路径和关键词搜索仓库。
+- `Requirement-to-Reality Mapping` 只覆盖 selected scope 对应的 Domain ID / AC ID。
+- 不扫描未选中章节对应的功能；未选中内容默认视为 out_of_scope。
+- 若未选中内容构成 selected scope 的前置依赖或冲突，只记录为 risk / open question，并询问是否扩大 selected scope，不自动纳入本期。
+- `repository_scan_status: ready` 只是 meta 索引；真正允许进入后续阶段的事实源仍是 `tech-research.md` 和 `tech-selection.md` 的 frontmatter 与内容校验。
+
 ## Stage Contract
 
 本阶段属于单 stage 双产物：

@@ -23,6 +23,8 @@ REVIEW_STATUSES = frozenset({"pending", "approved", "rejected", "revision_needed
 META_NON_REVIEW_STATUSES = frozenset({"pending", "in_progress", "ready", "blocked", "completed", "skipped"})
 META_REVIEW_STATUSES = frozenset({"pending", "in_progress", "approved", "rejected", "revision_needed", "skipped"})
 REVIEW_STAGES = frozenset({"ship-define-review", "ship-design-review", "ship-plan-review"})
+TECHNICAL_PLAN_SCENARIO = "technical_plan_provided"
+TECHNICAL_PLAN_SCAN_STATUSES = frozenset({"pending", "in_progress", "ready", "blocked"})
 
 
 @dataclass(frozen=True)
@@ -164,6 +166,47 @@ def _validate_meta(feature_dir: Path, meta: dict[str, Any]) -> list[dict[str, st
         allowed = META_REVIEW_STATUSES if stage in REVIEW_STAGES else META_NON_REVIEW_STATUSES
         if status not in allowed:
             issues.append(_issue("error", "invalid_meta_status", f"invalid meta status for {stage}: {status!r}", "meta.yml"))
+
+    if meta.get("scenario") == TECHNICAL_PLAN_SCENARIO:
+        issues.extend(_validate_technical_plan_meta(meta))
+
+    return issues
+
+
+def _validate_technical_plan_meta(meta: dict[str, Any]) -> list[dict[str, str]]:
+    issues: list[dict[str, str]] = []
+    technical_plan_source = meta.get("technical_plan_source")
+    if not isinstance(technical_plan_source, dict):
+        return [_issue("error", "missing_technical_plan_source", "technical_plan_provided requires technical_plan_source", "meta.yml")]
+
+    source_files = technical_plan_source.get("source_files")
+    selection_mode = technical_plan_source.get("selection_mode")
+    pasted_excerpt_file = technical_plan_source.get("pasted_excerpt_file")
+    selected_scope = technical_plan_source.get("selected_scope")
+    repository_scan_status = technical_plan_source.get("repository_scan_status")
+
+    if meta.get("project_context") != "existing_project":
+        issues.append(_issue("error", "technical_plan_requires_existing_project", "technical_plan_provided requires project_context=existing_project", "meta.yml"))
+    if not isinstance(source_files, list):
+        issues.append(_issue("error", "invalid_technical_source_files", "technical_plan_source.source_files must be a list", "meta.yml"))
+        source_files = []
+    if selection_mode not in ("referenced_sections", "pasted_excerpt"):
+        issues.append(_issue("error", "invalid_technical_selection_mode", f"invalid technical selection_mode: {selection_mode!r}", "meta.yml"))
+    if not any(str(item).strip() for item in source_files) and not str(pasted_excerpt_file or "").strip():
+        issues.append(_issue("error", "missing_technical_source", "technical_plan_source requires source_files or pasted_excerpt_file", "meta.yml"))
+    if not isinstance(selected_scope, list) or not selected_scope:
+        issues.append(_issue("error", "missing_selected_scope", "technical_plan_source.selected_scope must be non-empty", "meta.yml"))
+    if technical_plan_source.get("ignored_source_policy") != "out_of_scope":
+        issues.append(_issue("error", "invalid_ignored_source_policy", "technical_plan_source.ignored_source_policy must be out_of_scope", "meta.yml"))
+    if technical_plan_source.get("repository_scan_required") is not True:
+        issues.append(_issue("error", "repository_scan_required", "technical_plan_source.repository_scan_required must be true", "meta.yml"))
+    if repository_scan_status not in TECHNICAL_PLAN_SCAN_STATUSES:
+        issues.append(_issue("error", "invalid_repository_scan_status", f"invalid repository_scan_status: {repository_scan_status!r}", "meta.yml"))
+
+    stages = meta.get("stages") if isinstance(meta.get("stages"), dict) else {}
+    tech_discovery = stages.get("ship-tech-discovery") if isinstance(stages.get("ship-tech-discovery"), dict) else {}
+    if tech_discovery.get("status") in ("ready", "completed") and repository_scan_status != "ready":
+        issues.append(_issue("error", "repository_scan_not_ready", "repository_scan_status must be ready after ship-tech-discovery is ready", "meta.yml"))
 
     return issues
 

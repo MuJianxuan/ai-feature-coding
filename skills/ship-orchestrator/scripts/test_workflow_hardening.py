@@ -275,6 +275,93 @@ Out of Scope: 用户注册。
 
         self.assertTrue(result["ok"], result["issues"])
 
+    def test_technical_plan_requirements_ready_requires_selected_scope_source_index(self) -> None:
+        self.write_text(
+            "requirements.md",
+            """---
+stage: ship-define
+stage_status: ready
+generation_mode: technical_plan
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# Requirements
+
+## 3. 功能范围
+In Scope: 订单导出。
+Out of Scope: 订单导入。
+
+## 4. 业务域建模
+- D-ORDER-001 订单导出
+
+## 5. 验收标准
+- AC-ORDER-001 | D-ORDER-001 | Given 管理员在订单页, When 提交导出, Then 系统返回导出任务 ID
+
+## 6. 非功能需求
+性能：导出请求 P95 < 500ms。
+安全：导出接口需要认证、授权和审计。
+可用性：任务服务异常时返回明确错误。
+可访问性：下载入口支持键盘导航。
+
+## 8. 待确认问题清单
+- 无阻塞问题。
+
+## 9. 需求资料索引
+- resource/order-export-tech-design.md 已解析
+""",
+        )
+
+        result = validate_requirements_file(self.feature_dir / "requirements.md")
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "technical_plan_missing_source_index" for issue in result["issues"]))
+
+    def test_technical_plan_requirements_ready_passes_with_selected_scope_source_index(self) -> None:
+        self.write_text(
+            "requirements.md",
+            """---
+stage: ship-define
+stage_status: ready
+generation_mode: technical_plan
+source_documents:
+  - resource/order-export-tech-design.md#3.2-order-export
+selected_scope:
+  - 3.2 Order export async task
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# Requirements
+
+## 3. 功能范围
+In Scope: 订单导出。
+Out of Scope: 订单导入。
+
+## 4. 业务域建模
+- D-ORDER-001 订单导出
+
+## 5. 验收标准
+- AC-ORDER-001 | D-ORDER-001 | Given 管理员在订单页, When 提交导出, Then 系统返回导出任务 ID
+
+## 6. 非功能需求
+性能：导出请求 P95 < 500ms。
+安全：导出接口需要认证、授权和审计。
+可用性：任务服务异常时返回明确错误。
+可访问性：下载入口支持键盘导航。
+
+## 8. 待确认问题清单
+- 无阻塞问题。
+
+## 9. 需求资料索引
+- selected scope: resource/order-export-tech-design.md#3.2-order-export
+""",
+        )
+
+        result = validate_requirements_file(self.feature_dir / "requirements.md")
+
+        self.assertTrue(result["ok"], result["issues"])
+
     def test_traceability_reports_ac_gaps_and_orphans(self) -> None:
         self.write_requirements(status="ready")
         self.write_text(
@@ -1147,6 +1234,175 @@ evidence_complete: true
 
         self.assertFalse(result["ok"])
         self.assertTrue(any(issue["code"] == "missing_project_scope_evidence" for issue in result["issues"]))
+
+    def test_technical_plan_meta_requires_selected_scope(self) -> None:
+        self.write_meta(
+            current_stage="ship-define",
+            scenario="technical_plan_provided",
+            project_context="existing_project",
+            define_status="blocked",
+        )
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["technical_plan_source"] = {
+            "source_files": ["resource/order-export-tech-design.md"],
+            "selection_mode": "referenced_sections",
+            "selected_scope": [],
+            "pasted_excerpt_file": "",
+            "ignored_source_policy": "out_of_scope",
+            "repository_scan_required": True,
+            "repository_scan_status": "pending",
+        }
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "missing_selected_scope" for issue in result["issues"]))
+
+    def test_technical_plan_meta_requires_existing_project(self) -> None:
+        self.write_meta(
+            current_stage="ship-define",
+            scenario="technical_plan_provided",
+            project_context="new_project",
+            define_status="blocked",
+        )
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["technical_plan_source"] = {
+            "source_files": ["resource/order-export-tech-design.md"],
+            "selection_mode": "referenced_sections",
+            "selected_scope": [{"type": "section", "label": "3.2 Export", "source_file": "resource/order-export-tech-design.md", "locator": "heading"}],
+            "pasted_excerpt_file": "",
+            "ignored_source_policy": "out_of_scope",
+            "repository_scan_required": True,
+            "repository_scan_status": "pending",
+        }
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "technical_plan_requires_existing_project" for issue in result["issues"]))
+
+    def test_technical_plan_meta_requires_valid_selection_mode(self) -> None:
+        self.write_meta(
+            current_stage="ship-define",
+            scenario="technical_plan_provided",
+            project_context="existing_project",
+            define_status="blocked",
+        )
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["technical_plan_source"] = {
+            "source_files": ["resource/order-export-tech-design.md"],
+            "selection_mode": "pages",
+            "selected_scope": [{"type": "section", "label": "3.2 Export", "source_file": "resource/order-export-tech-design.md", "locator": "heading"}],
+            "pasted_excerpt_file": "",
+            "ignored_source_policy": "out_of_scope",
+            "repository_scan_required": True,
+            "repository_scan_status": "pending",
+        }
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "invalid_technical_selection_mode" for issue in result["issues"]))
+
+    def test_technical_plan_scan_status_must_be_ready_after_tech_discovery_ready(self) -> None:
+        self.write_meta(
+            current_stage="ship-contract",
+            scenario="technical_plan_provided",
+            project_context="existing_project",
+        )
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["technical_plan_source"] = {
+            "source_files": ["resource/order-export-tech-design.md"],
+            "selection_mode": "referenced_sections",
+            "selected_scope": [{"type": "section", "label": "3.2 Export", "source_file": "resource/order-export-tech-design.md", "locator": "heading"}],
+            "pasted_excerpt_file": "",
+            "ignored_source_policy": "out_of_scope",
+            "repository_scan_required": True,
+            "repository_scan_status": "pending",
+        }
+        meta["stages"]["ship-tech-discovery"]["status"] = "ready"
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "repository_scan_not_ready" for issue in result["issues"]))
+
+    def test_technical_plan_cannot_enter_delivery_plan_before_design_review_gate(self) -> None:
+        self.write_meta(
+            current_stage="ship-design-review",
+            scenario="technical_plan_provided",
+            project_context="existing_project",
+            define_review_status="approved",
+        )
+        self.write_requirements(status="ready")
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["technical_plan_source"] = {
+            "source_files": ["resource/order-export-tech-design.md"],
+            "selection_mode": "referenced_sections",
+            "selected_scope": [{"type": "section", "label": "3.2 Export", "source_file": "resource/order-export-tech-design.md", "locator": "heading"}],
+            "pasted_excerpt_file": "",
+            "ignored_source_policy": "out_of_scope",
+            "repository_scan_required": True,
+            "repository_scan_status": "ready",
+        }
+        meta["stages"]["ship-define"]["status"] = "ready"
+        meta["stages"]["ship-define-review"]["status"] = "approved"
+        meta["stages"]["ship-define-review"]["approved"] = True
+        meta["stages"]["ship-tech-discovery"]["status"] = "ready"
+        meta["stages"]["ship-contract"]["status"] = "ready"
+        meta["stages"]["ship-frontend-design"]["status"] = "ready"
+        meta["stages"]["ship-backend-design"]["status"] = "ready"
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+        self.write_define_review(status="approved", signed=True)
+
+        result = check_transition(self.feature_dir, "ship-delivery-plan")
+
+        self.assertFalse(result["allowed"])
+        self.assertTrue(any(issue["code"] == "missing_stage_artifact" and "ship-design-review" in issue["message"] for issue in result["issues"]))
+
+    def test_technical_plan_delivery_plan_requires_selected_scope_ref(self) -> None:
+        self.write_meta(
+            current_stage="ship-delivery-plan",
+            scenario="technical_plan_provided",
+            project_context="existing_project",
+            project_scope="backend_only",
+            project_scope_evidence="用户明确声明纯后端 API 项目",
+        )
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["technical_plan_source"] = {
+            "source_files": ["resource/order-export-tech-design.md"],
+            "selection_mode": "referenced_sections",
+            "selected_scope": [{"type": "section", "label": "3.2 Order export async task", "source_file": "resource/order-export-tech-design.md", "locator": "heading"}],
+            "pasted_excerpt_file": "",
+            "ignored_source_policy": "out_of_scope",
+            "repository_scan_required": True,
+            "repository_scan_status": "ready",
+        }
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+        self.write_plan(
+            "backend-plan.md",
+            "backend-plan",
+            """## Tasks
+### BE-ORDER-001
+- project: api
+- scope: order import endpoint
+- allowed_files: src/orders/import.ts
+- depends_on:
+- AC refs: AC-ORDER-001
+- contract refs: POST /api/v1/orders/import
+- verification command: npm test
+- done evidence: test output
+""",
+        )
+
+        result = validate_delivery_plan(self.feature_dir, project_scope="backend_only")
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "task_missing_selected_scope_ref" for issue in result["issues"]))
 
     def test_frontend_only_scope_rejects_forbidden_backend_artifacts(self) -> None:
         self.write_meta(

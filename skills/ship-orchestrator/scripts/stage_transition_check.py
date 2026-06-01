@@ -106,7 +106,7 @@ def _required_previous_stages(meta: dict[str, Any], target_stage: str) -> list[s
     project_scope = meta.get("project_scope", "fullstack")
     scenario = meta.get("scenario", "")
 
-    if scenario in ("product_provided", "prd_direct"):
+    if scenario in ("product_provided", "prd_direct", "technical_plan_provided"):
         stages = [stage for stage in stages if stage not in ("ship-discover", "ship-shape")]
     if project_scope == "backend_only":
         stages = [stage for stage in stages if stage not in ("ship-shape", "ship-frontend-design")]

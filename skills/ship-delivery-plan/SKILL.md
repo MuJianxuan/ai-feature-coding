@@ -24,12 +24,14 @@ description: "ShipKit stage. Combines frontend and backend planning into one del
 - `ship-design-review` 已通过
 - `api-contract.md`、`frontend-design.md`、`backend-design.md` 已稳定
 - 即将进入 `ship-plan-review`
+- `technical_plan_provided` 场景下，仅为 `technical_plan_source.selected_scope` 生成任务，且每个任务可追溯到 selected scope、AC ID 和仓库探索证据
 
 ## When NOT to Use
 
 - `ship-design-review` 尚未通过
 - 设计文档仍在变化
 - 仅有单端工作且无需双侧协同计划
+- `technical_plan_provided` 场景下，任务会覆盖未选中技术方案内容
 
 ## Stage Contract
 
@@ -116,6 +118,13 @@ task_count: 0
 - 不执行 sync 子段（无双侧对齐需求）
 - `meta.yml` 中缺失侧的 task_count 保持 0
 - Delegation 仍为 `forbidden`（单侧计划仍由主上下文统一完成）
+
+technical_plan_provided 裁剪规则：
+
+- 只为 selected scope 生成 `frontend-plan.md` / `backend-plan.md` 或单侧 plan。
+- 未选中内容（未选中技术方案章节、接口、模块或片段）不得生成任务；若是前置依赖，只能记录为 risk / open question 或依赖说明。
+- 每个 task 必须同时引用 AC ID、selected scope 或 technical source、仓库探索证据、`allowed_files` 和 verification command。
+- task 的 `scope` 字段必须能说明它如何落在 selected scope 内。
 
 ## Part 1: Frontend
 

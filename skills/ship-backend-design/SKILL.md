@@ -73,6 +73,8 @@ Bounded Context → 业务域（与 requirements.md 的 Domain ID 对齐）
 
 ## Process
 
+当 `meta.yml.scenario: technical_plan_provided` 时，backend design 必须按 `technical_plan_source.selected_scope` 裁剪：只覆盖 selected scope 相关服务、数据模型、DB / ORM / migration、worker、MQ、cron、权限、错误处理和验证路径。未选中技术方案内容不得进入本期设计，除非作为依赖风险或 open question 记录。
+
 ```
 1. 读取 requirements.md、tech-research.md、api-contract.md
    verify: 已理解 Project Reality Scan、Existing Surface Inventory、Requirement-to-Reality Mapping 和接口契约
