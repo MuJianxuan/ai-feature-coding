@@ -581,9 +581,10 @@ Discover 阶段产物补充契约：
 ### 12.2 Detection Timing
 
 - **首选**：NEW_FEATURE 启动确认时由用户声明（"纯后端项目"/"只做 API"/"不涉及前端"）
-- **次选**：`ship-tech-discovery` 完成后由 orchestrator 根据 `tech_stack` 自动推断（`tech_stack.frontend` 为空 → `backend_only`，反之亦然）
+- **次选**：`ship-tech-discovery` 完成后由 orchestrator 基于明确证据确认，不允许仅凭 `tech_stack.frontend` 或 `tech_stack.backend` 为空就得出单侧结论
+- **证据要求**：必须同时能说明 `tech_stack`、现有 surface、consumer/entrypoint 和项目边界四类证据都指向单侧，才允许写回 `meta.yml.project_scope` 与 `project_scope_evidence`
 - **冻结点**：`ship-design-review` 通过后 scope 不可变更
-- **歧义处理**：信号不明确时默认 `fullstack`（安全值，不阻塞流程）
+- **歧义处理**：信号不明确时默认 `fullstack`。此时必须显式询问用户是否要落成单侧 scope；在用户确认之前不得写回单侧 `project_scope`，不得静默落盘为单侧 scope
 
 ### 12.3 Skip Mechanism
 

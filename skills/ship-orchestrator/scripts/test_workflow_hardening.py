@@ -49,6 +49,7 @@ class WorkflowHardeningTest(unittest.TestCase):
         *,
         current_stage: str = "ship-define-review",
         project_scope: str = "fullstack",
+        project_scope_evidence: str = "",
         project_context: str = "existing_project",
         scenario: str = "product_provided",
         pipeline_mode: str = "standard",
@@ -95,6 +96,7 @@ class WorkflowHardeningTest(unittest.TestCase):
             "scenario": scenario,
             "pipeline_mode": pipeline_mode,
             "project_scope": project_scope,
+            "project_scope_evidence": project_scope_evidence,
             "project_context": project_context,
             "macro_stage": {"current": macro_current, "label": macro_label, "summary": "", "next_user_decision": ""},
             "lifecycle_status": "active",
@@ -902,6 +904,7 @@ Relation types covered: reuse / extend / replace / new / avoid / unknown.
         self.write_meta(
             current_stage="ship-backend-design",
             project_scope="backend_only",
+            project_scope_evidence="用户明确声明纯后端 API 项目",
             scenario="prd_direct",
             define_review_status="approved",
         )
@@ -1063,6 +1066,7 @@ auth, rate limit, logging, metrics, error handling covered.
         self.write_meta(
             current_stage="ship-define-review",
             project_scope="backend_only",
+            project_scope_evidence="用户明确声明纯后端 API 项目",
             scenario="greenfield",
             define_review_status="approved",
         )
@@ -1103,6 +1107,73 @@ risk: auth compatibility.
 
         self.assertTrue(result["allowed"], result["issues"])
         self.assertNotIn("ship-shape", result["checked_previous_stages"])
+
+    def test_backend_only_scope_rejects_forbidden_frontend_artifacts(self) -> None:
+        self.write_meta(
+            current_stage="ship-backend-design",
+            project_scope="backend_only",
+            project_scope_evidence="用户明确声明纯后端 API 项目",
+            scenario="prd_direct",
+            define_review_status="approved",
+        )
+        self.write_text(
+            "frontend-plan.md",
+            """---
+stage: ship-delivery-plan
+artifact_role: frontend-plan
+stage_status: ready
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# Frontend Plan
+""",
+        )
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "scope_forbidden_artifact" for issue in result["issues"]))
+
+    def test_backend_only_scope_requires_project_scope_evidence_in_validator(self) -> None:
+        self.write_meta(
+            current_stage="ship-backend-design",
+            project_scope="backend_only",
+            scenario="prd_direct",
+            define_review_status="approved",
+        )
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "missing_project_scope_evidence" for issue in result["issues"]))
+
+    def test_frontend_only_scope_rejects_forbidden_backend_artifacts(self) -> None:
+        self.write_meta(
+            current_stage="ship-frontend-design",
+            project_scope="frontend_only",
+            project_scope_evidence="用户明确声明纯前端 UI 项目",
+            scenario="prd_direct",
+            define_review_status="approved",
+        )
+        self.write_text(
+            "backend-design.md",
+            """---
+stage: ship-backend-design
+artifact_role: backend-design
+stage_status: ready
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# Backend Design
+""",
+        )
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "scope_forbidden_artifact" for issue in result["issues"]))
 
     def test_fast_track_product_provided_enters_build_without_design_or_plan(self) -> None:
         self.write_meta(

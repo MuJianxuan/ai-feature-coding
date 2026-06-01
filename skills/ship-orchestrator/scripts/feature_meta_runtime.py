@@ -899,12 +899,19 @@ def create_feature_meta(
     pipeline_mode: str,
     project_context: str,
     project_scope: str = "fullstack",
+    project_scope_evidence: str = "",
     scenario: str = "",
     workspace_context: WorkspaceSpecContext | None = None,
     projects: list[str] | tuple[str, ...] | None = None,
 ) -> Path:
     if scenario not in VALID_SCENARIOS:
         raise ValueError(f"invalid scenario: {scenario}")
+    if project_scope not in VALID_PROJECT_SCOPES:
+        raise ValueError(f"invalid project_scope: {project_scope}")
+    if project_scope in {"backend_only", "frontend_only"} and not project_scope_evidence.strip():
+        raise ValueError(
+            "project_scope_evidence is required when project_scope is backend_only or frontend_only"
+        )
 
     feature_projects = (
         _normalize_feature_projects(projects, workspace_context)
@@ -928,6 +935,7 @@ def create_feature_meta(
     data["pipeline_mode"] = pipeline_mode
     data["project_context"] = project_context
     data["project_scope"] = project_scope
+    data["project_scope_evidence"] = project_scope_evidence.strip()
     if workspace_context is not None:
         data["workspace_mode"] = workspace_context.workspace_mode
     data["projects"] = feature_projects
@@ -1256,6 +1264,11 @@ def build_parser() -> argparse.ArgumentParser:
         choices=VALID_PROJECT_SCOPES,
         help="Project scope: fullstack, backend_only, or frontend_only",
     )
+    init_parser.add_argument(
+        "--project-scope-evidence",
+        default="",
+        help="Required evidence when project_scope is backend_only or frontend_only",
+    )
 
     refresh_parser = subparsers.add_parser("refresh", help="Refresh macro_stage from current_stage")
     refresh_parser.add_argument("meta_path", help="Path to meta.yml")
@@ -1348,6 +1361,7 @@ def main(argv: list[str]) -> int:
             pipeline_mode=args.pipeline_mode,
             project_context=args.project_context,
             project_scope=args.project_scope,
+            project_scope_evidence=args.project_scope_evidence,
             scenario=args.scenario,
             workspace_context=workspace_context,
             projects=args.project,

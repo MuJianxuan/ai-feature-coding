@@ -126,6 +126,14 @@ def _artifact_required(meta: dict[str, Any], spec: ArtifactSpec) -> bool:
     return _stage_is_active_enough(meta, spec.stage)
 
 
+def _scope_forbidden_artifacts(project_scope: str) -> tuple[str, ...]:
+    if project_scope == "backend_only":
+        return ("design-brief.md", "frontend-design.md", "frontend-plan.md")
+    if project_scope == "frontend_only":
+        return ("backend-design.md", "backend-plan.md")
+    return ()
+
+
 def _validate_meta(feature_dir: Path, meta: dict[str, Any]) -> list[dict[str, str]]:
     issues: list[dict[str, str]] = []
     current_stage = meta.get("current_stage")
@@ -240,6 +248,19 @@ def validate_feature(feature_dir: Path) -> dict[str, Any]:
         }
 
     issues.extend(_validate_meta(feature_dir, meta))
+    project_scope = meta.get("project_scope", "fullstack")
+    if project_scope not in ("fullstack", "backend_only", "frontend_only"):
+        project_scope = "fullstack"
+    if project_scope in ("backend_only", "frontend_only"):
+        if not str(meta.get("project_scope_evidence", "")).strip():
+            issues.append(
+                _issue(
+                    "error",
+                    "missing_project_scope_evidence",
+                    f"{project_scope} scope requires project_scope_evidence",
+                    "meta.yml",
+                )
+            )
     for spec in ARTIFACT_SPECS:
         frontmatter, spec_issues = _validate_artifact_spec(feature_dir, meta, spec)
         issues.extend(spec_issues)
@@ -250,6 +271,17 @@ def validate_feature(feature_dir: Path) -> dict[str, Any]:
                 "artifact_role": spec.role,
                 "frontmatter": frontmatter,
             }
+
+    for relative_path in _scope_forbidden_artifacts(str(project_scope)):
+        if (feature_dir / relative_path).exists():
+            issues.append(
+                _issue(
+                    "error",
+                    "scope_forbidden_artifact",
+                    f"{project_scope} scope must not include {relative_path}",
+                    relative_path,
+                )
+            )
 
     requirements_path = feature_dir / "requirements.md"
     if requirements_path.exists():

@@ -620,6 +620,7 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
             pipeline_mode="standard",
             project_context="existing_project",
             project_scope="backend_only",
+            project_scope_evidence="用户明确声明纯后端 API 项目",
             scenario="product_provided",
         )
 
@@ -637,6 +638,7 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
             pipeline_mode="standard",
             project_context="new_project",
             project_scope="backend_only",
+            project_scope_evidence="用户明确声明纯后端 API 项目",
             scenario="greenfield",
         )
 
@@ -655,6 +657,7 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
             pipeline_mode="standard",
             project_context="existing_project",
             project_scope="backend_only",
+            project_scope_evidence="现有 feature 仅包含后端服务与接口 surface",
             scenario="evolve",
         )
 
@@ -673,12 +676,25 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
             pipeline_mode="standard",
             project_context="new_project",
             project_scope="frontend_only",
+            project_scope_evidence="用户明确声明纯前端 UI 项目",
             scenario="greenfield",
         )
 
         saved = self.load_meta(feature_dir)
         self.assertEqual(saved["stages"]["ship-shape"]["status"], "pending")
         self.assertEqual(saved["stages"]["ship-backend-design"]["status"], "skipped")
+
+    def test_create_feature_meta_backend_only_requires_scope_evidence(self) -> None:
+        with self.assertRaisesRegex(ValueError, "project_scope_evidence"):
+            create_feature_meta(
+                feature_dir=self.root / "backend-only-missing-evidence",
+                feature_name="Backend Only Missing Evidence",
+                feature_id="feature-backend-only-missing-evidence",
+                pipeline_mode="standard",
+                project_context="existing_project",
+                project_scope="backend_only",
+                scenario="product_provided",
+            )
 
     def test_create_feature_meta_writes_workspace_spec_context_and_projects(self) -> None:
         workspace_root = self.root / "workspace-a"

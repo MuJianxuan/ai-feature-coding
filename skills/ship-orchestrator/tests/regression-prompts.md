@@ -66,3 +66,24 @@
 期望：
 
 - `validate_handoff.py` 报告 `pass_ac_missing_evidence`
+
+## 7. Backend Only Scope Evidence
+
+```text
+创建 backend_only feature，但没有提供 project_scope_evidence。
+```
+
+期望：
+
+- `feature_meta_runtime.py` 拒绝创建单侧 scope
+- `validate_feature_artifacts.py` 报告 `missing_project_scope_evidence`
+
+## 8. Scope Artifact Rejection
+
+```text
+backend_only feature 目录里出现 frontend-plan.md，或 frontend_only 目录里出现 backend-design.md。
+```
+
+期望：
+
+- `validate_feature_artifacts.py` 报告 `scope_forbidden_artifact`

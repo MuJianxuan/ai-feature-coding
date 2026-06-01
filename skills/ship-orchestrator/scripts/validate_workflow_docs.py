@@ -65,8 +65,10 @@ def validate_meta_template() -> None:
         "ship-verify.backend-contract: assistive_subagent",
         "scenario: \"\"",
         "project_scope: fullstack",
+        "project_scope_evidence: \"\"",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
+    require("四类证据" in text or "tech_stack、现有 surface、consumer/entrypoint、边界四类证据" in text, f"{path}: missing strict project_scope_evidence wording")
 
 
 def validate_protocol_doc() -> None:
@@ -130,6 +132,8 @@ def validate_protocol_doc() -> None:
         require(row in text, f"{path}: missing macro row for {macro.current}/{macro.label}")
     require("5 个大阶段" in text or "五个大阶段" in text, f"{path}: missing 5-stage wording")
     require("4 个大阶段" not in text and "4 大阶段" not in text, f"{path}: contains legacy 4-stage wording")
+    for forbidden in ("自动推断", "自动下结论", "自动推出", "空字段自动"):
+        require(forbidden not in text, f"{path}: contains forbidden legacy wording `{forbidden}`")
 
 
 def validate_readmes() -> None:
@@ -365,6 +369,8 @@ def validate_orchestrator_doc() -> None:
     forbidden_soft_gate_status = "stage_status: draft / " + meta_progress_status
     require(forbidden_soft_gate_status not in text, f"{path}: must not mix artifact stage_status with meta in_progress")
     require("stage_status: ready 或 complete" in text, f"{path}: missing corrected soft gate stage_status wording")
+    for forbidden in ("自动推断", "自动下结论", "自动推出", "空字段自动"):
+        require(forbidden not in text, f"{path}: contains forbidden legacy wording `{forbidden}`")
 
 
 def validate_stage_status_wording() -> None:
@@ -449,12 +455,30 @@ def validate_project_local_stage_docs() -> None:
         ROOT / "skills/ship-handoff/SKILL.md": (
             "workspace `spec_root`",
             "spec_context.warnings",
+            "后端 AC 与部署事项",
+            "前端 AC 与部署事项",
+        ),
+        ROOT / "skills/ship-discover/SKILL.md": (
+            "消费者与调用方是谁？",
+            "backend_only",
+            "frontend_only",
+        ),
+        ROOT / "skills/ship-verify/SKILL.md": (
+            "verification.md` 只记录后端轨道结果",
+            "verification.md` 只记录前端轨道结果",
         ),
     }
     for path, snippets in expectations.items():
         text = read_text(path)
         for snippet in snippets:
             require(snippet in text, f"{path}: missing `{snippet}`")
+    protocol_text = read_text(ROOT / "skills/ship-orchestrator/_templates/protocol/workflow-protocol.md")
+    for snippet in (
+        "四类证据",
+        "不得静默落盘为单侧 scope",
+        "在用户确认之前不得写回单侧 `project_scope`",
+    ):
+        require(snippet in protocol_text, f"{ROOT / 'skills/ship-orchestrator/_templates/protocol/workflow-protocol.md'}: missing `{snippet}`")
 
 
 def validate_stage_map_script() -> None:

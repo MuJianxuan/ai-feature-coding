@@ -43,7 +43,7 @@ projects: []
 
 # 项目范围（决定哪些阶段被跳过）
 project_scope: fullstack          # fullstack | backend_only | frontend_only
-project_scope_evidence: ""        # 例: "用户声明纯后端 API 项目" 或 "tech_stack.frontend 为空"
+project_scope_evidence: ""        # 例: "用户明确声明纯后端 API 项目；tech_stack、surface、consumer/entrypoint、边界四类证据一致"
 
 # 用户确认的跳过/强制推进记录
 skip_log: []
