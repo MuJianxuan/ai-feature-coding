@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-TASK_HEADING_RE = re.compile(r"(?m)^(?:#{2,6}\s+|[-*]\s+)?((?:FE|BE|FS|TASK)-[A-Z0-9]+-\d{3}|(?:FE|BE|FS)?-\d{3})\b")
+TASK_HEADING_RE = re.compile(r"(?m)^(?:#{2,6}\s+|[-*]\s+)?(?:Task\s+)?((?:FE|BE|FS|FT|TASK)-[A-Z0-9]+-\d{3}|(?:FE|BE|FS|FT)?-\d{3})\b")
 AC_RE = re.compile(r"\bAC-[A-Z0-9]+-\d{3}\b")
 
 
@@ -49,15 +49,22 @@ def _plan_paths(feature_dir: Path, project_scope: str) -> list[Path]:
     return paths
 
 
-def build_task_preflight(feature_dir: Path, project_scope: str = "fullstack") -> dict[str, Any]:
+def _task_source_paths(feature_dir: Path, project_scope: str, pipeline_mode: str) -> list[Path]:
+    if pipeline_mode == "fast-track":
+        return [feature_dir / "fast-track-tasks.md"]
+    return _plan_paths(feature_dir, project_scope)
+
+
+def build_task_preflight(feature_dir: Path, project_scope: str = "fullstack", pipeline_mode: str = "standard") -> dict[str, Any]:
     feature_dir = feature_dir.resolve()
     issues: list[dict[str, str]] = []
     doing: list[dict[str, Any]] = []
     tasks: list[dict[str, Any]] = []
 
-    for path in _plan_paths(feature_dir, project_scope):
+    for path in _task_source_paths(feature_dir, project_scope, pipeline_mode):
         if not path.exists():
-            issues.append(_issue("error", "missing_plan", f"{path.name} does not exist", path.name))
+            code = "missing_fast_track_tasks" if pipeline_mode == "fast-track" else "missing_plan"
+            issues.append(_issue("error", code, f"{path.name} does not exist", path.name))
             continue
         text = path.read_text(encoding="utf-8")
         for task_id, block in _task_blocks(text):
@@ -90,6 +97,7 @@ def build_task_preflight(feature_dir: Path, project_scope: str = "fullstack") ->
     return {
         "feature_dir": str(feature_dir),
         "project_scope": project_scope,
+        "pipeline_mode": pipeline_mode,
         "ok": not any(issue["level"] == "error" for issue in issues),
         "issues": issues,
         "doing_tasks": doing,
@@ -101,13 +109,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Preflight the current ship-build DOING task")
     parser.add_argument("feature_dir")
     parser.add_argument("--project-scope", choices=("fullstack", "backend_only", "frontend_only"), default="fullstack")
+    parser.add_argument("--pipeline-mode", choices=("standard", "fast-track"), default="standard")
     parser.add_argument("--json", action="store_true")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    result = build_task_preflight(Path(args.feature_dir), args.project_scope)
+    result = build_task_preflight(Path(args.feature_dir), args.project_scope, args.pipeline_mode)
     if args.json:
         print(json.dumps(result, ensure_ascii=True, indent=2))
     else:

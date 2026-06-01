@@ -31,7 +31,7 @@
 默认原则：
 
 - 用户默认只和 `ship-orchestrator` 交互
-- orchestrator 自动识别场景（A/B/C）并路由到正确的起点
+- orchestrator 自动识别场景（A/B/C/D）并路由到正确的起点
 - 状态默认显示大阶段，不要求记住内部阶段名
 - 只有在恢复断点、排查阻塞、直接调用某阶段时，才展开内部细阶段
 - `ship-spec` 作为 workflow utility 隐式接入，不作为单独阶段暴露给默认用户视图

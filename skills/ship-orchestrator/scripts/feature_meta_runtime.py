@@ -97,7 +97,7 @@ IGNORED_PROJECT_CANDIDATE_DIRS: frozenset[str] = frozenset(
 
 SCOPE_SKIP_MAP: dict[str, list[str]] = {
     "fullstack": [],
-    "backend_only": ["ship-frontend-design"],
+    "backend_only": ["ship-shape", "ship-frontend-design"],
     "frontend_only": ["ship-backend-design"],
 }
 

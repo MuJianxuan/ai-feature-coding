@@ -624,8 +624,61 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
         )
 
         saved = self.load_meta(feature_dir)
+        self.assertEqual(saved["stages"]["ship-shape"]["status"], "skipped")
         self.assertEqual(saved["stages"]["ship-frontend-design"]["status"], "skipped")
         self.assertEqual(saved["stages"]["ship-delivery-plan"]["current_part"], "backend")
+
+    def test_create_feature_meta_backend_only_greenfield_skips_shape(self) -> None:
+        feature_dir = self.root / "backend-only-greenfield"
+        create_feature_meta(
+            feature_dir=feature_dir,
+            feature_name="Backend Only Greenfield",
+            feature_id="feature-backend-only-greenfield",
+            pipeline_mode="standard",
+            project_context="new_project",
+            project_scope="backend_only",
+            scenario="greenfield",
+        )
+
+        saved = self.load_meta(feature_dir)
+        self.assertEqual(saved["current_stage"], "ship-discover")
+        self.assertEqual(saved["stages"]["ship-discover"]["status"], "pending")
+        self.assertEqual(saved["stages"]["ship-shape"]["status"], "skipped")
+        self.assertEqual(saved["stages"]["ship-frontend-design"]["status"], "skipped")
+
+    def test_create_feature_meta_backend_only_evolve_skips_shape(self) -> None:
+        feature_dir = self.root / "backend-only-evolve"
+        create_feature_meta(
+            feature_dir=feature_dir,
+            feature_name="Backend Only Evolve",
+            feature_id="feature-backend-only-evolve",
+            pipeline_mode="standard",
+            project_context="existing_project",
+            project_scope="backend_only",
+            scenario="evolve",
+        )
+
+        saved = self.load_meta(feature_dir)
+        self.assertEqual(saved["current_stage"], "ship-discover")
+        self.assertEqual(saved["stages"]["ship-discover"]["status"], "pending")
+        self.assertEqual(saved["stages"]["ship-shape"]["status"], "skipped")
+        self.assertEqual(saved["stages"]["ship-frontend-design"]["status"], "skipped")
+
+    def test_create_feature_meta_frontend_only_keeps_shape_active_for_greenfield(self) -> None:
+        feature_dir = self.root / "frontend-only-greenfield"
+        create_feature_meta(
+            feature_dir=feature_dir,
+            feature_name="Frontend Only Greenfield",
+            feature_id="feature-frontend-only-greenfield",
+            pipeline_mode="standard",
+            project_context="new_project",
+            project_scope="frontend_only",
+            scenario="greenfield",
+        )
+
+        saved = self.load_meta(feature_dir)
+        self.assertEqual(saved["stages"]["ship-shape"]["status"], "pending")
+        self.assertEqual(saved["stages"]["ship-backend-design"]["status"], "skipped")
 
     def test_create_feature_meta_writes_workspace_spec_context_and_projects(self) -> None:
         workspace_root = self.root / "workspace-a"

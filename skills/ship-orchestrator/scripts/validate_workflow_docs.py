@@ -149,6 +149,8 @@ def validate_readmes() -> None:
         ):
             require(snippet in text, f"{path}: missing `{snippet}`")
         require("4 个大阶段" not in text and "4 大阶段" not in text, f"{path}: contains legacy 4-stage wording")
+    skills_readme = read_text(ROOT / "skills/README.md")
+    require("场景（A/B/C/D）" in skills_readme, "skills/README.md: default principle must include scenario D")
 
     templates_readme = ROOT / "skills/ship-orchestrator/_templates/README.md"
     templates_text = read_text(templates_readme)
@@ -251,6 +253,13 @@ def validate_stage_delegation_boundaries() -> None:
     build_text = read_text(ROOT / "skills/ship-build/SKILL.md")
     for node_id in sorted(node_id for node_id in CANONICAL_DELEGATION_NODES if node_id.startswith("ship-build.")):
         require(node_id in build_text, f"ship-build/SKILL.md: missing runtime node_id `{node_id}`")
+    forbidden_plan_review_gate = "ship-plan-review` 已通过（`stage_status: " + "ready`）"
+    require(
+        forbidden_plan_review_gate not in build_text,
+        "ship-build/SKILL.md: must not describe plan review gate with stage_status",
+    )
+    for snippet in ("review_status: approved", "user_sign_off", "signed_at"):
+        require(snippet in build_text, f"ship-build/SKILL.md: missing hard gate field `{snippet}`")
 
     verify_text = read_text(ROOT / "skills/ship-verify/SKILL.md")
     for node_id in sorted(node_id for node_id in CANONICAL_DELEGATION_NODES if node_id.startswith("ship-verify.")):
@@ -352,6 +361,26 @@ def validate_orchestrator_doc() -> None:
         require(snippet in text, f"{path}: missing `{snippet}`")
     require("5 个大阶段" in text or "五个大阶段" in text, f"{path}: missing 5-stage wording")
     require("14 个内部阶段名" in text, f"{path}: missing 14-stage wording")
+    meta_progress_status = "in_" + "progress"
+    forbidden_soft_gate_status = "stage_status: draft / " + meta_progress_status
+    require(forbidden_soft_gate_status not in text, f"{path}: must not mix artifact stage_status with meta in_progress")
+    require("stage_status: ready 或 complete" in text, f"{path}: missing corrected soft gate stage_status wording")
+
+
+def validate_stage_status_wording() -> None:
+    search_roots = [ROOT / "skills", ROOT / "README.md"]
+    meta_progress_status = "in_" + "progress"
+    forbidden = (
+        "stage_status: draft / " + meta_progress_status,
+        "stage_status: draft/" + meta_progress_status,
+        "stage_status: " + meta_progress_status,
+    )
+    for root in search_roots:
+        paths = [root] if root.is_file() else list(root.rglob("*.md"))
+        for path in paths:
+            text = read_text(path)
+            for snippet in forbidden:
+                require(snippet not in text, f"{path}: forbidden artifact stage_status wording `{snippet}`")
 
 
 def validate_ship_spec_doc() -> None:
@@ -459,6 +488,7 @@ def main() -> int:
         validate_stage_delegation_boundaries,
         validate_review_template_delegation,
         validate_orchestrator_doc,
+        validate_stage_status_wording,
         validate_ship_spec_doc,
         validate_project_local_stage_docs,
         validate_root_readme_commands,

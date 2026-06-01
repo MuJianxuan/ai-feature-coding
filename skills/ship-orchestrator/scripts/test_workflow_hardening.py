@@ -51,6 +51,7 @@ class WorkflowHardeningTest(unittest.TestCase):
         project_scope: str = "fullstack",
         project_context: str = "existing_project",
         scenario: str = "product_provided",
+        pipeline_mode: str = "standard",
         define_status: str = "ready",
         define_review_status: str = "pending",
     ) -> None:
@@ -92,6 +93,7 @@ class WorkflowHardeningTest(unittest.TestCase):
             "feature_id": "feature-demo",
             "current_stage": current_stage,
             "scenario": scenario,
+            "pipeline_mode": pipeline_mode,
             "project_scope": project_scope,
             "project_context": project_context,
             "macro_stage": {"current": macro_current, "label": macro_label, "summary": "", "next_user_decision": ""},
@@ -518,6 +520,56 @@ task_count: 1
 
         self.assertFalse(result["ok"])
         self.assertTrue(any(issue["code"] == "doing_count_invalid" for issue in result["issues"]))
+
+    def test_fast_track_build_preflight_reads_fast_track_tasks(self) -> None:
+        self.write_text(
+            "fast-track-tasks.md",
+            """---
+stage: ship-build
+artifact_role: fast-track-tasks
+stage_status: draft
+evidence_complete: false
+---
+
+### Task FT-001: Fix login button state
+- status: DOING
+- allowed_files:
+  - src/pages/Login.tsx
+- ac_refs:
+  - AC-AUTH-001
+- verification_command: pnpm test -- Login
+- evidence:
+  - pending
+""",
+        )
+
+        result = build_task_preflight(self.feature_dir, pipeline_mode="fast-track")
+
+        self.assertTrue(result["ok"], result["issues"])
+        self.assertEqual(result["tasks"][0]["path"], "fast-track-tasks.md")
+
+    def test_standard_build_preflight_still_requires_plan_source(self) -> None:
+        self.write_text(
+            "fast-track-tasks.md",
+            """---
+stage: ship-build
+artifact_role: fast-track-tasks
+stage_status: draft
+evidence_complete: false
+---
+
+### Task FT-001
+- status: DOING
+- allowed_files: src/pages/Login.tsx
+- ac_refs: AC-AUTH-001
+- verification_command: pnpm test -- Login
+""",
+        )
+
+        result = build_task_preflight(self.feature_dir, project_scope="backend_only")
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "missing_plan" for issue in result["issues"]))
 
     def write_verification(self, body: str, *, status: str = "ready", all_ac_verified: bool = False) -> None:
         self.write_text(
@@ -1006,6 +1058,148 @@ auth, rate limit, logging, metrics, error handling covered.
         result = check_transition(self.feature_dir, "ship-design-review")
 
         self.assertTrue(result["allowed"], result["issues"])
+
+    def test_backend_only_discover_scope_skips_shape_for_define(self) -> None:
+        self.write_meta(
+            current_stage="ship-define-review",
+            project_scope="backend_only",
+            scenario="greenfield",
+            define_review_status="approved",
+        )
+        self.write_text(
+            "product-brief.md",
+            """---
+stage: ship-discover
+stage_status: ready
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# Product Brief
+问题: 需要提供登录 API。
+用户画像: API consumer.
+Must Have: login endpoint.
+成功标准: AC-AUTH-001 通过。
+假设: 复用现有 auth stack。
+evidence_index: FACT-001.
+SLA: P95 < 500ms.
+契约形态: REST.
+备选: gRPC postponed because REST scope is smaller.
+risk: auth compatibility.
+""",
+        )
+        self.write_requirements(status="ready")
+        self.write_define_review(status="approved", signed=True)
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["stages"]["ship-discover"]["status"] = "ready"
+        meta["stages"]["ship-shape"]["status"] = "skipped"
+        meta["stages"]["ship-define"]["status"] = "ready"
+        meta["stages"]["ship-define-review"]["status"] = "approved"
+        meta["stages"]["ship-define-review"]["approved"] = True
+        meta["stages"]["ship-frontend-design"]["status"] = "skipped"
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        result = check_transition(self.feature_dir, "ship-tech-discovery")
+
+        self.assertTrue(result["allowed"], result["issues"])
+        self.assertNotIn("ship-shape", result["checked_previous_stages"])
+
+    def test_fast_track_product_provided_enters_build_without_design_or_plan(self) -> None:
+        self.write_meta(
+            current_stage="ship-define-review",
+            scenario="product_provided",
+            pipeline_mode="fast-track",
+            define_review_status="approved",
+        )
+        self.write_requirements(status="ready")
+        self.write_define_review(status="approved", signed=True)
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["stages"]["ship-define"]["status"] = "ready"
+        meta["stages"]["ship-define-review"]["status"] = "approved"
+        meta["stages"]["ship-define-review"]["approved"] = True
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        result = check_transition(self.feature_dir, "ship-build")
+
+        self.assertTrue(result["allowed"], result["issues"])
+        self.assertEqual(result["checked_previous_stages"], ["ship-define", "ship-define-review"])
+
+    def test_fast_track_greenfield_enters_build_without_shape_design_or_plan(self) -> None:
+        self.write_meta(
+            current_stage="ship-define-review",
+            scenario="greenfield",
+            pipeline_mode="fast-track",
+            define_review_status="approved",
+        )
+        self.write_text(
+            "product-brief.md",
+            """---
+stage: ship-discover
+stage_status: ready
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# Product Brief
+问题: login button state incorrect.
+用户: web 登录用户.
+Must Have: 修复按钮状态.
+成功标准: AC-AUTH-001 通过.
+假设: 只改一个页面.
+evidence_index: FACT-001.
+备选: full redesign rejected because risk is higher.
+risk: low.
+""",
+        )
+        self.write_requirements(status="ready")
+        self.write_define_review(status="approved", signed=True)
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["stages"]["ship-discover"]["status"] = "ready"
+        meta["stages"]["ship-shape"]["status"] = "skipped"
+        meta["stages"]["ship-define"]["status"] = "ready"
+        meta["stages"]["ship-define-review"]["status"] = "approved"
+        meta["stages"]["ship-define-review"]["approved"] = True
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        result = check_transition(self.feature_dir, "ship-build")
+
+        self.assertTrue(result["allowed"], result["issues"])
+        self.assertEqual(result["checked_previous_stages"], ["ship-discover", "ship-define", "ship-define-review"])
+
+    def test_fast_track_artifact_validation_does_not_require_design_or_plan(self) -> None:
+        self.write_meta(
+            current_stage="ship-build",
+            scenario="product_provided",
+            pipeline_mode="fast-track",
+            define_review_status="approved",
+        )
+        self.write_requirements(status="ready")
+        self.write_define_review(status="approved", signed=True)
+        self.write_text(
+            "fast-track-tasks.md",
+            """---
+stage: ship-build
+artifact_role: fast-track-tasks
+stage_status: draft
+evidence_complete: false
+---
+
+### Task FT-001
+- status: DOING
+- allowed_files: src/pages/Login.tsx
+- ac_refs: AC-AUTH-001
+- verification_command: pnpm test -- Login
+""",
+        )
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["stages"]["ship-define"]["status"] = "ready"
+        meta["stages"]["ship-define-review"]["status"] = "approved"
+        meta["stages"]["ship-define-review"]["approved"] = True
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(any(issue["path"] in {"tech-research.md", "frontend-plan.md", "backend-plan.md", "review-plan.md"} for issue in result["issues"]))
 
 
 if __name__ == "__main__":

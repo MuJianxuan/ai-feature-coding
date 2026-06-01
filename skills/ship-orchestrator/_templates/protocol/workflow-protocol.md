@@ -494,7 +494,37 @@ fast-track 是受控子流程，不是"跳过流程直接编码"。
 - 最小路径固定为：`ship-define → ship-define-review → ship-build → ship-verify → ship-handoff`
 - 不允许绕过 `ship-define-review`
 - 若未生成设计/计划文档，必须在启动确认或需求评审中明确记录 fast-track 原因和风险
+- 若未生成 `frontend-plan.md` / `backend-plan.md`，`ship-build` 的任务事实源固定为 feature 根目录下的 `fast-track-tasks.md`
 - 一旦发现需求复杂度上升、接口新增、跨端耦合升高，可随时升级回 standard
+
+`fast-track-tasks.md` 是 build 阶段轻量任务事实源，不新增 canonical stage。文件由 `ship-define-review` 通过后或进入 `ship-build` 前创建，主上下文维护。
+
+frontmatter:
+
+```yaml
+---
+stage: ship-build
+artifact_role: fast-track-tasks
+stage_status: draft
+evidence_complete: false
+---
+```
+
+任务条目沿用 `ship-build` 的单任务格式：
+
+```markdown
+### Task FT-001: 修复登录按钮状态
+- status: DOING
+- allowed_files:
+  - src/pages/Login.tsx
+- ac_refs:
+  - AC-AUTH-001
+- verification_command: pnpm test -- Login
+- evidence:
+  - pending
+```
+
+最低要求：全局恰好一个 `DOING` task；当前 `DOING` task 必须包含 `allowed_files`、AC refs、verification command。fast-track 若升级回 standard，保留 `fast-track-tasks.md` 作为历史证据，后续任务源切回 plan 文档。
 
 Discover 前置阶段在 fast-track 下的规则：
 
@@ -543,7 +573,7 @@ Discover 阶段产物补充契约：
 | Value | 含义 | 跳过阶段 |
 |-------|------|---------|
 | `fullstack` | 前后端均涉及（默认） | 无 |
-| `backend_only` | 仅后端 | `ship-frontend-design` |
+| `backend_only` | 仅后端 | `ship-shape`, `ship-frontend-design` |
 | `frontend_only` | 仅前端 | `ship-backend-design` |
 
 `ship-contract` 在所有 scope 下默认保留（后端 API 需要契约给消费者，前端需要契约描述所消费的外部 API）。

@@ -13,15 +13,16 @@ description: "ShipKit stage. Executes coding tasks from the `ship-delivery-plan`
 - 严格按 plan 中定义的任务顺序执行，一次一任务
 - 每个任务完成后必须通过验证（测试/构建/lint）
 - 保持 Scope Discipline，不修改 spec 之外的文件
-- 任务事实源随 `project_scope` / `pipeline_mode` 切换：standard 读双 plan，单侧 scope 读对应侧 plan，fast-track 读 lightweight task source
+- 任务事实源随 `project_scope` / `pipeline_mode` 切换：standard 读双 plan，单侧 scope 读对应侧 plan，fast-track 读 `fast-track-tasks.md`
 - 通过 TODO → DOING → DONE 状态流转追踪进度
 
 产物：代码改动 + 任务事实源中的状态更新
 
 ## When to Use
 
-- `ship-plan-review` 已通过（`stage_status: ready`）
-- api-contract.md 已定稿（Contract-First 的前提）
+- standard：`review-plan.md` 已通过（`review_status: approved`，且 `user_sign_off`、`signed_at` 非空）
+- fast-track：`review-define.md` 已通过（`review_status: approved`，且 `user_sign_off`、`signed_at` 非空），并已准备 `fast-track-tasks.md`
+- standard：api-contract.md 已定稿（Contract-First 的前提）
 - 开发环境已就绪（依赖安装、数据库初始化等）
 
 ## When NOT to Use
@@ -84,11 +85,13 @@ Phase 3: 集成联调
 | `fullstack` / `standard` | `frontend-plan.md` + `backend-plan.md` | 双侧任务顺序都必须遵守 |
 | `backend_only` / `standard` | `backend-plan.md` | 只读后端任务事实源 |
 | `frontend_only` / `standard` | `frontend-plan.md` | 只读前端任务事实源 |
-| 任意 scope / `fast-track` | lightweight task source | 读取受控轻量任务源，不直接回退到双 plan |
+| 任意 scope / `fast-track` | `fast-track-tasks.md` | 读取受控轻量任务源，不直接回退到双 plan |
 
 适配规则：
 
-- `standard` 读对应计划文档；`fast-track` 读轻量任务源，不能把 `plan.md` 误当作唯一事实源
+- `standard` 读对应计划文档；`fast-track` 只读 `fast-track-tasks.md`，不能把 `plan.md` 误当作唯一事实源
+- `standard` 入口 gate：`review-plan.md.review_status = approved`，且 `user_sign_off`、`signed_at` 非空
+- `fast-track` 入口 gate：`review-define.md.review_status = approved`，且 `user_sign_off`、`signed_at` 非空；若 `fast-track-tasks.md` 不存在，进入 build 前必须先创建
 - `fullstack` 下同一时刻全局只允许一个 `DOING`
 - `backend_only` 和 `frontend_only` 只允许对应侧任务进入 `DOING`
 - 文档/配置类变更保持最小验证闭环，不因为体量小而省略验证
@@ -224,6 +227,8 @@ Phase 3: 集成联调
 
 ```bash
 python3 skills/ship-orchestrator/scripts/build_task_preflight.py <feature-dir> --project-scope <fullstack|backend_only|frontend_only>
+# fast-track:
+python3 skills/ship-orchestrator/scripts/build_task_preflight.py <feature-dir> --pipeline-mode fast-track
 ```
 
 最低要求：

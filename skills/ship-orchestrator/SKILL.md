@@ -259,6 +259,7 @@ fast-track 模式：
 - 可选扩展：在最小路径基础上按需插入 03（技术发现）或 05-08（设计）
 - 切换条件：用户在 NEW_FEATURE 确认时明确要求，或 02 评审时 reviewer 判定功能复杂度为 low
 - 硬门禁 02 仍然必须执行；fast-track 允许不生成设计/计划产物，但不允许绕过需求录入、需求评审、测试和验收
+- fast-track 的 build 任务事实源固定为 `fast-track-tasks.md`；该文件由 `ship-define-review` 通过后或进入 `ship-build` 前创建，任务条目必须包含单 `DOING`、`allowed_files`、AC refs、verification command
 - fast-track 中若发现 UI 复杂度高，应升级回 standard 并补做 ship-shape
 
 模式切换规则：
@@ -407,9 +408,10 @@ workspace resolution 规则：
 
 执行规则：
 1. 检查上游文档 frontmatter 中 stage_status 字段
-2. stage_status: ready → 允许推进
-3. stage_status: draft / in_progress → 提示用户当前阶段未完成，询问是否强制推进
-4. 上游文档不存在 → 阻断，路由回上游阶段
+2. stage_status: ready 或 complete → 允许推进
+3. stage_status: draft → 提示用户当前阶段未完成，询问是否允许软门禁强制推进
+4. 若 meta.yml.stages.<stage>.status 为 in_progress/blocked，但 artifact 已 ready，以 artifact frontmatter 为事实源并回写 meta.yml
+5. 上游文档不存在 → 阻断，路由回上游阶段
 
 ### 门禁失败处理
 
