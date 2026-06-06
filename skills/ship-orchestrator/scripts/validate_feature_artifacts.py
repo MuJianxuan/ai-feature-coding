@@ -33,6 +33,7 @@ class ArtifactSpec:
     path: str
     kind: str
     role: str | None = None
+    frontmatter_stage: str | None = None
 
 
 ARTIFACT_SPECS: tuple[ArtifactSpec, ...] = (
@@ -50,7 +51,7 @@ ARTIFACT_SPECS: tuple[ArtifactSpec, ...] = (
     ArtifactSpec("ship-delivery-plan", "backend-plan.md", "artifact", "backend-plan"),
     ArtifactSpec("ship-build", "fast-track-tasks.md", "artifact", "fast-track-tasks"),
     ArtifactSpec("ship-plan-review", "review-plan.md", "review"),
-    ArtifactSpec("ship-verify", "verification.md", "artifact"),
+    ArtifactSpec("ship-verify", "verification.md", "artifact", frontmatter_stage="ship-handoff"),
     ArtifactSpec("ship-handoff", "handoff.md", "artifact"),
 )
 
@@ -224,8 +225,9 @@ def _validate_artifact_spec(feature_dir: Path, meta: dict[str, Any], spec: Artif
     except ValueError as exc:
         return None, [_issue("error", "invalid_frontmatter", str(exc), spec.path)]
 
-    if frontmatter.get("stage") != spec.stage:
-        issues.append(_issue("error", "stage_frontmatter_mismatch", f"expected stage {spec.stage}, found {frontmatter.get('stage')!r}", spec.path))
+    expected_stage = spec.frontmatter_stage or spec.stage
+    if frontmatter.get("stage") != expected_stage:
+        issues.append(_issue("error", "stage_frontmatter_mismatch", f"expected stage {expected_stage}, found {frontmatter.get('stage')!r}", spec.path))
 
     if spec.role and frontmatter.get("artifact_role") != spec.role:
         issues.append(_issue("error", "artifact_role_mismatch", f"expected artifact_role {spec.role}, found {frontmatter.get('artifact_role')!r}", spec.path))

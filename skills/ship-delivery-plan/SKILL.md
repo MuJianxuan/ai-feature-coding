@@ -7,22 +7,24 @@ description: "ShipKit stage. Combines frontend and backend planning into one del
 
 ## Overview
 
-本阶段将“前端计划”和“后端计划”合并为一个交付计划阶段。它仍然保留两份独立计划产物，但统一在一个 skill 内完成，并在阶段内做双向依赖校对。
+本阶段将实现计划统一收敛到一个交付计划阶段。`fullstack` 保留前后端两份独立计划产物并做双向依赖校对；`backend_only` / `frontend_only` 只产出对应侧 plan。
 
-保留的产物：
-- `frontend-plan.md`
-- `backend-plan.md`
+产物按 `project_scope` 裁剪：
+- `fullstack`：`frontend-plan.md` + `backend-plan.md`
+- `backend_only`：`backend-plan.md`
+- `frontend_only`：`frontend-plan.md`
 
 核心原则：
 - **Contract-First**：接口对齐任务和 checkpoint 先定义
-- **Frontend-First Within Stage**：默认先写前端计划，再写后端计划
-- **Cross-Checked**：阶段末必须做一次前后端计划一致性校验
+- **Scope-Aware Order**：fullstack 默认先写前端计划，再写后端计划；单侧 scope 只写对应计划
+- **Cross-Checked**：fullstack 阶段末必须做一次前后端计划一致性校验；单侧 scope 不执行双侧 sync
 - **Project-Explicit**：project_group 需求下，每个任务必须写明目标 `project:`，或在任务标题中显式标明目标项目
 
 ## When to Use
 
 - `ship-design-review` 已通过
-- `api-contract.md`、`frontend-design.md`、`backend-design.md` 已稳定
+- `pipeline_mode: standard`，即使是 `backend_only` / `frontend_only`，也仍使用本阶段产出对应侧 plan
+- `api-contract.md` 和 `project_scope` 对应的设计文档已稳定
 - 即将进入 `ship-plan-review`
 - `technical_plan_provided` 场景下，仅为 `technical_plan_source.selected_scope` 生成任务，且每个任务可追溯到 selected scope、AC ID 和仓库探索证据
 
@@ -30,12 +32,12 @@ description: "ShipKit stage. Combines frontend and backend planning into one del
 
 - `ship-design-review` 尚未通过
 - 设计文档仍在变化
-- 仅有单端工作且无需双侧协同计划
+- `pipeline_mode: fast-track`，且已改用 `fast-track-tasks.md` 作为 build 任务事实源
 - `technical_plan_provided` 场景下，任务会覆盖未选中技术方案内容
 
 ## Stage Contract
 
-本阶段属于单 stage 双产物：
+本阶段属于单 stage、多产物按 scope 裁剪：
 
 1. **frontend 子段**
    - 产出 `frontend-plan.md`
@@ -68,30 +70,28 @@ task_count: 0
 ```
 
 阶段退出条件：
-- `frontend-plan.md.stage_status = ready`
-- `backend-plan.md.stage_status = ready`
-- 已完成一次 cross-check，确认 contract task / 依赖 / AC 覆盖一致
+- `fullstack`：`frontend-plan.md.stage_status = ready`，`backend-plan.md.stage_status = ready`，并已完成一次 cross-check，确认 contract task / 依赖 / AC 覆盖一致
+- `backend_only`：`backend-plan.md.stage_status = ready`
+- `frontend_only`：`frontend-plan.md.stage_status = ready`
 
 ## Process
 
 ```
-1. 读取 review-design.md + api-contract.md + frontend-design.md + backend-design.md
+1. 读取 review-design.md + api-contract.md + `project_scope` 对应的设计文档
    verify: 上游设计已通过且可用
-2. 执行 frontend 子段
-   verify: frontend-plan.md ready
-3. 执行 backend 子段
-   verify: backend-plan.md ready
-4. 执行 sync 子段
-   verify: 两份计划的 contract task、checkpoint、AC 覆盖与依赖关系一致
-5. 写回 task_count 与阶段摘要
-   verify: 两份文档 frontmatter 和 meta 索引一致
+2. 按 `project_scope` 执行对应子段
+   verify: 对应 plan ready
+3. fullstack 执行 sync 子段；单侧 scope 跳过 sync 并记录 na
+   verify: fullstack 两份计划的 contract task、checkpoint、AC 覆盖与依赖关系一致；单侧 scope 无 sync blocker
+4. 写回 task_count 与阶段摘要
+   verify: 实际产出的 plan frontmatter 和 meta 索引一致
 ```
 
 ## Delegation Boundary
 
 本阶段属于 `forbidden` 节点，**禁止启动任何子代理**，包括辅助委派与只读支线。
 
-- 阶段内固定顺序保持 `frontend -> backend -> sync`
+- 阶段内固定顺序保持 `fullstack: frontend -> backend -> sync`；`backend_only` 只执行 backend；`frontend_only` 只执行 frontend
 - 可在当前上下文中参考前一份计划来完善后一份计划，不得拆出任何子代理去起草、审计或收集阶段内材料
 - `sync` 子段是本阶段的核心收敛动作，必须由主上下文统一完成
 - 只有主上下文可以写回 task_count、`stage_status` 和阶段摘要
@@ -227,22 +227,22 @@ sync 子段是新增要求，必须显式检查：
 ## Output Rules
 
 - 不合并成单一 `delivery-plan.md`
-- `ship-plan-review` 继续评审两份计划文档
-- `ship-build` 继续消费两份计划文档
+- `ship-plan-review` 继续评审 `project_scope` 对应的计划文档
+- `ship-build` 继续消费 `project_scope` 对应的计划文档
 
 ## Verification
 
 退出前逐项确认：
 
 ```markdown
-- [ ] frontend-plan.md frontmatter 已设置 `stage: ship-delivery-plan` 和 `artifact_role: frontend-plan`
-- [ ] backend-plan.md frontmatter 已设置 `stage: ship-delivery-plan` 和 `artifact_role: backend-plan`
-- [ ] frontend-plan.md 中所有页面/组件已拆解为任务
-- [ ] backend-plan.md 中所有业务域/接口已拆解为任务
+- [ ] `project_scope` 已确认；`fullstack` 检查两份 plan，`backend_only` 只检查 backend-plan.md，`frontend_only` 只检查 frontend-plan.md
+- [ ] 实际产出的 plan frontmatter 已设置 `stage: ship-delivery-plan` 和对应 `artifact_role`
+- [ ] frontend-plan.md 中所有页面/组件已拆解为任务（非 frontend scope 标记为 `na`）
+- [ ] backend-plan.md 中所有业务域/接口已拆解为任务（非 backend scope 标记为 `na`）
 - [ ] project_group 下所有任务都显式包含 `project:` 或任务标题中的目标项目
 - [ ] 每个任务都包含 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报
-- [ ] 两份计划的 contract-first 顺序已明确
-- [ ] 两份计划的依赖关系无循环
-- [ ] sync 子段已完成，checkpoint 与 AC 覆盖一致
-- [ ] 两份文档的 `stage_status` 都已正确置为 `ready`
+- [ ] 实际产出的 plan contract-first 顺序已明确
+- [ ] 实际产出的 plan 依赖关系无循环
+- [ ] fullstack 已完成 sync，checkpoint 与 AC 覆盖一致；单侧 scope 已将 sync 标记为 `na`
+- [ ] 实际产出的 plan `stage_status` 都已正确置为 `ready`
 ```

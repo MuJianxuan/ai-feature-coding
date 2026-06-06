@@ -353,12 +353,13 @@ python3 skills/ship-orchestrator/scripts/validate_verification.py <feature-dir> 
 ## 测试阶段退出检查
 
 - [ ] 所有 DONE 任务都有对应的自动化测试
-- [ ] 后端单元测试通过率 100%
-- [ ] 后端集成测试通过率 100%
-- [ ] 后端契约测试通过率 100%
-- [ ] 前端组件测试通过率 100%
-- [ ] E2E 关键路径通过率 100%
-- [ ] 核心业务逻辑覆盖率 > 80%
+- [ ] `project_scope` 已确认；`fullstack` 执行全部测试轨道，`backend_only` 跳过 frontend 轨道并在 verification.md 记录 `na`，`frontend_only` 跳过 backend 轨道并记录 `na`
+- [ ] backend scope 存在时，后端单元测试通过率 100%；否则标记为 `na`
+- [ ] backend scope 存在时，后端集成测试通过率 100%；否则标记为 `na`
+- [ ] backend scope 存在时，后端契约测试通过率 100%；否则标记为 `na`
+- [ ] frontend scope 存在时，前端组件测试通过率 100%；否则标记为 `na`
+- [ ] frontend scope 存在时，E2E 关键路径通过率 100%；否则标记为 `na`
+- [ ] 适用范围内的核心业务逻辑覆盖率 > 80%
 - [ ] 失败用例已分类处理（真 bug / 测试问题 / 环境）
 - [ ] 真 bug 已创建修复任务并解决
 - [ ] 测试运行命令已写入项目 README 或 CI 配置

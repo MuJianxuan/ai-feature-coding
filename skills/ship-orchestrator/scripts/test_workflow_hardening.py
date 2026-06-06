@@ -809,6 +809,64 @@ N/A frontend-e2e reason: backend_only scope
 
         self.assertTrue(result["ok"], result["issues"])
 
+    def test_shared_verification_stage_passes_aggregate_and_specific_validators(self) -> None:
+        self.write_meta(
+            current_stage="ship-verify",
+            project_scope="backend_only",
+            project_scope_evidence="用户明确声明纯后端 API 项目",
+            pipeline_mode="fast-track",
+            define_review_status="approved",
+        )
+        self.write_requirements(status="ready")
+        self.write_define_review(status="approved", signed=True)
+        self.write_text(
+            "fast-track-tasks.md",
+            f"""---
+stage: ship-build
+artifact_role: fast-track-tasks
+stage_status: ready
+evidence_complete: true
+---
+
+### Task FT-001
+- status: DONE
+- allowed_files: src/auth.ts
+- ac_refs: AC-AUTH-001
+- verification_command: npm test
+- evidence: npm test passed
+{self.task_brief(goal="修复登录 API", context="仓库探索证据：src/auth.ts；后端认证服务。")}
+""",
+        )
+        self.write_verification(
+            """## Test Runs
+track: backend-unit
+track: backend-integration
+track: backend-contract
+command: npm test
+status: PASS
+evidence: output
+failure_class: none
+linked_ac: AC-AUTH-001
+N/A frontend-component reason: backend_only scope
+N/A frontend-e2e reason: backend_only scope
+""",
+            status="ready",
+        )
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["stages"]["ship-define"]["status"] = "ready"
+        meta["stages"]["ship-define-review"]["status"] = "approved"
+        meta["stages"]["ship-define-review"]["approved"] = True
+        meta["stages"]["ship-build"]["status"] = "completed"
+        meta["stages"]["ship-build"]["tasks_done"] = 1
+        meta["stages"]["ship-build"]["tasks_total"] = 1
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        aggregate = validate_feature(self.feature_dir)
+        specific = validate_verification_file(self.feature_dir / "verification.md", project_scope="backend_only")
+
+        self.assertTrue(aggregate["ok"], aggregate["issues"])
+        self.assertTrue(specific["ok"], specific["issues"])
+
     def write_handoff(self) -> None:
         self.write_text(
             "handoff.md",

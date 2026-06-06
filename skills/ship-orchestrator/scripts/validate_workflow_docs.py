@@ -551,6 +551,74 @@ def validate_project_local_stage_docs() -> None:
         require(snippet in delivery_plan_text, f"{ROOT / 'skills/ship-delivery-plan/SKILL.md'}: missing `{snippet}`")
 
 
+def validate_cross_file_semantics() -> None:
+    artifact_validator = read_text(ROOT / "skills/ship-orchestrator/scripts/validate_feature_artifacts.py")
+    verification_validator = read_text(ROOT / "skills/ship-orchestrator/scripts/validate_verification.py")
+    ship_verify_text = read_text(ROOT / "skills/ship-verify/SKILL.md")
+    ship_handoff_text = read_text(ROOT / "skills/ship-handoff/SKILL.md")
+    delivery_plan_text = read_text(ROOT / "skills/ship-delivery-plan/SKILL.md")
+    plan_review_text = read_text(ROOT / "skills/ship-plan-review/SKILL.md")
+    build_text = read_text(ROOT / "skills/ship-build/SKILL.md")
+
+    require(
+        'ArtifactSpec("ship-verify", "verification.md", "artifact", frontmatter_stage="ship-handoff")' in artifact_validator,
+        "validate_feature_artifacts.py: verification.md must allow canonical frontmatter stage ship-handoff",
+    )
+    require(
+        "expected_stage = spec.frontmatter_stage or spec.stage" in artifact_validator,
+        "validate_feature_artifacts.py: artifact stage check must honor frontmatter_stage override",
+    )
+    require(
+        'frontmatter.get("stage") != "ship-handoff"' in verification_validator,
+        "validate_verification.py: verification.md stage must remain ship-handoff",
+    )
+    require("stage: ship-handoff" in ship_verify_text, "ship-verify/SKILL.md: verification.md frontmatter must use stage: ship-handoff")
+    require("stage: ship-handoff" in ship_handoff_text, "ship-handoff/SKILL.md: verification.md frontmatter must use stage: ship-handoff")
+
+    require(
+        "仅有单端工作且无需双侧协同计划" not in delivery_plan_text,
+        "ship-delivery-plan/SKILL.md: must not reject single-side scope",
+    )
+    for snippet in (
+        "`backend_only`：`backend-plan.md.stage_status = ready`",
+        "`frontend_only`：`frontend-plan.md.stage_status = ready`",
+        "`pipeline_mode: standard`",
+        "`pipeline_mode: fast-track`",
+        "fast-track-tasks.md",
+        "单侧 scope",
+    ):
+        require(snippet in delivery_plan_text, f"ship-delivery-plan/SKILL.md: missing scope/fast-track semantic `{snippet}`")
+
+    for snippet in (
+        "reviewed_documents: []",
+        "backend_only: [\"backend-plan.md\"]",
+        "frontend_only: [\"frontend-plan.md\"]",
+        "缺失侧检查项标记为 `na`",
+    ):
+        require(snippet in plan_review_text, f"ship-plan-review/SKILL.md: missing scope-aware review wording `{snippet}`")
+
+    require(
+        "Use after ship-plan-review gate passes" not in build_text,
+        "ship-build/SKILL.md: description must not imply fast-track waits for ship-plan-review",
+    )
+    for snippet in (
+        "fast-track uses reviewed fast-track-tasks.md after ship-define-review",
+        "fast-track 模式消费 `fast-track-tasks.md`",
+        "fast-track：fast-track-tasks.md 中所有任务为 DONE",
+        "backend_only / standard：backend-plan.md 中所有任务为 DONE",
+        "frontend_only / standard：frontend-plan.md 中所有任务为 DONE",
+    ):
+        require(snippet in build_text, f"ship-build/SKILL.md: missing fast-track/scope checklist wording `{snippet}`")
+
+    for snippet in (
+        "`backend_only` 跳过 frontend 轨道",
+        "`frontend_only` 跳过 backend 轨道",
+        "backend scope 存在时，后端单元测试通过率 100%；否则标记为 `na`",
+        "frontend scope 存在时，前端组件测试通过率 100%；否则标记为 `na`",
+    ):
+        require(snippet in ship_verify_text, f"ship-verify/SKILL.md: missing scope-aware verification wording `{snippet}`")
+
+
 def validate_stage_map_script() -> None:
     require(len(CANONICAL_STAGE_ORDER) == 14, "stage map: expected 14 canonical stages (incl. ship-discover / ship-shape)")
     for stage in CANONICAL_STAGE_ORDER:
@@ -585,6 +653,7 @@ def main() -> int:
         validate_stage_status_wording,
         validate_ship_spec_doc,
         validate_project_local_stage_docs,
+        validate_cross_file_semantics,
         validate_root_readme_commands,
     ]
     for validator in validators:

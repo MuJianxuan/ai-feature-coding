@@ -7,7 +7,7 @@ description: "ShipKit hard gate. Reviews implementation plans for completeness a
 
 ## Overview
 
-计划评审是硬门禁阶段，负责评审 `frontend-plan.md` 和 `backend-plan.md` 两份实施计划，确保任务完整性、依赖合理性、与设计方案的对齐，以及前后端并行开发的可行性。
+计划评审是硬门禁阶段，负责评审 `project_scope` 对应的实施计划，确保任务完整性、依赖合理性、与设计方案的对齐，以及后续编码可执行性。`fullstack` 评审 `frontend-plan.md` + `backend-plan.md`；单侧 scope 只评审对应 plan。
 
 核心目标：
 - 验证任务覆盖所有设计方案中的功能点
@@ -131,7 +131,7 @@ Review Checklist 调整：
 │                  计划评审流程                              │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
-│  1. 读取 frontend-plan.md + backend-plan.md             │
+│  1. 读取 project_scope 对应的 plan 文档                   │
 │       │                                                 │
 │       ▼                                                 │
 │  2. 读取 review-design.md 确认设计已通过                  │
@@ -264,7 +264,7 @@ gate_type: hard
 review_status: pending  # pending / approved / rejected / revision_needed
 reviewer: ""
 reviewed_at: ""
-reviewed_documents: ["frontend-plan.md", "backend-plan.md"]
+reviewed_documents: []  # fullstack: ["frontend-plan.md", "backend-plan.md"]; backend_only: ["backend-plan.md"]; frontend_only: ["frontend-plan.md"]
 revision_count: 0
 user_sign_off: ""
 signed_at: ""
@@ -303,12 +303,13 @@ conditions: []
 ```markdown
 ## 退出检查
 
-- [ ] 已读取并理解 frontend-plan.md 全部任务定义
-- [ ] 已读取并理解 backend-plan.md 全部任务定义
+- [ ] frontend scope 存在时，已读取并理解 frontend-plan.md 全部任务定义；否则标记为 `na`
+- [ ] backend scope 存在时，已读取并理解 backend-plan.md 全部任务定义；否则标记为 `na`
+- [ ] `reviewed_documents` 只列出 `project_scope` 实际评审的 plan；缺失侧检查项标记为 `na`
 - [ ] 已确认 review-design.md 状态为 approved
 - [ ] 任务覆盖完整性验证已完成（AC ↔ Task 映射表）
 - [ ] 任务依赖图已构建，确认无循环依赖
-- [ ] 接口对齐任务已确认排在时间线前部
+- [ ] 接口对齐任务已确认排在时间线前部；fullstack 额外确认双侧 checkpoint 一致，单侧 scope 标记为 `na`
 - [ ] 每个任务的粒度已检查（30-120 分钟范围）
 - [ ] 每个任务有明确的 Definition of Done
 - [ ] 每个任务执行简报完整且与 `allowed_files`、AC refs、verification command 一致

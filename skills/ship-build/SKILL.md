@@ -1,13 +1,13 @@
 ---
 name: ship-build
-description: "ShipKit stage. Executes coding tasks from the `ship-delivery-plan` outputs one at a time. Use after ship-plan-review gate passes."
+description: "ShipKit stage. Executes coding tasks one at a time. Standard mode uses reviewed delivery-plan outputs; fast-track uses reviewed fast-track-tasks.md after ship-define-review."
 ---
 
 # 编码执行 (Implementation)
 
 ## Overview
 
-编码执行阶段负责将 `ship-delivery-plan` 产出的任务逐一转化为可运行的代码。核心原则：**Contract-First Slicing** —— 先实现前后端接口对齐任务，再并行推进各端实现，且一次只执行一个任务，完成后停下等用户确认。
+编码执行阶段负责将当前任务事实源逐一转化为可运行的代码。standard 模式消费 `ship-delivery-plan` 产出的 plan；fast-track 模式消费 `fast-track-tasks.md`。核心原则：**Contract-First Slicing** —— 先实现契约层任务，再按 `project_scope` 推进对应端实现，且一次只执行一个任务，完成后停下等用户确认。
 
 核心目标：
 - 严格按 plan 中定义的任务顺序执行，一次一任务
@@ -27,7 +27,8 @@ description: "ShipKit stage. Executes coding tasks from the `ship-delivery-plan`
 
 ## When NOT to Use
 
-- plan 尚未通过评审 —— 回到 `ship-plan-review` 阶段
+- standard 模式下 plan 尚未通过评审 —— 回到 `ship-plan-review` 阶段
+- fast-track 模式下 `review-define.md` 尚未通过，或 `fast-track-tasks.md` 不存在/不完整 —— 回到 `ship-define-review` 或补齐 fast-track 任务源
 - 发现需求有重大歧义 —— 回到 `ship-define` 阶段
 - 纯技术调研/方案验证 —— 使用 tech-research 阶段
 - 需要修改 API 契约 —— 回到 `ship-contract` 阶段
@@ -341,9 +342,12 @@ python3 skills/ship-orchestrator/scripts/build_task_preflight.py <feature-dir> -
 
 ## 阶段退出检查 (整个 Implementation 结束)
 
-- [ ] frontend-plan.md 中所有任务为 DONE
-- [ ] backend-plan.md 中所有任务为 DONE
-- [ ] Phase 1（契约层）实现与 api-contract.md 一致
+- [ ] `pipeline_mode` 已确认；standard 读取 `project_scope` 对应 plan，fast-track 读取 `fast-track-tasks.md`
+- [ ] fullstack / standard：frontend-plan.md 与 backend-plan.md 中所有任务为 DONE
+- [ ] backend_only / standard：backend-plan.md 中所有任务为 DONE，frontend-plan.md 不存在或标记为 `na`
+- [ ] frontend_only / standard：frontend-plan.md 中所有任务为 DONE，backend-plan.md 不存在或标记为 `na`
+- [ ] fast-track：fast-track-tasks.md 中所有任务为 DONE
+- [ ] 契约层实现与 api-contract.md 或 fast-track 任务中的 contract refs 一致
 - [ ] 端到端关键路径已跑通（即使是手动验证）
 - [ ] 已知的偏离/妥协已记录在当前事实源的 notes 字段
 - [ ] 相关规范已加载并在任务证据中留痕（如适用）
