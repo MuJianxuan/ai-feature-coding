@@ -21,7 +21,7 @@ npx skills add MuJianxuan/ai-feature-coding
 
 Design 大阶段现在采用 Project Reality First：已有项目上的需求必须先通过 `ship-tech-discovery` 发现真实功能、表、API、页面、服务、权限、worker/MQ、日志/metrics 和既有 feature 文档，再进入技术调研、选型、contract、frontend/backend design。规范路由从单一 `.docs/spec/INDEX.md` 开始，INDEX 只使用 `frontend / backend / shared` 分类，frontmatter schema 不新增 `spec_type`。
 
-`technical_plan_provided`（技术方案选区）入口适用于已有项目迭代：用户提供技术方案文件或粘贴片段，并指定章节、接口、模块等 selected scope。该入口要求 `existing_project`，不会把整份技术方案纳入计划；未选中内容默认 `out_of_scope`，进入 `ship-delivery-plan` 前仍必须通过 `ship-design-review`。
+`technical_plan_provided`（技术方案选区）入口适用于已有项目迭代：用户提供技术方案文件或粘贴片段，并指定章节、接口、模块等 selected scope。该入口要求 `existing_project`，直接从 `ship-tech-discovery` 开始；不会把整份技术方案纳入计划，未选中内容默认 `out_of_scope`，进入 `ship-delivery-plan` 前仍必须通过 `ship-design-review`。
 
 Build 阶段的任务源（`frontend-plan.md`、`backend-plan.md`、`fast-track-tasks.md`）都使用同一任务项合同：机器字段保留 `allowed_files`、AC refs、verification command，同时每个任务必须包含 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报。
 

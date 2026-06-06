@@ -28,7 +28,7 @@
 说明：
 
 - `ship-discover` 和 `ship-shape` 是条件性前置阶段（Discover 大阶段），仅在场景 A（零到一）或场景 C（迭代增强）时激活；场景 B（产品提供完整材料）、场景 D（PRD 直通）和场景 E（技术方案选区，`technical_plan_provided`）直接跳过，对应 `stages.*.status = skipped`。
-- 前置阶段不设独立硬门禁；下游 `ship-define-review` 是统一的需求质量门。
+- 前置阶段不设独立硬门禁；场景 A/B/C/D 的下游 `ship-define-review` 是统一的需求质量门。场景 E 直接进入 `ship-tech-discovery`，由 `ship-tech-discovery` 派生最小 `requirements.md` 索引，不单独执行 `ship-define-review`。
 
 ## 2. Macro Stage View
 
@@ -491,8 +491,8 @@ Research Alignment Check 是 research 子段内部的过程动作，不是 hard 
 
 fast-track 是受控子流程，不是"跳过流程直接编码"。
 
-- 最小路径固定为：`ship-define → ship-define-review → ship-build → ship-verify → ship-handoff`
-- 不允许绕过 `ship-define-review`
+- 场景 A/B/C/D 的最小路径固定为：`ship-define → ship-define-review → ship-build → ship-verify → ship-handoff`（场景 A/C 仍保留必要的 `ship-discover` 前置）
+- 场景 A/B/C/D 不允许绕过 `ship-define-review`；场景 E 默认不进入 fast-track，直接从 `ship-tech-discovery` 开始并保留后续设计评审
 - 若未生成设计/计划文档，必须在启动确认或需求评审中明确记录 fast-track 原因和风险
 - 若未生成 `frontend-plan.md` / `backend-plan.md`，`ship-build` 的任务事实源固定为 feature 根目录下的 `fast-track-tasks.md`
 - 一旦发现需求复杂度上升、接口新增、跨端耦合升高，可随时升级回 standard
@@ -557,7 +557,7 @@ Discover 前置阶段在 fast-track 下的规则：
 | B 产品提供 | 用户附了 PRD/Figma/原型/UIUX 文档，或选择先创建目录后补资料 | `ship-define`（interview mode） | 跳过（`stages.ship-discover.status / ship-shape.status = skipped`） |
 | C 迭代增强 | 用户引用已有 feature 目录或具体代码路径并描述变更 | `ship-discover`（evolve 分支） | 激活 |
 | D PRD 直通 | 用户附了完整 PRD + 原型/设计稿，或选择先创建目录粘贴完整 PRD，且明确表示不需要需求录入 | `ship-define`（prd_direct mode） | 跳过（`stages.ship-discover.status / ship-shape.status = skipped`） |
-| E 技术方案选区 | 用户提供已有技术方案文件或粘贴片段，并指定章节、接口、模块、标题等 selected scope；必须是 `existing_project` | `ship-define`（`generation_mode: technical_plan`） | 跳过（`stages.ship-discover.status / ship-shape.status = skipped`） |
+| E 技术方案选区 | 用户提供已有技术方案文件或粘贴片段，并指定章节、接口、模块、标题等 selected scope；必须是 `existing_project` | `ship-tech-discovery`（technical plan entry） | 跳过（`stages.ship-discover.status / ship-shape.status / ship-define.status / ship-define-review.status = skipped`） |
 
 判定规则：
 
@@ -567,10 +567,10 @@ Discover 前置阶段在 fast-track 下的规则：
 - 场景 B 不进 Discover 大阶段；若资料已存在，orchestrator 路由到 `ship-define`（interview mode）；若用户选择先创建目录后补资料，则 `stages.ship-define.status: blocked` 且 `block_reason: awaiting_materials`
 - 场景 D 不进 Discover 大阶段；若资料已存在，orchestrator 路由到 `ship-define`（prd_direct mode）；若用户选择先创建目录后补资料，则 `stages.ship-define.status: blocked` 且 `block_reason: awaiting_materials`；`stages.ship-define.generation_mode` 设为 `prd_direct`
 - 场景 B/D 的 raw `requirements.md` inbox 只是原始资料入口，不是下游 contract；必须经 `ship-define` normalize 后才能进入 `ship-define-review`
-- 场景 E 不新增 canonical stage；`meta.yml.scenario = technical_plan_provided`，`stages.ship-define.generation_mode = technical_plan`，`technical_plan_source.repository_scan_required = true`
+- 场景 E 不新增 canonical stage；`meta.yml.scenario = technical_plan_provided`，`current_stage = ship-tech-discovery`，`stages.ship-define.status = skipped`，`stages.ship-define.generation_mode = technical_plan`（即 derived `requirements.md` 使用 `generation_mode: technical_plan`），`stages.ship-define-review.status = skipped`，`technical_plan_source.repository_scan_required = true`
 - 场景 E 只允许 `project_context: existing_project`；若用户试图用于 `new_project`，必须阻塞并改走场景 A/B/D
-- 场景 E 只创建 `resource/README.md` 作为资料归档提示，不创建 raw PRD inbox；`requirements.md` 必须由 `ship-define` 从 selected scope 生成结构化合同
-- 场景 E 不能直接进入 `ship-delivery-plan`；仍必须通过 `ship-define-review`、`ship-tech-discovery`、`ship-contract`、必要的 frontend/backend design 和 `ship-design-review`
+- 场景 E 只创建 `resource/README.md` 作为资料归档提示，不创建 raw PRD inbox；`requirements.md` 由 `ship-tech-discovery` 开头派生为最小 requirements index，用于后续 AC traceability
+- 场景 E 不能直接进入 `ship-delivery-plan`；仍必须通过 `ship-tech-discovery`、`ship-contract`、必要的 frontend/backend design 和 `ship-design-review`
 
 场景 B 与 D 的区分：
 
@@ -583,8 +583,8 @@ Discover 前置阶段在 fast-track 下的规则：
 - `technical_plan_source` 是索引层，不是正文事实源。原始技术方案文件或粘贴片段必须归档到 `resource/` 或记录为用户明确提供的可读路径。
 - `technical_plan_source.selected_scope` 是本期唯一进入计划的范围；未选中内容按 `ignored_source_policy: out_of_scope` 处理，不得自动纳入 `requirements.md`、contract、design 或 delivery plan。
 - `selection_mode` 只能是 `referenced_sections` 或 `pasted_excerpt`；粘贴片段必须归档为 `pasted_excerpt_file`。
-- `ship-define` 只为 selected scope 提取最小 Domain ID 和最小 AC。若技术方案没有明确 AC，agent 只能提取最小可验收结果草案，并在 `ship-define-review` 要求用户确认；AC 缺失时不得把 `requirements.md.stage_status` 标记为 `ready`。
-- `ship-tech-discovery` 必须执行 Project Reality Scan，但扫描范围只围绕 selected scope；`Requirement-to-Reality Mapping` 只覆盖 selected scope。若未选中内容构成前置依赖或冲突，记录为 risk / open question，不自动扩大 scope。
+- `ship-tech-discovery` 开头必须从 selected scope 派生最小 `requirements.md` index：只包含本期 In Scope / Out of Scope、Domain ID、最小 AC、NFR、待确认问题和 source index。若技术方案没有明确 AC，agent 只能提取最小可验收结果草案，并在 Research Alignment Check 中要求用户确认；AC 缺失时不得把 `requirements.md.stage_status` 标记为 `ready`，也不得把 `tech-research.md` 和 `tech-selection.md` 同时标记为 ready。
+- `ship-tech-discovery` 必须执行 Project Reality Scan，但扫描范围只围绕 selected scope；`Requirement-to-Reality Mapping` 只覆盖 derived `requirements.md` index 对应的 Domain ID / AC ID。若未选中内容构成前置依赖或冲突，记录为 risk / open question，不自动扩大 scope。
 - `repository_scan_status: ready` 只是补充索引，不能替代 `tech-research.md` / `tech-selection.md` 的 frontmatter 与内容校验。
 - `ship-contract`、`ship-frontend-design`、`ship-backend-design`、`ship-delivery-plan` 都必须按 selected scope 裁剪；每个 delivery plan task 必须引用 AC ID、selected scope 或 technical source、仓库探索证据、`allowed_files`、verification command，以及 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报。
 

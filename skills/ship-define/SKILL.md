@@ -69,7 +69,7 @@ description: "ShipKit stage 1 (Define). Parses requirement materials (PRD, proto
 |------|----------|------|
 | `interview`（默认） | scenario = greenfield / product_provided / evolve | 多轮采访 + 完整生成 requirements.md |
 | `prd_direct` | scenario = prd_direct；用户提供完整 PRD + 原型且明确表示不需要需求录入 | 零提问、纯提取、产出索引式 requirements.md |
-| `technical_plan` | scenario = technical_plan_provided；用户提供技术方案并指定 selected scope | 只提取 selected scope 的最小 requirements / Domain / AC；不把整份技术方案转成 PRD |
+| `technical_plan`（兼容/手动） | 旧 feature 已停在 `ship-define`，或用户显式要求手动整理技术方案 selected scope | 只提取 selected scope 的最小 requirements / Domain / AC；新建 `technical_plan_provided` 默认由 `ship-tech-discovery` 开头派生 |
 
 `requirements.md` 在 PRD 直通和产品提供入口中可能先由 `ship-orchestrator` 初始化为 raw PRD inbox。该状态下它只是原始输入，不是下游 contract；本阶段必须先执行 normalize，将 raw PRD 原文迁移或保留到 `resource/raw-prd.md`，再把 `requirements.md` 改写为结构化需求文档。
 
@@ -79,7 +79,7 @@ description: "ShipKit stage 1 (Define). Parses requirement materials (PRD, proto
 
 1. 若 `requirements.md` 是 raw PRD inbox → 先执行 [Raw Inbox Normalize](#raw-inbox-normalize)
 2. 若 `scenario: prd_direct` → 跳转到 [PRD Direct Mode](#prd-direct-mode) 执行
-3. 若 `scenario: technical_plan_provided` 或 `generation_mode: technical_plan` → 跳转到 [Technical Plan Mode](#technical-plan-mode) 执行
+3. 若 `generation_mode: technical_plan` 且当前 feature 已停在 `ship-define`，或用户显式要求手动整理技术方案 selected scope → 跳转到 [Technical Plan Mode](#technical-plan-mode) 执行；新建 `scenario: technical_plan_provided` 默认不进入本阶段
 4. 否则 → 走下方标准 interview 流程
 
 ---
@@ -595,7 +595,7 @@ evidence_complete: true
 
 ## Technical Plan Mode
 
-当 `meta.yml.scenario: technical_plan_provided` 或 `requirements.md.generation_mode: technical_plan` 时激活。该模式只服务已有项目迭代：技术方案原文描述“怎么实现”，不是 `requirements.md` 合同本身；本阶段必须只围绕 `technical_plan_source.selected_scope` 提取“做到什么算完成”的最小 requirements 和最小 AC。
+当旧 feature 已停在 `ship-define` 且 `requirements.md.generation_mode: technical_plan`，或用户显式要求手动整理技术方案 selected scope 时激活。新建 `meta.yml.scenario: technical_plan_provided` 默认直接进入 `ship-tech-discovery`，由 `ship-tech-discovery` 在开头派生最小 `requirements.md` index。该兼容模式只服务已有项目迭代：技术方案原文描述“怎么实现”，不是 `requirements.md` 合同本身；本阶段必须只围绕 `technical_plan_source.selected_scope` 提取“做到什么算完成”的最小 requirements 和最小 AC。
 
 执行规则：
 
@@ -603,7 +603,7 @@ evidence_complete: true
 2. 只解析 selected scope；未选中内容写入 Out of Scope 或资料索引说明，不得进入 In Scope、Domain ID 或 AC。
 3. 若未选中内容是前置依赖或冲突，只写入待确认问题 / risk，不自动扩大 selected scope。
 4. 为 selected scope 建立最小 Domain ID，避免把整份技术方案拆成完整 PRD。
-5. 若技术方案已有明确验收标准，标准化为 AC ID；若没有，只提取最小可验收结果草案，并在待确认问题中要求用户在 `ship-define-review` 确认。
+5. 若技术方案已有明确验收标准，标准化为 AC ID；若没有，只提取最小可验收结果草案，并在待确认问题中要求用户确认。新建场景 E 的确认记录写入 `ship-tech-discovery` 的 Research Alignment Check。
 6. `requirements.md.stage_status: ready` 必须满足：Domain ID、AC ID、In Scope / Out of Scope、待确认问题、资料索引、`source_documents` 或等价 selected scope 来源索引齐全，且不存在阻塞性 AC 缺口。
 
 Technical Plan frontmatter 示例：

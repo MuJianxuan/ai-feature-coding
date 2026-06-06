@@ -17,7 +17,7 @@ scenario: ""                  # greenfield | product_provided | prd_direct | evo
 # product_provided: 场景 B，已有完整 PRD/原型/UIUX，跳过 Discover，走 interview 模式录入
 # prd_direct: 场景 D，已有完整 PRD/原型/UIUX 且用户明确不需要需求录入，跳过 Discover，走 prd_direct 模式提取
 # evolve: 场景 C，基于已有功能做迭代增强
-# technical_plan_provided: 场景 E，已有技术方案 + selected scope，仅围绕选区生成后续计划；只适用于 existing_project
+# technical_plan_provided: 场景 E，已有技术方案 + selected scope，直接从 ship-tech-discovery 开始；只适用于 existing_project
 
 # 默认对外展示的大阶段视图
 macro_stage:
@@ -87,7 +87,7 @@ spec_context:
   warnings: []                # 最近一次 helper 解析产生的告警
   pending_proposals: []       # ship-handoff 生成、待用户确认沉淀的规范提案
 
-# 技术方案选区入口索引层（scenario=technical_plan_provided 时必填）
+# 技术方案选区入口索引层（scenario=technical_plan_provided 时必填，current_stage=ship-tech-discovery）
 # 原始技术方案或粘贴片段必须归档到 resource/ 或用户提供的可读路径；未选中内容默认 out_of_scope。
 technical_plan_source:
   source_files: []            # 例: ["resource/order-export-tech-design.md"]
@@ -112,7 +112,7 @@ stages:
     asset_protocol_invoked: false  # 是否走了 Core Asset Protocol
   ship-define:
     status: pending           # pending | in_progress | ready | blocked | completed
-    generation_mode: ""       # interview | prd_direct | technical_plan（由 scenario 决定；technical_plan 只提取 selected scope）
+    generation_mode: ""       # interview | prd_direct | technical_plan（technical_plan 用于场景 E 的 derived requirements index 或兼容手动整理）
     block_reason: ""          # awaiting_materials 表示已创建目录但等待用户补 PRD/原型/设计稿等资料
     evidence_complete: false
   ship-define-review:

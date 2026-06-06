@@ -15,6 +15,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from validate_feature_artifacts import read_frontmatter  # noqa: E402
 from feature_meta_runtime import load_meta  # noqa: E402
+from validate_requirements import validate_requirements_file  # noqa: E402
 
 SOURCE_RE = re.compile(r"\bSRC-[A-Z0-9]+-\d{3}\b|source_id\s*:", re.IGNORECASE)
 PATH_RE = re.compile(
@@ -74,6 +75,48 @@ def _read_artifact(path: Path, role: str) -> tuple[list[dict[str, str]], str, di
     return issues, body, fm
 
 
+def _validate_technical_plan_requirements_index(feature_dir: Path) -> list[dict[str, str]]:
+    requirements_path = feature_dir / "requirements.md"
+    if not requirements_path.exists():
+        return [
+            _issue(
+                "error",
+                "missing_derived_requirements_index",
+                "technical_plan_provided ready tech discovery requires derived requirements.md with minimal Domain/AC index",
+                "requirements.md",
+            )
+        ]
+
+    try:
+        frontmatter, _body = read_frontmatter(requirements_path)
+    except ValueError as exc:
+        return [_issue("error", "invalid_derived_requirements_frontmatter", str(exc), "requirements.md")]
+
+    issues: list[dict[str, str]] = []
+    if frontmatter.get("generation_mode") != "technical_plan":
+        issues.append(
+            _issue(
+                "error",
+                "derived_requirements_not_technical_plan",
+                "technical_plan_provided derived requirements.md must set generation_mode: technical_plan",
+                "requirements.md",
+            )
+        )
+    if frontmatter.get("stage_status") != "ready":
+        issues.append(
+            _issue(
+                "error",
+                "derived_requirements_not_ready",
+                "technical_plan_provided derived requirements.md must be stage_status: ready before tech discovery is ready",
+                "requirements.md",
+            )
+        )
+
+    requirements_result = validate_requirements_file(requirements_path)
+    issues.extend(requirements_result["issues"])
+    return issues
+
+
 def validate_tech_discovery(feature_dir: Path) -> dict:
     feature_dir = feature_dir.resolve()
     meta = _load_meta(feature_dir)
@@ -82,6 +125,8 @@ def validate_tech_discovery(feature_dir: Path) -> dict:
     selection_issues, selection_body, selection_fm = _read_artifact(feature_dir / "tech-selection.md", "selection")
     issues.extend(selection_issues)
     ready = research_fm.get("stage_status") == "ready" and selection_fm.get("stage_status") == "ready"
+    if ready and meta.get("scenario") == "technical_plan_provided":
+        issues.extend(_validate_technical_plan_requirements_index(feature_dir))
     if ready and not SOURCE_RE.search(research_body):
         issues.append(_issue("error", "research_missing_source_ids", "tech-research ready requires source_id entries", "tech-research.md"))
     if ready and not SOURCE_RE.search(selection_body):

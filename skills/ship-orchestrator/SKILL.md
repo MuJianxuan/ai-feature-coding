@@ -90,7 +90,7 @@ NEW_FEATURE 确认启动前，必须先判定场景，决定是否进入 Discove
 | B 产品提供 | 用户附了 PRD/Figma/原型/UIUX 文档，或选择先创建目录后补资料 | `ship-define`（interview mode） | 跳过 |
 | C 迭代增强 | 用户引用已有 feature 目录或具体代码路径并描述变更 | `ship-discover`（evolve） | 激活 |
 | D PRD 直通 | 用户附了完整 PRD + 原型/设计稿，或选择先创建目录粘贴完整 PRD，且明确表示不需要需求录入 | `ship-define`（prd_direct mode） | 跳过 |
-| E 技术方案选区入口 | 用户提供已有技术方案文件或粘贴片段，并指定章节、接口、模块或标题；明确这是已有项目迭代；`scenario: technical_plan_provided` | `ship-define`（`generation_mode: technical_plan`） | 跳过 |
+| E 技术方案选区入口 | 用户提供已有技术方案文件或粘贴片段，并指定章节、接口、模块或标题；明确这是已有项目迭代；`scenario: technical_plan_provided` | `ship-tech-discovery`（technical plan entry） | 跳过 |
 
 判定规则：
 - 信号歧义时**必须显式询问用户**场景，不允许猜测
@@ -100,10 +100,10 @@ NEW_FEATURE 确认启动前，必须先判定场景，决定是否进入 Discove
 - 场景 D 不进 Discover 大阶段；`stages.ship-discover.status` 和 `stages.ship-shape.status` 记为 `skipped`；`stages.ship-define.generation_mode` 设为 `prd_direct`
 - 若场景 B/D 是由“新建模式选择”进入且用户尚未放资料，则先创建 raw `requirements.md` inbox 和 `resource/README.md`，并将 `stages.ship-define.status` 设为 `blocked`、`block_reason` 设为 `awaiting_materials`
 - 场景 C 必须有现状基线；若用户没有指定已有 feature 目录、代码路径或明确现有功能，不创建新目录，先询问基于哪个对象增强
-- 场景 E 不进 Discover 大阶段，但 Design 大阶段必须执行 Project Reality Scan；`stages.ship-discover.status` 和 `stages.ship-shape.status` 记为 `skipped`，`stages.ship-define.generation_mode` 设为 `technical_plan`
+- 场景 E 不进 Discover / Define 大阶段，直接进入 Design 大阶段的 `ship-tech-discovery`；`stages.ship-discover.status`、`stages.ship-shape.status`、`stages.ship-define.status`、`stages.ship-define-review.status` 记为 `skipped`，`stages.ship-define.generation_mode` 设为 `technical_plan`
 - 场景 E 只允许 `project_context: existing_project`；若用户说是新项目，必须阻塞并建议改走场景 A/B/D
 - 场景 E 必须写入 `technical_plan_source`，包含技术方案来源、selected scope、`ignored_source_policy: out_of_scope`、`repository_scan_required: true`
-- 场景 E 只创建 `resource/README.md`，不创建 raw PRD inbox；`requirements.md` 由 `ship-define` 围绕 selected scope 生成
+- 场景 E 只创建 `resource/README.md`，不创建 raw PRD inbox；`requirements.md` 由 `ship-tech-discovery` 开头围绕 selected scope 派生为最小 requirements index，用于后续 AC traceability
 
 场景 B 与 D 的区分：
 - 场景 B：用户提供了 PRD/原型等材料，但未明确表示跳过需求录入 → `ship-define` 走 interview 模式（多轮采访）
@@ -154,7 +154,7 @@ NEW_FEATURE 启动确认模板：
 - 预估涉及的技术领域
 - 标明下一次需要用户确认的门禁时点
 - 若组合为 `D + backend_only`，附加提示：用户提供的"PRD"应包含 OpenAPI / 接口文档 / 设计 doc 等契约级材料；若仅有产品文档无技术规约，建议改走场景 B（interview 模式）以补足契约信息
-- 若场景为 E，必须额外展示：技术方案来源、selected scope、未选中内容按 `ignored_source_policy: out_of_scope` 忽略、仓库探索要求 `repository_scan_required: true`、进入 `ship-delivery-plan` 前仍需通过 `ship-design-review`
+- 若场景为 E，必须额外展示：技术方案来源、selected scope、未选中内容按 `ignored_source_policy: out_of_scope` 忽略、直接进入 `ship-tech-discovery`、仓库探索要求 `repository_scan_required: true`、`ship-tech-discovery` 会派生最小 requirements index、进入 `ship-delivery-plan` 前仍需通过 `ship-design-review`
 - 等待用户一句话确认（"好的""开始""go"等均视为确认）
 
 ## Process
@@ -223,9 +223,9 @@ ship-define → ship-define-review [硬门禁]
 |------|---------|---------|---------|
 | ship-discover | 场景 A/C 确认启动 | product-brief.md | frontmatter stage_status: ready |
 | ship-shape | product-brief.md ready + feature 有 UI + 无外部 UIUX | design-brief.md + resource/wireframes/ | stage_status: ready + 3+ 变体验证通过 |
-| ship-define | NEW_FEATURE 确认启动（场景 B）或 ship-discover/ship-shape 完成 | requirements.md | frontmatter stage_status: ready |
-| ship-define-review | requirements.md 存在且 stage_status: ready | review-define.md | review_status: approved + user_sign_off/signed_at |
-| ship-tech-discovery | review-define.md review_status: approved | tech-research.md + tech-selection.md | 两份产物均 `stage_status: ready` |
+| ship-define | NEW_FEATURE 确认启动（场景 B）或 ship-discover/ship-shape 完成；场景 E 跳过 | requirements.md | frontmatter stage_status: ready |
+| ship-define-review | requirements.md 存在且 stage_status: ready；场景 E 跳过 | review-define.md | review_status: approved + user_sign_off/signed_at |
+| ship-tech-discovery | review-define.md review_status: approved；或场景 E 已提供 technical_plan_source selected scope | tech-research.md + tech-selection.md；场景 E 同时派生 requirements.md index | 两份产物均 `stage_status: ready`；场景 E 还要求 derived `requirements.md.stage_status: ready` |
 | ship-contract | tech-selection.md ready | api-contract.md | stage_status: ready |
 | ship-frontend-design | api-contract.md ready | frontend-design.md | stage_status: ready |
 | ship-backend-design | api-contract.md ready | backend-design.md | stage_status: ready |
@@ -260,13 +260,13 @@ standard 模式（默认）：
 - 所有硬门禁必须通过
 - 所有文档产物必须完整
 
-fast-track 模式：
+fast-track 模式（仅适用于场景 A/B/C/D；场景 E 默认从 `ship-tech-discovery` 开始并保留后续设计评审）：
 - 适用于小型功能或紧急修复
 - 场景 B 最小路径：`ship-define → ship-define-review → ship-build → ship-verify → ship-handoff`
 - 场景 A/C 最小路径：`ship-discover → ship-define → ship-define-review → ship-build → ship-verify → ship-handoff`（必须经过 ship-discover 把模糊想法或变更结构化，但跳过 ship-shape）
 - 可选扩展：在最小路径基础上按需插入 03（技术发现）或 05-08（设计）
 - 切换条件：用户在 NEW_FEATURE 确认时明确要求，或 02 评审时 reviewer 判定功能复杂度为 low
-- 硬门禁 02 仍然必须执行；fast-track 允许不生成设计/计划产物，但不允许绕过需求录入、需求评审、测试和验收
+- 硬门禁 02 在场景 A/B/C/D 中仍然必须执行；fast-track 允许不生成设计/计划产物，但不允许绕过需求录入、需求评审、测试和验收
 - fast-track 的 build 任务事实源固定为 `fast-track-tasks.md`；该文件由 `ship-define-review` 通过后或进入 `ship-build` 前创建，任务条目必须包含单 `DOING`、`allowed_files`、AC refs、verification command，以及 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报
 - fast-track 中若发现 UI 复杂度高，应升级回 standard 并补做 ship-shape
 
@@ -468,7 +468,7 @@ NEW_FEATURE 模式下的目录创建流程：
 18. 场景 B/D：将 `stages.ship-discover.status` 和 `stages.ship-shape.status` 设为 `skipped`，`current_stage: ship-define`，`stages.ship-define.status: blocked`，`block_reason: awaiting_materials`
 19. 场景 D：将 `stages.ship-define.generation_mode` 设为 `prd_direct`；场景 B：设为 `interview`
 20. 场景 C：若已有 feature/code 基线，`current_stage: ship-discover` 且 `discovery_mode: evolve`；若无基线，先询问，不创建目录
-21. 场景 E：确认 `project_context: existing_project`，写入 `technical_plan_source`，将 `stages.ship-define.generation_mode` 设为 `technical_plan`，不创建 raw `requirements.md` inbox
+21. 场景 E：确认 `project_context: existing_project`，写入 `technical_plan_source`，将 `current_stage` 设为 `ship-tech-discovery`，将 `stages.ship-define.status` 和 `stages.ship-define-review.status` 设为 `skipped`，将 `stages.ship-define.generation_mode` 设为 `technical_plan`，不创建 raw `requirements.md` inbox
 
 资料准备态解除规则：
 

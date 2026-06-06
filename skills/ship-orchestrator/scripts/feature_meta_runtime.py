@@ -847,13 +847,20 @@ def apply_scenario_initial_state(data: dict, scenario: str) -> None:
         define["block_reason"] = ""
         define["generation_mode"] = "interview"
     elif scenario in TECHNICAL_PLAN_SCENARIOS:
-        data["current_stage"] = "ship-define"
+        data["current_stage"] = "ship-tech-discovery"
         discover["status"] = "skipped"
         shape["status"] = "skipped"
-        define["status"] = "blocked"
-        define["block_reason"] = AWAITING_MATERIALS
+        define["status"] = "skipped"
+        define["block_reason"] = ""
         define["evidence_complete"] = False
         define["generation_mode"] = "technical_plan"
+        define_review = stages.setdefault("ship-define-review", {})
+        define_review["status"] = "skipped"
+        define_review["approved"] = False
+        tech_discovery = stages.setdefault("ship-tech-discovery", {})
+        tech_discovery["status"] = "pending"
+        tech_discovery.setdefault("current_part", "research")
+        tech_discovery.setdefault("evidence_complete", False)
         technical_plan_source = data.setdefault("technical_plan_source", {})
         technical_plan_source.setdefault("source_files", [])
         technical_plan_source.setdefault("selection_mode", "")

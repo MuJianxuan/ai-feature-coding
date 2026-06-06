@@ -146,7 +146,7 @@ description: "ShipKit hard gate. Reviews requirements for completeness and corre
 评审开始前，检查 `requirements.md` 的 `generation_mode` 字段：
 
 - `generation_mode: prd_direct` → 执行 **PRD Direct 评审流程**（含 PRD 源文件质量审核 + 提取准确性审核 + 标准 Checklist）
-- `generation_mode: technical_plan` → 执行 **技术方案选区评审流程**（含 selected scope 边界审核 + 最小 AC 审核 + 标准 Checklist）
+- `generation_mode: technical_plan` → 仅对旧 feature 或用户显式手动整理的 technical plan requirements 执行 **技术方案选区评审流程**；新建 `technical_plan_provided` 默认跳过本 gate，直接由 `ship-tech-discovery` 派生最小 requirements index
 - 其他（无此字段或 `interview`）→ 执行标准评审流程
 
 ### 标准评审流程
@@ -231,7 +231,7 @@ Phase 2 发现的问题归入 Major（提取错误）或 Minor（引用位置偏
 
 ### 技术方案选区评审流程
 
-当 `generation_mode: technical_plan` 时，评审分三个阶段执行：
+当旧 feature 或手动整理产物使用 `generation_mode: technical_plan` 时，评审分三个阶段执行。新建 `technical_plan_provided` 入口不进入本评审流程，selected scope 边界和最小 AC 确认写入 `ship-tech-discovery` 的 Research Alignment Check。
 
 ```
 Phase 1: selected scope 边界审核

@@ -27,7 +27,7 @@
 | B 产品提供 | 已有完整 PRD/Figma/原型/UIUX | `ship-define` (interview mode) | 跳过 |
 | C 迭代增强 | 基于已有功能做修改/扩展，有旧代码但无新 PRD | `ship-discover` (evolve) | 激活 |
 | D PRD 直通 | 已有完整 PRD + 原型 + 设计稿，用户明确不需要需求录入 | `ship-define` (prd_direct mode) | 跳过 |
-| E 技术方案选区 | 已有技术方案文件或粘贴片段，只围绕指定章节/接口/模块生成计划；仅适用于 `existing_project` | `ship-define` (`technical_plan` mode) | 跳过 |
+| E 技术方案选区 | 已有技术方案文件或粘贴片段，只围绕指定章节/接口/模块生成计划；仅适用于 `existing_project` | `ship-tech-discovery` (technical plan entry) | 跳过 |
 
 默认原则：
 
@@ -38,7 +38,7 @@
 - `ship-spec` 作为 workflow utility 隐式接入，不作为单独阶段暴露给默认用户视图
 - `ship-spec` 只消费 workspace 的 `spec_root`；多项目父目录下必须先初始化 `.docs/ship/project.yml`，再为 feature 选择默认关联 projects
 - 进入 Design 后，`ship-tech-discovery` 对已有项目必须 Project Reality First：先查真实功能、表、API、页面、服务、权限和既有 feature 文档，再做技术调研/选型
-- `technical_plan_provided` 入口只计划 selected scope；不会把整份技术方案纳入计划，未选中内容默认 `out_of_scope`
+- `technical_plan_provided` 入口直接从 `ship-tech-discovery` 开始，只计划 selected scope；不会把整份技术方案纳入计划，未选中内容默认 `out_of_scope`
 - 规范路由从单一 `.docs/spec/INDEX.md` 开始；INDEX 只区分 `frontend / backend / shared`，frontmatter schema 不新增 `spec_type`
 - Build 任务项同时保留机器字段和执行简报；`frontend-plan.md`、`backend-plan.md`、`fast-track-tasks.md` 中每个任务都必须包含 `任务目标 / 上下文 / 约束 / 验收 / 输出`
 
@@ -115,9 +115,9 @@
 ```
 
 默认响应：
-- 识别为场景 E，scenario = `technical_plan_provided`，起点 `ship-define`（technical_plan mode），跳过 Discover
+- 识别为场景 E，scenario = `technical_plan_provided`，起点 `ship-tech-discovery`，跳过 Discover 和 Define
 - 要求 `project_context: existing_project`
-- 当前只围绕 selected scope 提取最小 requirements / AC，未选中技术方案内容不会进入 plan
+- `ship-tech-discovery` 开头只围绕 selected scope 派生最小 requirements index / AC，未选中技术方案内容不会进入 plan
 - Design 大阶段仍必须做 Project Reality Scan，并且进入 `ship-delivery-plan` 前必须通过 `ship-design-review`
 
 ### 继续已有 feature
@@ -148,7 +148,7 @@
 | 大阶段 | 内部阶段 | 条件 |
 |--------|----------|------|
 | `Discover` | `ship-discover`, `ship-shape` | 仅场景 A/C |
-| `Define` | `ship-define`, `ship-define-review` | 始终 |
+| `Define` | `ship-define`, `ship-define-review` | 场景 E 跳过 |
 | `Design` | `ship-tech-discovery`, `ship-contract`, `ship-frontend-design`, `ship-backend-design`, `ship-design-review` | 始终 |
 | `Build` | `ship-delivery-plan`, `ship-plan-review`, `ship-build`, `ship-verify` | 始终 |
 | `Close` | `ship-handoff` | 始终 |
@@ -157,7 +157,7 @@
 
 - 大阶段是展示层概念
 - 细阶段是协议层和路由层事实源
-- 三道硬门禁仍然存在：`ship-define-review`、`ship-design-review`、`ship-plan-review`
+- 三道硬门禁仍然存在：`ship-define-review`、`ship-design-review`、`ship-plan-review`；场景 E 跳过 `ship-define-review`，但仍必须通过后两道硬门禁
 
 ## 核心设计原则
 

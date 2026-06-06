@@ -1,6 +1,6 @@
 ---
 name: ship-tech-discovery
-description: "ShipKit stage. Performs project-reality-first technical discovery, then turns evidence into stack decisions. Use after ship-define-review completes."
+description: "ShipKit stage. Performs project-reality-first technical discovery, then turns evidence into stack decisions. Use after ship-define-review completes, or directly for technical_plan_provided entries."
 ---
 
 # 技术发现 (Tech Discovery)
@@ -28,6 +28,7 @@ description: "ShipKit stage. Performs project-reality-first technical discovery,
 ## When to Use
 
 - `requirements.md` 已通过 `ship-define-review` gate
+- `meta.yml.scenario: technical_plan_provided` 且 `technical_plan_source.selected_scope` 已明确；此时直接从本阶段开始，不要求 `ship-define-review`
 - 需要把需求和 workspace / feature `meta.yml.projects` 的真实现状对齐
 - 需要确认已有功能、表结构、API、页面、服务、权限、worker、MQ topic、配置或测试是否可复用/扩展
 - 需要确认最新技术信息并据此锁定技术栈
@@ -35,7 +36,7 @@ description: "ShipKit stage. Performs project-reality-first technical discovery,
 
 ## When NOT to Use
 
-- `ship-define-review` 尚未通过
+- `ship-define-review` 尚未通过，且不是 `technical_plan_provided` 入口
 - workspace 未明确，且无法通过 `.docs/ship/project.yml` 或 feature `meta.yml.spec_context` 确定
 - 用户只要求一次性技术咨询，不进入 ShipKit feature workflow
 
@@ -45,8 +46,10 @@ description: "ShipKit stage. Performs project-reality-first technical discovery,
 
 当 `meta.yml.scenario: technical_plan_provided` 时，本阶段仍必须执行 Project Reality Scan，但扫描范围只围绕 `technical_plan_source.selected_scope`：
 
+- 本阶段开头先派生最小 `requirements.md` index，frontmatter 使用 `stage: ship-define`、`generation_mode: technical_plan`，但不单独执行 `ship-define` / `ship-define-review`。
+- derived `requirements.md` 只包含 selected scope 的 In Scope / Out of Scope、Domain ID、AC ID、NFR、待确认问题和 source index；不得把整份技术方案转成 PRD。
 - 优先按 selected scope 的章节名、接口、模块、标题、代码路径和关键词搜索仓库。
-- `Requirement-to-Reality Mapping` 只覆盖 selected scope 对应的 Domain ID / AC ID。
+- `Requirement-to-Reality Mapping` 只覆盖 derived `requirements.md` index 中 selected scope 对应的 Domain ID / AC ID。
 - 不扫描未选中章节对应的功能；未选中内容默认视为 out_of_scope。
 - 若未选中内容构成 selected scope 的前置依赖或冲突，只记录为 risk / open question，并询问是否扩大 selected scope，不自动纳入本期。
 - `repository_scan_status: ready` 只是 meta 索引；真正允许进入后续阶段的事实源仍是 `tech-research.md` 和 `tech-selection.md` 的 frontmatter 与内容校验。
@@ -89,14 +92,15 @@ spec_warnings: []
 阶段退出条件：
 - `tech-research.md.stage_status = ready`
 - `tech-selection.md.stage_status = ready`
+- 若 `meta.yml.scenario: technical_plan_provided`：derived `requirements.md.stage_status = ready`，且 `generation_mode: technical_plan`、`source_documents` / `selected_scope` 来源索引齐全
 
-仅当两者都满足时，`ship-orchestrator` 才允许进入 `ship-contract`。
+仅当上述退出条件都满足时，`ship-orchestrator` 才允许进入 `ship-contract`。
 
 ## Process
 
 ```
-1. 读取 requirements.md + meta.yml + workspace 配置
-   verify: project_context、project_scope、Domain ID、AC ID、workspace、feature `meta.yml.projects` 已确认
+1. 读取 meta.yml + workspace 配置；若是 `technical_plan_provided`，先从 `technical_plan_source.selected_scope` 派生最小 `requirements.md` index，否则读取已通过 `ship-define-review` 的 requirements.md
+   verify: project_context、project_scope、Domain ID、AC ID、workspace、feature `meta.yml.projects` 已确认；场景 E 的 derived `requirements.md` 已限制在 selected scope 内
 2. 执行 Project Reality Scan
    verify: 已发现与需求相关的代码、表、API、页面、服务、worker、MQ、权限、日志/metrics、测试和既有 feature 文档
 3. 建立 Requirement-to-Reality Mapping
@@ -107,14 +111,14 @@ spec_warnings: []
    verify: 形成 source-backed 的外部技术调研、版本核查或方案对比；无外部技术调研需求时说明不适用
 6. 写出 tech-research.md
    verify: 项目事实、证据、不确定项、对齐记录、selection 输入完整
-7. 读取 tech-research.md + requirements.md
+7. 读取 tech-research.md + requirements.md（场景 E 读取 derived requirements index）
    verify: 候选方案、约束、既有系统关系和评估维度完整
 8. 执行 selection 子段
    verify: 形成带 ADR 的 tech-selection.md，并完成 spec compatibility check
 9. 交叉校验 research → selection
    verify: 每个关键决策都能回指 research 证据；不得覆盖 Project Reality Scan 中的 avoid/unknown 约束
 10. 标记两个产物为 ready
-   verify: 两份文档均无 TODO/待确认阻塞项；assumptions 已显式记录
+   verify: 两份文档均无 TODO/待确认阻塞项；assumptions 已显式记录；场景 E 的 derived `requirements.md` 已 ready
 ```
 
 ## Delegation Boundary
@@ -306,6 +310,7 @@ selection 子段遵循 ADR 决策纪律：
 ```markdown
 - [ ] tech-research.md frontmatter 已设置 `stage: ship-tech-discovery` 和 `artifact_role: research`
 - [ ] tech-selection.md frontmatter 已设置 `stage: ship-tech-discovery` 和 `artifact_role: selection`
+- [ ] technical_plan_provided 场景下，derived `requirements.md` 已设置 `generation_mode: technical_plan`、`source_documents` / `selected_scope` 来源索引和 `stage_status: ready`
 - [ ] tech-research.md 包含 Project Reality Scan / Requirement-to-Reality Mapping / Existing Surface Inventory / Evidence and Uncertainty / Research Alignment Check
 - [ ] existing_project 场景下 Project Reality Scan 有真实路径、接口、表、服务、组件、配置、测试或既有 feature 文档证据
 - [ ] new_project 场景下 Project Reality Scan 写明“不适用：new_project，无既有代码基线”
