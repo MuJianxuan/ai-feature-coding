@@ -993,6 +993,45 @@ Decision: use FastAPI.
         self.assertFalse(result["ok"])
         self.assertTrue(any(issue["code"] == "research_missing_source_ids" for issue in result["issues"]))
 
+    def test_fullstack_backend_design_can_start_without_frontend_design(self) -> None:
+        self.prepare_ready_contract_stage()
+
+        result = check_transition(self.feature_dir, "ship-backend-design")
+
+        self.assertTrue(result["allowed"], result["issues"])
+        self.assertNotIn("ship-frontend-design", result["checked_previous_stages"])
+
+    def test_fullstack_frontend_design_can_start_without_backend_design(self) -> None:
+        self.prepare_ready_contract_stage()
+
+        result = check_transition(self.feature_dir, "ship-frontend-design")
+
+        self.assertTrue(result["allowed"], result["issues"])
+        self.assertNotIn("ship-backend-design", result["checked_previous_stages"])
+
+    def test_fullstack_design_review_still_requires_both_design_outputs(self) -> None:
+        self.prepare_ready_contract_stage(current_stage="ship-backend-design")
+        self.write_text(
+            "backend-design.md",
+            """---
+stage: ship-backend-design
+stage_status: ready
+updated_at: ""
+evidence_complete: true
+---
+
+# Backend Design
+""",
+        )
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["stages"]["ship-backend-design"]["status"] = "ready"
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        result = check_transition(self.feature_dir, "ship-design-review")
+
+        self.assertFalse(result["allowed"])
+        self.assertTrue(any(issue["code"] == "missing_stage_artifact" and "ship-frontend-design" in issue["message"] for issue in result["issues"]))
+
     def write_selection_ready(self) -> None:
         self.write_text(
             "tech-selection.md",
@@ -1012,6 +1051,46 @@ ADR: ADR-AUTH-001
 tech_stack: Node service
 """,
         )
+
+    def write_contract_ready(self) -> None:
+        self.write_text(
+            "api-contract.md",
+            """---
+stage: ship-contract
+stage_status: ready
+contract_forms: [rest]
+updated_at: ""
+evidence_complete: true
+---
+
+# API Contract
+
+#### POST /api/v1/login
+- 关联 Domain：D-AUTH-001
+- 关联 AC：AC-AUTH-001
+- 请求参数：body.email string required
+- 成功响应：200
+- 错误响应：ERR_AUTH_INVALID | HTTP Status 401 | 凭证错误
+
+## 数据模型
+
+interface LoginRequest { email: string; password: string }
+""",
+        )
+
+    def prepare_ready_contract_stage(self, *, current_stage: str = "ship-contract") -> None:
+        self.write_meta(current_stage=current_stage, define_review_status="approved")
+        self.write_requirements(status="ready")
+        self.write_define_review(status="approved", signed=True)
+        self.write_research_ready(self.valid_research_body())
+        self.write_selection_ready()
+        self.write_contract_ready()
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        for stage in ("ship-define", "ship-tech-discovery", "ship-contract"):
+            meta["stages"][stage]["status"] = "ready"
+        meta["stages"]["ship-define-review"]["status"] = "approved"
+        meta["stages"]["ship-define-review"]["approved"] = True
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
 
     def write_research_ready(self, body: str) -> None:
         self.write_text(

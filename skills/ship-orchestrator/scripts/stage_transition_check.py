@@ -114,6 +114,10 @@ def _required_previous_stages(meta: dict[str, Any], target_stage: str) -> list[s
         stages = [stage for stage in stages if stage not in ("ship-shape", "ship-frontend-design")]
     if project_scope == "frontend_only":
         stages = [stage for stage in stages if stage != "ship-backend-design"]
+    if project_scope == "fullstack" and target_stage in ("ship-frontend-design", "ship-backend-design"):
+        # Frontend and backend design are sibling stages. Both depend on the
+        # shared contract, but neither side may block the other from starting.
+        stages = [stage for stage in stages if stage not in ("ship-frontend-design", "ship-backend-design")]
     return stages
 
 

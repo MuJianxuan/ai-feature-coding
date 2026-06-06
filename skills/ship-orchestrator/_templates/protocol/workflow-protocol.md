@@ -29,6 +29,8 @@
 
 - `ship-discover` 和 `ship-shape` 是条件性前置阶段（Discover 大阶段），仅在场景 A（零到一）或场景 C（迭代增强）时激活；场景 B（产品提供完整材料）、场景 D（PRD 直通）和场景 E（技术方案选区，`technical_plan_provided`）直接跳过，对应 `stages.*.status = skipped`。
 - 前置阶段不设独立硬门禁；场景 A/B/C/D 的下游 `ship-define-review` 是统一的需求质量门。场景 E 直接进入 `ship-tech-discovery`，由 `ship-tech-discovery` 派生最小 `requirements.md` 索引，不单独执行 `ship-define-review`。
+- `ship-frontend-design` 与 `ship-backend-design` 是 sibling stages：两者共同依赖 `ship-contract`，但 fullstack 下任一侧启动时不得要求另一侧已完成；`ship-design-review` 才是两侧设计产物的统一收口点。
+- `verification.md` 是 `ship-verify` 与 `ship-handoff` 的 shared artifact。为保持最终验收 ownership，frontmatter `stage` 固定写 `ship-handoff`；`ship-verify` 只写测试章节并将 `stage_status` 推到 `ready`，`ship-handoff` 完成 AC 验收后再推到 `complete`。
 
 ## 2. Macro Stage View
 

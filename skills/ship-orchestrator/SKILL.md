@@ -227,8 +227,8 @@ ship-define → ship-define-review [硬门禁]
 | ship-define-review | requirements.md 存在且 stage_status: ready；场景 E 跳过 | review-define.md | review_status: approved + user_sign_off/signed_at |
 | ship-tech-discovery | review-define.md review_status: approved；或场景 E 已提供 technical_plan_source selected scope | tech-research.md + tech-selection.md；场景 E 同时派生 requirements.md index | 两份产物均 `stage_status: ready`；场景 E 还要求 derived `requirements.md.stage_status: ready` |
 | ship-contract | tech-selection.md ready | api-contract.md | stage_status: ready |
-| ship-frontend-design | api-contract.md ready | frontend-design.md | stage_status: ready |
-| ship-backend-design | api-contract.md ready | backend-design.md | stage_status: ready |
+| ship-frontend-design | api-contract.md ready；不要求 backend-design 已完成 | frontend-design.md | stage_status: ready |
+| ship-backend-design | api-contract.md ready；不要求 frontend-design 已完成 | backend-design.md | stage_status: ready |
 | ship-design-review | frontend-design + backend-design ready | review-design.md | review_status: approved + user_sign_off/signed_at |
 | ship-delivery-plan | review-design.md review_status: approved | frontend-plan.md + backend-plan.md | 两份产物均 `stage_status: ready` |
 | ship-plan-review | frontend-plan + backend-plan ready | review-plan.md | review_status: approved + user_sign_off/signed_at |
@@ -237,7 +237,7 @@ ship-define → ship-define-review [硬门禁]
 | ship-handoff | verification.md stage_status: ready | handoff.md + verification.md | `handoff.md` 完成且 `verification.md stage_status: complete` |
 
 并行规则：
-- ship-frontend-design 和 ship-backend-design 可并行执行（共同依赖 05 的产出）
+- ship-frontend-design 和 ship-backend-design 是 sibling stages，可并行执行；fullstack 下任一侧启动只依赖 api-contract.md ready，另一侧不作为启动前置，ship-design-review 才统一收口两侧设计产物
 - ship-tech-discovery 阶段内固定顺序：research → selection
 - ship-delivery-plan 阶段内固定顺序：frontend → backend → sync
 - ship-build 正式任务保持单 `DOING`；只读准备、验证和证据支线才允许辅助委派
