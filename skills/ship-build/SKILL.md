@@ -149,6 +149,7 @@ Phase 3: 集成联调
 
 **Step 3-4: 上下文准备**
 - 阅读任务条目中的"完成判定标准"（Acceptance Criteria for Task）
+- 阅读任务条目中的 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报；缺失任一段落时停止，回到 plan 或 fast-track task 修正
 - 阅读"关联文件清单"中列出的所有文件，理解现状
 - 如果任务关联了 design 文档章节，读取该章节
 - 使用 `ship-spec` hook 匹配 workspace `spec_root` 下的规范文件；`--file` 必须先归一化为相对 workspace root 的路径，再与 `applies_to` 做 glob 匹配
@@ -159,6 +160,7 @@ Phase 3: 集成联调
 
 **Step 5: 编写代码**
 - 严格在任务定义的文件范围内修改
+- `allowed_files` 是修改范围事实源；`上下文` 中出现但未列入 `allowed_files` 的文件只能阅读，不能直接修改
 - 遵守项目已有的代码风格、命名约定、目录结构
 - 必要时编写测试（后端任务建议 TDD，前端组件任务建议先写 stories/snapshot）
 
@@ -219,6 +221,21 @@ Phase 3: 集成联调
   - build: pnpm build → success
   - files: src/pages/Login.tsx, src/pages/Login.module.css
 - notes: ""
+
+任务目标：
+实现登录页面骨架。
+
+上下文：
+前端是 React；登录页面入口在 src/pages/Login.tsx；相关样式在 src/pages/Login.module.css；AC-AUTH-001 定义登录页可用性要求。
+
+约束：
+不要改后端接口；不要重写鉴权系统；只修改 allowed_files 中列出的文件。
+
+验收：
+src/pages/Login.test.tsx 通过；pnpm build 通过；AC-AUTH-001 对应行为可观察。
+
+输出：
+直接修改 allowed_files 中列出的代码，更新 evidence，并说明改了哪些文件。
 ```
 
 ### Task Readiness Preflight
@@ -237,6 +254,7 @@ python3 skills/ship-orchestrator/scripts/build_task_preflight.py <feature-dir> -
 - 当前 `DOING` task 有 `allowed_files`。
 - 当前 `DOING` task 有 AC refs。
 - 当前 `DOING` task 有 verification command。
+- 当前 `DOING` task 有 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报。
 - 若必须扩大文件范围，先记录 reason、impact、user approval，再更新任务记录。
 
 ### DOING 唯一性

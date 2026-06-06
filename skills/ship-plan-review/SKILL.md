@@ -102,9 +102,27 @@ Review Checklist 调整：
 - [ ] 依赖关系合理，无循环依赖（任务 DAG 无环）
 - [ ] 接口对齐任务（contract task）在前后端共享时间线前部
 - [ ] 每个任务有明确的完成判定标准（Definition of Done）
+- [ ] 每个任务包含 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报
 - [ ] 任务与 AC 的映射完整（每条验收标准至少被一个任务覆盖）
 - [ ] 估时合理（无单任务超过 4 小时，无任务少于 15 分钟）
 ```
+
+### Task Brief Review Rules
+
+每个任务项必须通过执行简报检查。任一任务缺失以下段落，评为 Major，`review_status` 应为 `revision_needed`：
+
+- `任务目标`：一句话说明当前任务要完成的可交付目标，不写泛泛的“实现功能”。
+- `上下文`：包含仓库探索证据、关键代码路径、接口、状态源、数据源或设计文档引用。
+- `约束`：列出禁止事项、兼容要求、文件范围或不能破坏的既有行为。
+- `验收`：列出任务级验收结果，必须能映射到 AC refs 和 verification command。
+- `输出`：说明 build agent 应直接修改代码、更新 evidence，并汇报改动文件。
+
+判定细则：
+
+- `上下文` 只写业务背景、没有代码路径或接口证据，按 Major 处理。
+- `约束` 为空或只写“无”，但任务存在兼容/范围限制，按 Major 处理。
+- `验收` 与 AC refs 或 verification command 不一致，按 Major 处理；导致 AC 无法覆盖时升级为 Critical。
+- `输出` 不能替代 `allowed_files`；若输出要求修改的文件不在 `allowed_files` 中，按 Major 处理。
 
 ## Process
 
@@ -293,6 +311,7 @@ conditions: []
 - [ ] 接口对齐任务已确认排在时间线前部
 - [ ] 每个任务的粒度已检查（30-120 分钟范围）
 - [ ] 每个任务有明确的 Definition of Done
+- [ ] 每个任务执行简报完整且与 `allowed_files`、AC refs、verification command 一致
 - [ ] Review Checklist 每项已逐一检查并标注结果
 - [ ] 所有发现的问题已按严重程度分级
 - [ ] 每个 Critical/Major 问题有具体修改建议

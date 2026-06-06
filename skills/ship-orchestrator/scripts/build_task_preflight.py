@@ -11,6 +11,7 @@ from typing import Any
 
 TASK_HEADING_RE = re.compile(r"(?m)^(?:#{2,6}\s+|[-*]\s+)?(?:Task\s+)?((?:FE|BE|FS|FT|TASK)-[A-Z0-9]+-\d{3}|(?:FE|BE|FS|FT)?-\d{3})\b")
 AC_RE = re.compile(r"\bAC-[A-Z0-9]+-\d{3}\b")
+REQUIRED_TASK_BRIEF_SECTIONS = ("任务目标", "上下文", "约束", "验收", "输出")
 
 
 def _issue(level: str, code: str, message: str, path: str | None = None) -> dict[str, str]:
@@ -78,6 +79,7 @@ def build_task_preflight(feature_dir: Path, project_scope: str = "fullstack", pi
                 "has_verification_command": _has(block, "verification command", "verification_command", "验证命令"),
                 "has_evidence": _has(block, "evidence", "done evidence", "完成证据"),
                 "has_spec_refs": _has(block, "spec_refs", "spec refs", "spec context"),
+                "missing_brief_sections": [section for section in REQUIRED_TASK_BRIEF_SECTIONS if section not in block],
             }
             tasks.append(task)
             if status == "DOING":
@@ -93,6 +95,8 @@ def build_task_preflight(feature_dir: Path, project_scope: str = "fullstack", pi
             issues.append(_issue("error", "doing_missing_ac_refs", f"{task['task_id']} missing AC refs", task["path"]))
         if not task["has_verification_command"]:
             issues.append(_issue("error", "doing_missing_verification_command", f"{task['task_id']} missing verification command", task["path"]))
+        for section in task["missing_brief_sections"]:
+            issues.append(_issue("error", "doing_missing_task_brief_section", f"{task['task_id']} missing {section}", task["path"]))
 
     return {
         "feature_dir": str(feature_dir),

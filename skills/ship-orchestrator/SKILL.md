@@ -267,7 +267,7 @@ fast-track 模式：
 - 可选扩展：在最小路径基础上按需插入 03（技术发现）或 05-08（设计）
 - 切换条件：用户在 NEW_FEATURE 确认时明确要求，或 02 评审时 reviewer 判定功能复杂度为 low
 - 硬门禁 02 仍然必须执行；fast-track 允许不生成设计/计划产物，但不允许绕过需求录入、需求评审、测试和验收
-- fast-track 的 build 任务事实源固定为 `fast-track-tasks.md`；该文件由 `ship-define-review` 通过后或进入 `ship-build` 前创建，任务条目必须包含单 `DOING`、`allowed_files`、AC refs、verification command
+- fast-track 的 build 任务事实源固定为 `fast-track-tasks.md`；该文件由 `ship-define-review` 通过后或进入 `ship-build` 前创建，任务条目必须包含单 `DOING`、`allowed_files`、AC refs、verification command，以及 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报
 - fast-track 中若发现 UI 复杂度高，应升级回 standard 并补做 ship-shape
 
 模式切换规则：

@@ -522,9 +522,24 @@ evidence_complete: false
 - verification_command: pnpm test -- Login
 - evidence:
   - pending
+
+任务目标：
+修复登录按钮状态。
+
+上下文：
+前端是 React；登录页在 src/pages/Login.tsx；AC-AUTH-001 覆盖按钮状态行为。
+
+约束：
+不要重写登录页；不要改后端接口；只修改 allowed_files 中列出的文件。
+
+验收：
+pnpm test -- Login 通过；AC-AUTH-001 对应行为可观察。
+
+输出：
+直接修改 allowed_files 中列出的代码，更新 evidence，并说明改了哪些文件。
 ```
 
-最低要求：全局恰好一个 `DOING` task；当前 `DOING` task 必须包含 `allowed_files`、AC refs、verification command。fast-track 若升级回 standard，保留 `fast-track-tasks.md` 作为历史证据，后续任务源切回 plan 文档。
+最低要求：全局恰好一个 `DOING` task；当前 `DOING` task 必须包含 `allowed_files`、AC refs、verification command，以及 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报。fast-track 若升级回 standard，保留 `fast-track-tasks.md` 作为历史证据，后续任务源切回 plan 文档。
 
 Discover 前置阶段在 fast-track 下的规则：
 
@@ -571,7 +586,7 @@ Discover 前置阶段在 fast-track 下的规则：
 - `ship-define` 只为 selected scope 提取最小 Domain ID 和最小 AC。若技术方案没有明确 AC，agent 只能提取最小可验收结果草案，并在 `ship-define-review` 要求用户确认；AC 缺失时不得把 `requirements.md.stage_status` 标记为 `ready`。
 - `ship-tech-discovery` 必须执行 Project Reality Scan，但扫描范围只围绕 selected scope；`Requirement-to-Reality Mapping` 只覆盖 selected scope。若未选中内容构成前置依赖或冲突，记录为 risk / open question，不自动扩大 scope。
 - `repository_scan_status: ready` 只是补充索引，不能替代 `tech-research.md` / `tech-selection.md` 的 frontmatter 与内容校验。
-- `ship-contract`、`ship-frontend-design`、`ship-backend-design`、`ship-delivery-plan` 都必须按 selected scope 裁剪；每个 delivery plan task 必须引用 AC ID、selected scope 或 technical source、仓库探索证据、`allowed_files` 和 verification command。
+- `ship-contract`、`ship-frontend-design`、`ship-backend-design`、`ship-delivery-plan` 都必须按 selected scope 裁剪；每个 delivery plan task 必须引用 AC ID、selected scope 或 technical source、仓库探索证据、`allowed_files`、verification command，以及 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报。
 
 Discover 阶段产物补充契约：
 

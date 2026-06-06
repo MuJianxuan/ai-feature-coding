@@ -126,6 +126,53 @@ technical_plan_provided 裁剪规则：
 - 每个 task 必须同时引用 AC ID、selected scope 或 technical source、仓库探索证据、`allowed_files` 和 verification command。
 - task 的 `scope` 字段必须能说明它如何落在 selected scope 内。
 
+## Task Item Contract
+
+每个任务项必须同时包含机器可检字段和面向 `ship-build` 的执行简报。机器字段用于 validator / preflight，执行简报用于让 build agent 明确目标、上下文、边界和验收。
+
+标准格式：
+
+```markdown
+### FE-AUTH-001: 新增登录信息
+- status: TODO
+- project: web
+- scope: 登录状态恢复
+- allowed_files:
+  - src/store/auth.ts
+- depends_on:
+- ac_refs:
+  - AC-AUTH-001
+- contract_refs:
+  - GET /api/me
+- verification_command: pnpm test
+- done_evidence:
+  - pending
+
+任务目标：
+新增登录信息。
+
+上下文：
+前端是 React，登录状态在 src/store/auth.ts。后端接口是 GET /api/me。仓库探索证据必须写明具体代码路径、接口、状态源或数据源。
+
+约束：
+不要改后端接口。不要重写鉴权系统。保留现有 localStorage key。
+
+验收：
+pnpm test 通过。刷新页面后不再跳回登录页。未登录用户仍然正常跳转登录页。
+
+输出：
+直接修改 allowed_files 中列出的代码，并说明改了哪些文件。
+```
+
+强制规则：
+
+- `任务目标 / 上下文 / 约束 / 验收 / 输出` 五个段落缺一不可。
+- `上下文` 必须包含仓库探索证据，不能只写需求背景。
+- `约束` 必须列出禁止改动、兼容要求或范围边界；没有特殊约束时也要写“无额外约束，仍遵守 allowed_files”。
+- `验收` 必须能回到 AC refs 和 verification command。
+- `输出` 必须说明 build 完成后要直接修改代码、更新 evidence，并汇报改动文件。
+- `allowed_files` 仍是修改范围事实源；`上下文` 中出现的文件不自动进入可修改范围。
+
 ## Part 1: Frontend
 
 frontend 子段遵循前端计划规则：
@@ -193,6 +240,7 @@ sync 子段是新增要求，必须显式检查：
 - [ ] frontend-plan.md 中所有页面/组件已拆解为任务
 - [ ] backend-plan.md 中所有业务域/接口已拆解为任务
 - [ ] project_group 下所有任务都显式包含 `project:` 或任务标题中的目标项目
+- [ ] 每个任务都包含 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报
 - [ ] 两份计划的 contract-first 顺序已明确
 - [ ] 两份计划的依赖关系无循环
 - [ ] sync 子段已完成，checkpoint 与 AC 覆盖一致

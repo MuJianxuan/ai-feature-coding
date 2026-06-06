@@ -30,6 +30,8 @@ REQUIRED_TASK_FIELDS = {
     "done_evidence": ("done evidence", "done_evidence", "完成证据"),
 }
 
+REQUIRED_TASK_BRIEF_SECTIONS = ("任务目标", "上下文", "约束", "验收", "输出")
+
 
 def _issue(level: str, code: str, message: str, path: str | None = None) -> dict[str, str]:
     payload = {"level": level, "code": code, "message": message}
@@ -182,6 +184,9 @@ def validate_plan_file(path: Path, expected_role: str, selected_scope_terms: lis
         for field_name, aliases in REQUIRED_TASK_FIELDS.items():
             if not _has_field(block, aliases):
                 issues.append(_issue("error" if ready else "warning", "task_missing_field", f"{task_id} missing {field_name}", path.name))
+        for section in REQUIRED_TASK_BRIEF_SECTIONS:
+            if section not in block:
+                issues.append(_issue("error" if ready else "warning", "task_missing_brief_section", f"{task_id} missing {section}", path.name))
         if not row["ac_refs"]:
             issues.append(_issue("error" if ready else "warning", "task_missing_ac_refs", f"{task_id} missing AC refs", path.name))
 

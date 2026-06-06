@@ -491,11 +491,28 @@ task_count: 1
 """,
         )
 
+    def task_brief(self, *, goal: str = "完成登录信息变更", context: str = "仓库探索证据：src/auth.ts；接口：POST /api/v1/login。") -> str:
+        return f"""任务目标：
+{goal}
+
+上下文：
+{context}
+
+约束：
+不要改后端接口；不要重写鉴权系统；保留现有 storage key。
+
+验收：
+AC-AUTH-001 通过；verification_command 通过。
+
+输出：
+直接修改 allowed_files 中列出的代码，并说明改了哪些文件。
+"""
+
     def test_delivery_plan_requires_task_schema_and_detects_cycles(self) -> None:
         self.write_plan(
             "frontend-plan.md",
             "frontend-plan",
-            """## Tasks
+            f"""## Tasks
 ### FE-AUTH-001
 - project: web
 - scope: login UI
@@ -505,6 +522,7 @@ task_count: 1
 - contract refs: POST /api/v1/login
 - verification command: npm test
 - done evidence: test output
+{self.task_brief()}
 
 ### FE-AUTH-002
 - project: web
@@ -515,12 +533,13 @@ task_count: 1
 - contract refs: POST /api/v1/login
 - verification command: npm test
 - done evidence: test output
+{self.task_brief(goal="完成登录 API client 变更", context="仓库探索证据：src/api.ts；接口：POST /api/v1/login。")}
 """,
         )
         self.write_plan(
             "backend-plan.md",
             "backend-plan",
-            """## Tasks
+            f"""## Tasks
 ### BE-AUTH-001
 - project: api
 - scope: login endpoint
@@ -530,6 +549,7 @@ task_count: 1
 - contract refs: POST /api/v1/login
 - verification command: npm test
 - done evidence: test output
+{self.task_brief(context="仓库探索证据：src/auth.ts；接口：POST /api/v1/login。")}
 """,
         )
 
@@ -542,7 +562,7 @@ task_count: 1
         self.write_plan(
             "backend-plan.md",
             "backend-plan",
-            """## Tasks
+            f"""## Tasks
 ### BE-AUTH-001
 - project: api
 - scope: login endpoint
@@ -552,6 +572,7 @@ task_count: 1
 - contract refs: POST /api/v1/login
 - verification command: npm test
 - done evidence: test output
+{self.task_brief(context="仓库探索证据：src/auth.ts；接口：POST /api/v1/login。")}
 """,
         )
 
@@ -559,11 +580,44 @@ task_count: 1
 
         self.assertTrue(result["ok"], result["issues"])
 
+    def test_delivery_plan_ready_requires_task_brief_sections(self) -> None:
+        self.write_plan(
+            "backend-plan.md",
+            "backend-plan",
+            f"""## Tasks
+### BE-AUTH-001
+- project: api
+- scope: login endpoint
+- allowed_files: src/auth.ts
+- depends_on:
+- AC refs: AC-AUTH-001
+- contract refs: POST /api/v1/login
+- verification command: npm test
+- done evidence: test output
+任务目标：
+完成登录 endpoint 变更
+
+约束：
+不要改后端接口。
+
+验收：
+AC-AUTH-001 通过。
+
+输出：
+直接修改代码，并说明改了哪些文件。
+""",
+        )
+
+        result = validate_delivery_plan(self.feature_dir, project_scope="backend_only")
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "task_missing_brief_section" and "上下文" in issue["message"] for issue in result["issues"]))
+
     def test_build_task_preflight_requires_single_ready_doing_task(self) -> None:
         self.write_plan(
             "backend-plan.md",
             "backend-plan",
-            """## Tasks
+            f"""## Tasks
 ### BE-AUTH-001
 - status: DOING
 - project: api
@@ -574,6 +628,7 @@ task_count: 1
 - contract refs: POST /api/v1/login
 - verification command: npm test
 - done evidence: test output
+{self.task_brief(context="仓库探索证据：src/auth.ts；接口：POST /api/v1/login。")}
 """,
         )
 
@@ -594,6 +649,7 @@ task_count: 1
 - allowed_files: src/auth.ts
 - AC refs: AC-AUTH-001
 - verification command: npm test
+{self.task_brief(context="仓库探索证据：src/auth.ts；接口：POST /api/v1/login。")}
 
 ### BE-AUTH-002
 - status: DOING
@@ -602,6 +658,7 @@ task_count: 1
 - allowed_files: src/auth.test.ts
 - AC refs: AC-AUTH-001
 - verification command: npm test
+{self.task_brief(goal="补充认证测试", context="仓库探索证据：src/auth.test.ts；接口：POST /api/v1/login。")}
 """,
         )
 
@@ -611,6 +668,34 @@ task_count: 1
         self.assertTrue(any(issue["code"] == "doing_count_invalid" for issue in result["issues"]))
 
     def test_fast_track_build_preflight_reads_fast_track_tasks(self) -> None:
+        self.write_text(
+            "fast-track-tasks.md",
+            f"""---
+stage: ship-build
+artifact_role: fast-track-tasks
+stage_status: draft
+evidence_complete: false
+---
+
+### Task FT-001: Fix login button state
+- status: DOING
+- allowed_files:
+  - src/pages/Login.tsx
+- ac_refs:
+  - AC-AUTH-001
+- verification_command: pnpm test -- Login
+- evidence:
+  - pending
+{self.task_brief(goal="修复登录按钮状态", context="仓库探索证据：src/pages/Login.tsx；前端为 React 登录页。")}
+""",
+        )
+
+        result = build_task_preflight(self.feature_dir, pipeline_mode="fast-track")
+
+        self.assertTrue(result["ok"], result["issues"])
+        self.assertEqual(result["tasks"][0]["path"], "fast-track-tasks.md")
+
+    def test_fast_track_build_preflight_requires_task_brief_sections(self) -> None:
         self.write_text(
             "fast-track-tasks.md",
             """---
@@ -629,13 +714,24 @@ evidence_complete: false
 - verification_command: pnpm test -- Login
 - evidence:
   - pending
+任务目标：
+修复登录按钮状态
+
+上下文：
+仓库探索证据：src/pages/Login.tsx；前端为 React 登录页。
+
+约束：
+不要重写登录页。
+
+输出：
+直接修改代码，并说明改了哪些文件。
 """,
         )
 
         result = build_task_preflight(self.feature_dir, pipeline_mode="fast-track")
 
-        self.assertTrue(result["ok"], result["issues"])
-        self.assertEqual(result["tasks"][0]["path"], "fast-track-tasks.md")
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "doing_missing_task_brief_section" and "验收" in issue["message"] for issue in result["issues"]))
 
     def test_standard_build_preflight_still_requires_plan_source(self) -> None:
         self.write_text(
@@ -1386,7 +1482,7 @@ evidence_complete: true
         self.write_plan(
             "backend-plan.md",
             "backend-plan",
-            """## Tasks
+            f"""## Tasks
 ### BE-ORDER-001
 - project: api
 - scope: order import endpoint
@@ -1396,6 +1492,7 @@ evidence_complete: true
 - contract refs: POST /api/v1/orders/import
 - verification command: npm test
 - done evidence: test output
+{self.task_brief(goal="实现订单导入 endpoint", context="仓库探索证据：src/orders/import.ts；接口：POST /api/v1/orders/import。")}
 """,
         )
 
@@ -1504,7 +1601,7 @@ risk: low.
         self.write_define_review(status="approved", signed=True)
         self.write_text(
             "fast-track-tasks.md",
-            """---
+            f"""---
 stage: ship-build
 artifact_role: fast-track-tasks
 stage_status: draft
@@ -1516,6 +1613,7 @@ evidence_complete: false
 - allowed_files: src/pages/Login.tsx
 - ac_refs: AC-AUTH-001
 - verification_command: pnpm test -- Login
+{self.task_brief(goal="修复登录按钮状态", context="仓库探索证据：src/pages/Login.tsx；前端为 React 登录页。")}
 """,
         )
         meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
