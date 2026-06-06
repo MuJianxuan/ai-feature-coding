@@ -422,7 +422,7 @@ spec_warnings: []
 - `INDEX.md` 表格只使用 `frontend / backend / shared` 三类；不新增 `spec_type` / `discipline` 等 schema 层级字段
 - 运行时 helper 仍可读取 workspace `spec_root` 下各个规范文件的 frontmatter 做 scan / resolve / 校验；`INDEX.md` 与 frontmatter 不一致时记录 warning
 - 缺少 `INDEX.md`、找不到匹配规范、frontmatter 不合法时，默认只告警并留痕；除非用户显式要求严格模式，否则不阻塞阶段推进
-- `fast-track` 不新增 hook stage；跳过设计阶段时，规范检查压缩到 `ship-build` 入口和 `ship-handoff` 汇总
+- `ship-build` 和 `ship-handoff` 都必须记录规范引用与待沉淀 proposal，不能因为需求较小而跳过规范检查
 
 规范 frontmatter 统一字段：
 
@@ -489,67 +489,7 @@ Research Alignment Check 是 research 子段内部的过程动作，不是 hard 
 - 并行执行不改变 `verification.md` ownership；测试结果必须由主上下文统一写回
 - `ship-handoff` 可并行收集 AC 证据、截图、命令输出和 proposal 候选，但残余风险分级与 `stage_status` 判定必须单线程完成
 
-## 10. Fast-Track Rules
-
-fast-track 是受控子流程，不是"跳过流程直接编码"。
-
-- 场景 A/B/C/D 的最小路径固定为：`ship-define → ship-define-review → ship-build → ship-verify → ship-handoff`（场景 A/C 仍保留必要的 `ship-discover` 前置）
-- 场景 A/B/C/D 不允许绕过 `ship-define-review`；场景 E 默认不进入 fast-track，直接从 `ship-tech-discovery` 开始并保留后续设计评审
-- 若未生成设计/计划文档，必须在启动确认或需求评审中明确记录 fast-track 原因和风险
-- 若未生成 `frontend-plan.md` / `backend-plan.md`，`ship-build` 的任务事实源固定为 feature 根目录下的 `fast-track-tasks.md`
-- 一旦发现需求复杂度上升、接口新增、跨端耦合升高，可随时升级回 standard
-
-`fast-track-tasks.md` 是 build 阶段轻量任务事实源，不新增 canonical stage。文件由 `ship-define-review` 通过后或进入 `ship-build` 前创建，主上下文维护。
-
-frontmatter:
-
-```yaml
----
-stage: ship-build
-artifact_role: fast-track-tasks
-stage_status: draft
-evidence_complete: false
----
-```
-
-任务条目沿用 `ship-build` 的单任务格式：
-
-```markdown
-### Task FT-001: 修复登录按钮状态
-- status: DOING
-- allowed_files:
-  - src/pages/Login.tsx
-- ac_refs:
-  - AC-AUTH-001
-- verification_command: pnpm test -- Login
-- evidence:
-  - pending
-
-任务目标：
-修复登录按钮状态。
-
-上下文：
-前端是 React；登录页在 src/pages/Login.tsx；AC-AUTH-001 覆盖按钮状态行为。
-
-约束：
-不要重写登录页；不要改后端接口；只修改 allowed_files 中列出的文件。
-
-验收：
-pnpm test -- Login 通过；AC-AUTH-001 对应行为可观察。
-
-输出：
-直接修改 allowed_files 中列出的代码，更新 evidence，并说明改了哪些文件。
-```
-
-最低要求：全局恰好一个 `DOING` task；当前 `DOING` task 必须包含 `allowed_files`、AC refs、verification command，以及 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报。fast-track 若升级回 standard，保留 `fast-track-tasks.md` 作为历史证据，后续任务源切回 plan 文档。
-
-Discover 前置阶段在 fast-track 下的规则：
-
-- 场景 A（零到一）/ 场景 C（迭代增强）即便选择 fast-track，也应至少经过 `ship-discover`，因为"模糊想法"或"变更请求"未结构化时无法直接进 `ship-define`
-- fast-track 下默认跳过 `ship-shape`：UIUX 留给 `ship-build` 阶段在简单页面上现场处理；若 fast-track 中发现 UI 复杂度高，应升级回 standard 并补做 `ship-shape`
-- 场景 B（产品提供完整材料）和场景 D（PRD 直通）的 fast-track 与现有规则一致，`ship-discover` 与 `ship-shape` 都标记为 `skipped`
-
-## 11. Scenario Routing Rules
+## 10. Scenario Routing Rules
 
 `ship-orchestrator` 在 NEW_FEATURE 流程的入口必须先识别场景，再决定起点 stage。
 

@@ -252,27 +252,15 @@ Macro stage 映射：
 
 `Discover` 是条件性大阶段，只在场景 A（零到一）或场景 C（迭代增强）出现；场景 B（产品提供完整材料）和场景 D（PRD 直通）直接跳过 Discover，相关 stage 状态记为 `skipped`。场景 D 与 B 的区别在于 `ship-define` 的执行模式：D 走 `prd_direct`（零提问纯提取），B 走 `interview`（多轮采访）。
 
-### Pipeline Modes
+### Workflow Path
 
-standard 模式（默认）：
-- 对外显示 `[Discover →] Define → Design → Build → Close`
-- 场景 A/C 内部执行 14 个阶段（含 Discover 前置）；场景 B 跳过 Discover 直接从 Define 开始
-- 所有硬门禁必须通过
-- 所有文档产物必须完整
+默认路径固定为 `[Discover →] Define → Design → Build → Close`。
 
-fast-track 模式（仅适用于场景 A/B/C/D；场景 E 默认从 `ship-tech-discovery` 开始并保留后续设计评审）：
-- 适用于小型功能或紧急修复
-- 场景 B 最小路径：`ship-define → ship-define-review → ship-build → ship-verify → ship-handoff`
-- 场景 A/C 最小路径：`ship-discover → ship-define → ship-define-review → ship-build → ship-verify → ship-handoff`（必须经过 ship-discover 把模糊想法或变更结构化，但跳过 ship-shape）
-- 可选扩展：在最小路径基础上按需插入 03（技术发现）或 05-08（设计）
-- 切换条件：用户在 NEW_FEATURE 确认时明确要求，或 02 评审时 reviewer 判定功能复杂度为 low
-- 硬门禁 02 在场景 A/B/C/D 中仍然必须执行；fast-track 允许不生成设计/计划产物，但不允许绕过需求录入、需求评审、测试和验收
-- fast-track 的 build 任务事实源固定为 `fast-track-tasks.md`；该文件由 `ship-define-review` 通过后或进入 `ship-build` 前创建，任务条目必须包含单 `DOING`、`allowed_files`、AC refs、verification command，以及 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报
-- fast-track 中若发现 UI 复杂度高，应升级回 standard 并补做 ship-shape
-
-模式切换规则：
-- standard → fast-track：仅在 02 评审通过后、03 开始前允许降级
-- fast-track → standard：任何阶段均可升级，已完成的阶段产物保留
+- 场景 A/C 内部执行 14 个阶段（含 Discover 前置）；场景 B/D 跳过 Discover 直接从 Define 开始
+- 场景 E 直接从 `ship-tech-discovery` 开始，但仍保留后续设计评审、交付计划和计划评审
+- 所有硬门禁必须通过：`ship-define-review`、`ship-design-review`、`ship-plan-review`（场景 E 跳过 define gate）
+- Build 必须消费经过 `ship-plan-review` 审批的 `frontend-plan.md` / `backend-plan.md`
+- 所有文档产物必须按 `project_scope` 完整产出；单侧 scope 只裁剪不适用侧，不跳过上游治理
 
 ### 路由分发机制
 
@@ -280,7 +268,6 @@ fast-track 模式（仅适用于场景 A/B/C/D；场景 E 默认从 `ship-tech-d
 - feature_dir：feature 目录绝对路径
 - current_stage：当前阶段标识
 - macro_stage：当前大阶段标识与摘要
-- pipeline_mode：standard / fast-track
 - delegation：当前 feature 的子代理偏好（default_mode / ask flags / node_overrides；override 值为 current_context / assistive_subagent / parallel_subagent / gate_check_subagent）
 - project_context：unknown / existing_project / new_project
 - project_scope：fullstack / backend_only / frontend_only
@@ -389,7 +376,7 @@ workspace resolution 规则：
 
 - 缺少 `INDEX.md`、找不到匹配规范、规范 frontmatter 不合法时，记录 warning 并继续
 - 只有用户显式要求严格模式时，缺规才升级为阻塞条件
-- fast-track 不插入新阶段；跳过设计阶段时，规范检查压缩到 `ship-build` 入口和 `ship-handoff` 汇总
+- `ship-build` 和 `ship-handoff` 都需要汇总规范引用与待沉淀 proposal，不能因为需求较小而跳过规范检查
 
 ## Gate Protocol
 
@@ -516,7 +503,6 @@ NEW_FEATURE 模式下的目录创建流程：
 - 将 meta.yml 中的 tech_stack 和 project_context 作为环境信息传递
 - 将 meta.yml 中的 delegation 偏好透传给目标阶段 skill
 - 将当前阶段已有的文档内容作为续写上下文传递
-- 将 pipeline_mode 字段透传给目标阶段 skill
 - 若当前阶段为双产物阶段，将 `current_part` 一并透传给目标阶段 skill
 
 恢复时的状态校验：
@@ -534,7 +520,6 @@ INSPECT_FEATURES 模式输出规范：
 - 当前大阶段（macro_stage.label）
 - 当前内部阶段（current_stage，仅高级视图显示）
 - 整体进度（已完成阶段数 / 总阶段数）
-- 流水线模式（standard / fast-track）
 - 状态标识（in_progress / blocked / completed / abandoned）
 
 排序规则：进行中 > 阻塞 > 待评审 > 已完成 > 已废弃，同状态内按 updated_at 倒序。
@@ -548,8 +533,8 @@ INSPECT_FEATURES 模式输出规范：
 
 | 编号 | 禁止行为 | 正确做法 |
 |------|---------|---------|
-| AR-1 | "用户说快点做，所以跳过评审" | 硬门禁不可跳过。可建议切换 fast-track 模式（合并部分阶段），但评审仍必须执行 |
-| AR-2 | "需求很简单，不需要走完整流程" | 即使简单需求，也至少执行最小路径 `ship-define → ship-define-review → ship-build → ship-verify → ship-handoff`，评审可简化但不可省略 |
+| AR-1 | "用户说快点做，所以跳过评审" | 硬门禁不可跳过。需求较小时可以压缩产物正文，但不能跳过 Design、Plan 和 Review |
+| AR-2 | "需求很简单，不需要走完整流程" | 即使简单需求，也必须走标准路径；评审可简化但不可省略 |
 | AR-3 | "上一阶段的文档差不多了，先往下走" | 软门禁要求 stage_status: ready。"差不多"不等于 ready，必须明确标记 |
 | AR-4 | "用户没说要恢复哪个 feature，我猜一个" | 多个 feature 时必须列表让用户选择，不可自行假设 |
 | AR-5 | "这个阶段 skill 不存在，跳过" | 阶段 skill 缺失时报告错误，不可静默跳过。建议用户手动完成该阶段产物 |

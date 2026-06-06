@@ -17,16 +17,6 @@ from validate_feature_artifacts import ARTIFACTS_BY_STAGE, REVIEW_STAGES, valida
 from workflow_stage_map import CANONICAL_STAGE_ORDER  # noqa: E402
 
 
-FAST_TRACK_REQUIRED_STAGES: tuple[str, ...] = (
-    "ship-discover",
-    "ship-define",
-    "ship-define-review",
-    "ship-build",
-    "ship-verify",
-    "ship-handoff",
-)
-
-
 def _issue(level: str, code: str, message: str, path: str | None = None) -> dict[str, str]:
     payload = {"level": level, "code": code, "message": message}
     if path:
@@ -95,14 +85,8 @@ def _is_stage_complete_enough(meta: dict[str, Any], validation: dict[str, Any], 
 
 
 def _required_previous_stages(meta: dict[str, Any], target_stage: str) -> list[str]:
-    pipeline_mode = meta.get("pipeline_mode", "standard")
-    stage_order = FAST_TRACK_REQUIRED_STAGES if pipeline_mode == "fast-track" else CANONICAL_STAGE_ORDER
-    if target_stage not in stage_order:
-        target_index = CANONICAL_STAGE_ORDER.index(target_stage)
-        stages = list(CANONICAL_STAGE_ORDER[:target_index])
-    else:
-        target_index = stage_order.index(target_stage)
-        stages = list(stage_order[:target_index])
+    target_index = CANONICAL_STAGE_ORDER.index(target_stage)
+    stages = list(CANONICAL_STAGE_ORDER[:target_index])
     project_scope = meta.get("project_scope", "fullstack")
     scenario = meta.get("scenario", "")
 

@@ -559,6 +559,8 @@ def validate_cross_file_semantics() -> None:
     delivery_plan_text = read_text(ROOT / "skills/ship-delivery-plan/SKILL.md")
     plan_review_text = read_text(ROOT / "skills/ship-plan-review/SKILL.md")
     build_text = read_text(ROOT / "skills/ship-build/SKILL.md")
+    orchestrator_text = read_text(ROOT / "skills/ship-orchestrator/SKILL.md")
+    protocol_text = read_text(ROOT / "skills/ship-orchestrator/_templates/protocol/workflow-protocol.md")
 
     require(
         'ArtifactSpec("ship-verify", "verification.md", "artifact", frontmatter_stage="ship-handoff")' in artifact_validator,
@@ -582,12 +584,9 @@ def validate_cross_file_semantics() -> None:
     for snippet in (
         "`backend_only`：`backend-plan.md.stage_status = ready`",
         "`frontend_only`：`frontend-plan.md.stage_status = ready`",
-        "`pipeline_mode: standard`",
-        "`pipeline_mode: fast-track`",
-        "fast-track-tasks.md",
         "单侧 scope",
     ):
-        require(snippet in delivery_plan_text, f"ship-delivery-plan/SKILL.md: missing scope/fast-track semantic `{snippet}`")
+        require(snippet in delivery_plan_text, f"ship-delivery-plan/SKILL.md: missing scope-aware semantic `{snippet}`")
 
     for snippet in (
         "reviewed_documents: []",
@@ -597,18 +596,33 @@ def validate_cross_file_semantics() -> None:
     ):
         require(snippet in plan_review_text, f"ship-plan-review/SKILL.md: missing scope-aware review wording `{snippet}`")
 
-    require(
-        "Use after ship-plan-review gate passes" not in build_text,
-        "ship-build/SKILL.md: description must not imply fast-track waits for ship-plan-review",
-    )
     for snippet in (
-        "fast-track uses reviewed fast-track-tasks.md after ship-define-review",
-        "fast-track 模式消费 `fast-track-tasks.md`",
-        "fast-track：fast-track-tasks.md 中所有任务为 DONE",
-        "backend_only / standard：backend-plan.md 中所有任务为 DONE",
-        "frontend_only / standard：frontend-plan.md 中所有任务为 DONE",
+        "Executes reviewed delivery-plan tasks one at a time after ship-plan-review passes",
+        "fullstack：frontend-plan.md 与 backend-plan.md 中所有任务为 DONE",
+        "backend_only：backend-plan.md 中所有任务为 DONE",
+        "frontend_only：frontend-plan.md 中所有任务为 DONE",
     ):
-        require(snippet in build_text, f"ship-build/SKILL.md: missing fast-track/scope checklist wording `{snippet}`")
+        require(snippet in build_text, f"ship-build/SKILL.md: missing standard build wording `{snippet}`")
+
+    removed_mode_terms = (
+        "fast" + "-track",
+        "fast" + "_track",
+        "fast" + " track",
+        "fast" + "-track" + "-tasks",
+        "pipeline" + "_mode",
+        "--" + "pipeline" + "-mode",
+    )
+    for path, text in (
+        ("README.md", read_text(ROOT / "README.md")),
+        ("skills/README.md", read_text(ROOT / "skills/README.md")),
+        ("ship-orchestrator/SKILL.md", orchestrator_text),
+        ("workflow-protocol.md", protocol_text),
+        ("meta.yml.template", read_text(ROOT / "skills/ship-orchestrator/_templates/meta/meta.yml.template")),
+        ("ship-delivery-plan/SKILL.md", delivery_plan_text),
+        ("ship-build/SKILL.md", build_text),
+    ):
+        for forbidden in removed_mode_terms:
+            require(forbidden not in text, f"{path}: removed quick-path semantic remains: {forbidden}")
 
     for snippet in (
         "`backend_only` 跳过 frontend 轨道",

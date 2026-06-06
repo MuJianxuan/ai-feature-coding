@@ -27,7 +27,7 @@ _templates/
 
 每个新 feature 启动时，由 `ship-orchestrator` 复制到 workspace 的 `feature_root/feature-YYYYMMDD-<short-name>/meta.yml`，作为该 feature 的索引文件。
 
-阶段文档不再各自维护 `project_context` / `pipeline_mode` 等冗余字段，只在 `meta.yml` 中维护一次。阶段是否 `ready` / `approved` 仍以产物 frontmatter 为准。
+阶段文档不再各自维护 `project_context` 等冗余字段，只在 `meta.yml` 中维护一次。阶段是否 `ready` / `approved` 仍以产物 frontmatter 为准。
 
 `meta.yml` 同时维护两层视图：
 
@@ -57,7 +57,7 @@ PRD 直通和产品提供模式下，`ship-orchestrator` 可先创建 raw `requi
 
 ### protocol/workflow-protocol.md
 
-共享协议单源。凡是涉及 stage id、门禁字段、`verification.md` ownership、fast-track 规则、子代理委派边界、`ship-spec` hook 契约，都先对照此文档，再更新其他 SKILL。
+共享协议单源。凡是涉及 stage id、门禁字段、`verification.md` ownership、子代理委派边界、`ship-spec` hook 契约，都先对照此文档，再更新其他 SKILL。
 
 其中 delegation 相关的 canonical `node_id`、自动解析顺序、warning 落点，也统一以该协议为准，不允许阶段文档自行发明 key 名。
 

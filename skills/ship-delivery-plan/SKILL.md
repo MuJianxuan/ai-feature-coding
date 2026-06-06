@@ -23,7 +23,6 @@ description: "ShipKit stage. Combines frontend and backend planning into one del
 ## When to Use
 
 - `ship-design-review` 已通过
-- `pipeline_mode: standard`，即使是 `backend_only` / `frontend_only`，也仍使用本阶段产出对应侧 plan
 - `api-contract.md` 和 `project_scope` 对应的设计文档已稳定
 - 即将进入 `ship-plan-review`
 - `technical_plan_provided` 场景下，仅为 `technical_plan_source.selected_scope` 生成任务，且每个任务可追溯到 selected scope、AC ID 和仓库探索证据
@@ -32,7 +31,6 @@ description: "ShipKit stage. Combines frontend and backend planning into one del
 
 - `ship-design-review` 尚未通过
 - 设计文档仍在变化
-- `pipeline_mode: fast-track`，且已改用 `fast-track-tasks.md` 作为 build 任务事实源
 - `technical_plan_provided` 场景下，任务会覆盖未选中技术方案内容
 
 ## Stage Contract

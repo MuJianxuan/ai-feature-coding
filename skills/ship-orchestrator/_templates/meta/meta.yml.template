@@ -26,10 +26,6 @@ macro_stage:
   summary: ""                 # 面向用户的当前阶段摘要，不暴露细阶段名
   next_user_decision: ""      # 下一次需要用户确认的动作或门禁
 
-# 流水线模式
-pipeline_mode: standard       # standard | fast-track
-# fast-track 适用场景: complexity=patch, 单文件改动, 无新增接口
-
 # 项目上下文（一次性维护，所有阶段共用）
 project_context: unknown      # unknown | new_project | existing_project
 project_context_evidence: ""  # 一句话证据，例: "已有 package.json 且 src/ 下有源码"

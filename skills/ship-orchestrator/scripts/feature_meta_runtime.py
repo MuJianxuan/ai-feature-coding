@@ -973,7 +973,6 @@ def create_feature_meta(
     feature_dir: Path,
     feature_name: str,
     feature_id: str,
-    pipeline_mode: str,
     project_context: str,
     project_scope: str = "fullstack",
     project_scope_evidence: str = "",
@@ -1024,7 +1023,6 @@ def create_feature_meta(
     data["feature_id"] = feature_id
     data["created_at"] = data.get("created_at") or now
     data["updated_at"] = now
-    data["pipeline_mode"] = pipeline_mode
     data["project_context"] = project_context
     data["project_scope"] = project_scope
     data["project_scope_evidence"] = project_scope_evidence.strip()
@@ -1341,12 +1339,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Entry scenario: greenfield, product_provided, prd_direct, evolve, or technical_plan_provided",
     )
     init_parser.add_argument(
-        "--pipeline-mode",
-        default="standard",
-        choices=("standard", "fast-track"),
-        help="Pipeline mode to write into meta.yml",
-    )
-    init_parser.add_argument(
         "--project-context",
         default="unknown",
         choices=("unknown", "new_project", "existing_project"),
@@ -1475,7 +1467,6 @@ def main(argv: list[str]) -> int:
             feature_dir=feature_dir,
             feature_name=args.feature_name,
             feature_id=args.feature_id,
-            pipeline_mode=args.pipeline_mode,
             project_context=args.project_context,
             project_scope=args.project_scope,
             project_scope_evidence=args.project_scope_evidence,

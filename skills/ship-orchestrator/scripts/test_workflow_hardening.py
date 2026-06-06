@@ -52,7 +52,6 @@ class WorkflowHardeningTest(unittest.TestCase):
         project_scope_evidence: str = "",
         project_context: str = "existing_project",
         scenario: str = "product_provided",
-        pipeline_mode: str = "standard",
         define_status: str = "ready",
         define_review_status: str = "pending",
     ) -> None:
@@ -94,7 +93,6 @@ class WorkflowHardeningTest(unittest.TestCase):
             "feature_id": "feature-demo",
             "current_stage": current_stage,
             "scenario": scenario,
-            "pipeline_mode": pipeline_mode,
             "project_scope": project_scope,
             "project_scope_evidence": project_scope_evidence,
             "project_context": project_context,
@@ -708,17 +706,17 @@ AC-AUTH-001 通过。
         self.assertFalse(result["ok"])
         self.assertTrue(any(issue["code"] == "doing_count_invalid" for issue in result["issues"]))
 
-    def test_fast_track_build_preflight_reads_fast_track_tasks(self) -> None:
+    def test_build_preflight_reads_frontend_plan_tasks(self) -> None:
         self.write_text(
-            "fast-track-tasks.md",
+            "frontend-plan.md",
             f"""---
-stage: ship-build
-artifact_role: fast-track-tasks
+stage: ship-delivery-plan
+artifact_role: frontend-plan
 stage_status: draft
 evidence_complete: false
 ---
 
-### Task FT-001: Fix login button state
+### Task FE-AUTH-001: Fix login button state
 - status: DOING
 - allowed_files:
   - src/pages/Login.tsx
@@ -731,22 +729,22 @@ evidence_complete: false
 """,
         )
 
-        result = build_task_preflight(self.feature_dir, pipeline_mode="fast-track")
+        result = build_task_preflight(self.feature_dir, project_scope="frontend_only")
 
         self.assertTrue(result["ok"], result["issues"])
-        self.assertEqual(result["tasks"][0]["path"], "fast-track-tasks.md")
+        self.assertEqual(result["tasks"][0]["path"], "frontend-plan.md")
 
-    def test_fast_track_build_preflight_requires_task_brief_sections(self) -> None:
+    def test_build_preflight_requires_task_brief_sections(self) -> None:
         self.write_text(
-            "fast-track-tasks.md",
+            "frontend-plan.md",
             """---
-stage: ship-build
-artifact_role: fast-track-tasks
+stage: ship-delivery-plan
+artifact_role: frontend-plan
 stage_status: draft
 evidence_complete: false
 ---
 
-### Task FT-001: Fix login button state
+### Task FE-AUTH-001: Fix login button state
 - status: DOING
 - allowed_files:
   - src/pages/Login.tsx
@@ -769,22 +767,22 @@ evidence_complete: false
 """,
         )
 
-        result = build_task_preflight(self.feature_dir, pipeline_mode="fast-track")
+        result = build_task_preflight(self.feature_dir, project_scope="frontend_only")
 
         self.assertFalse(result["ok"])
         self.assertTrue(any(issue["code"] == "doing_missing_task_brief_section" and "验收" in issue["message"] for issue in result["issues"]))
 
-    def test_standard_build_preflight_still_requires_plan_source(self) -> None:
+    def test_build_preflight_requires_plan_source(self) -> None:
         self.write_text(
-            "fast-track-tasks.md",
+            "unrelated-tasks.md",
             """---
 stage: ship-build
-artifact_role: fast-track-tasks
+artifact_role: build-notes
 stage_status: draft
 evidence_complete: false
 ---
 
-### Task FT-001
+### Task TASK-001
 - status: DOING
 - allowed_files: src/pages/Login.tsx
 - ac_refs: AC-AUTH-001
@@ -855,27 +853,111 @@ N/A frontend-e2e reason: backend_only scope
             current_stage="ship-verify",
             project_scope="backend_only",
             project_scope_evidence="用户明确声明纯后端 API 项目",
-            pipeline_mode="fast-track",
             define_review_status="approved",
         )
         self.write_requirements(status="ready")
         self.write_define_review(status="approved", signed=True)
         self.write_text(
-            "fast-track-tasks.md",
+            "tech-research.md",
+            """---
+stage: ship-tech-discovery
+artifact_role: research
+stage_status: ready
+updated_at: ""
+evidence_complete: true
+---
+
+## Project Reality Scan
+source_id: SRC-AUTH-001. Existing backend service at src/auth.ts exposes POST /api/v1/login and tests at tests/auth.test.ts.
+
+## Requirement-to-Reality Mapping
+AC-AUTH-001 maps to existing POST /api/v1/login auth service. Relation: extend existing service; unknown risk is password lockout edge cases.
+
+## Existing Surface Inventory
+- Backend Service: src/auth.ts
+- Test: tests/auth.test.ts
+- API: POST /api/v1/login
+
+## Evidence and Uncertainty
+Evidence: src/auth.ts, tests/auth.test.ts. Unknown: production rate limits.
+
+## Research Alignment Check
+Presented baseline: reuse existing auth service and extend validation around POST /api/v1/login. User assumption recorded: backend_only scope, no frontend work. Final baseline keeps API contract stable while adding tests and implementation evidence for AC-AUTH-001.
+
+## Technical Research
+No new external stack needed. source_id: SRC-AUTH-001.
+
+## Selection Inputs
+Use existing Node auth stack and current route surface.
+""",
+        )
+        self.write_selection_ready()
+        self.write_contract_ready()
+        self.write_text(
+            "backend-design.md",
+            """---
+stage: ship-backend-design
+stage_status: ready
+updated_at: ""
+evidence_complete: true
+---
+
+# Backend Design
+
+D-AUTH-001 maps POST /api/v1/login to AuthController, AuthService and AuthRepository.
+Controller validates request, Service handles auth rules, Repository reads user credentials.
+migration: none required; rollback: revert AuthService change.
+auth, rate limit, logging, metrics and error handling reuse existing middleware.
+""",
+        )
+        self.write_text(
+            "review-design.md",
+            """---
+stage: ship-design-review
+gate_type: hard
+review_status: approved
+user_sign_off: "approved"
+signed_at: "2026-05-31T10:00:00+08:00"
+---
+
+# Design Review
+approved
+""",
+        )
+        self.write_text(
+            "backend-plan.md",
             f"""---
-stage: ship-build
-artifact_role: fast-track-tasks
+stage: ship-delivery-plan
+artifact_role: backend-plan
 stage_status: ready
 evidence_complete: true
 ---
 
-### Task FT-001
+### BE-AUTH-001
 - status: DONE
+- project: api
+- scope: POST /api/v1/login
 - allowed_files: src/auth.ts
+- depends_on: []
 - ac_refs: AC-AUTH-001
 - verification_command: npm test
-- evidence: npm test passed
+- done_evidence: npm test passed
+- contract_ref: POST /api/v1/login in api-contract.md
 {self.task_brief(goal="修复登录 API", context="仓库探索证据：src/auth.ts；后端认证服务。")}
+""",
+        )
+        self.write_text(
+            "review-plan.md",
+            """---
+stage: ship-plan-review
+gate_type: hard
+review_status: approved
+user_sign_off: "approved"
+signed_at: "2026-05-31T10:00:00+08:00"
+---
+
+# Plan Review
+approved
 """,
         )
         self.write_verification(
@@ -897,6 +979,14 @@ N/A frontend-e2e reason: backend_only scope
         meta["stages"]["ship-define"]["status"] = "ready"
         meta["stages"]["ship-define-review"]["status"] = "approved"
         meta["stages"]["ship-define-review"]["approved"] = True
+        meta["stages"]["ship-tech-discovery"]["status"] = "ready"
+        meta["stages"]["ship-contract"]["status"] = "ready"
+        meta["stages"]["ship-backend-design"]["status"] = "ready"
+        meta["stages"]["ship-design-review"]["status"] = "approved"
+        meta["stages"]["ship-design-review"]["approved"] = True
+        meta["stages"]["ship-delivery-plan"]["status"] = "ready"
+        meta["stages"]["ship-plan-review"]["status"] = "approved"
+        meta["stages"]["ship-plan-review"]["approved"] = True
         meta["stages"]["ship-build"]["status"] = "completed"
         meta["stages"]["ship-build"]["tasks_done"] = 1
         meta["stages"]["ship-build"]["tasks_total"] = 1
@@ -1320,7 +1410,7 @@ Relation types covered: reuse / extend / replace / new / avoid / unknown.
 
         self.assertFalse(result["ok"])
         self.assertEqual(result["next_action"]["action"], "fix_blocking_issues")
-        self.assertTrue(any(issue["code"] == "missing_artifact" for issue in result["issues"]))
+        self.assertTrue(any(issue["level"] == "error" for issue in result["issues"]))
 
     def test_backend_only_scope_skips_frontend_design_for_design_review(self) -> None:
         self.write_meta(
@@ -1770,11 +1860,10 @@ evidence_complete: true
         self.assertFalse(result["ok"])
         self.assertTrue(any(issue["code"] == "scope_forbidden_artifact" for issue in result["issues"]))
 
-    def test_fast_track_product_provided_enters_build_without_design_or_plan(self) -> None:
+    def test_product_provided_cannot_enter_build_without_design_and_plan(self) -> None:
         self.write_meta(
             current_stage="ship-define-review",
             scenario="product_provided",
-            pipeline_mode="fast-track",
             define_review_status="approved",
         )
         self.write_requirements(status="ready")
@@ -1787,14 +1876,14 @@ evidence_complete: true
 
         result = check_transition(self.feature_dir, "ship-build")
 
-        self.assertTrue(result["allowed"], result["issues"])
-        self.assertEqual(result["checked_previous_stages"], ["ship-define", "ship-define-review"])
+        self.assertFalse(result["allowed"])
+        self.assertIn("ship-tech-discovery", result["checked_previous_stages"])
+        self.assertTrue(any(issue["code"] == "missing_stage_artifact" for issue in result["issues"]))
 
-    def test_fast_track_greenfield_enters_build_without_shape_design_or_plan(self) -> None:
+    def test_greenfield_cannot_enter_build_without_design_and_plan(self) -> None:
         self.write_meta(
             current_stage="ship-define-review",
             scenario="greenfield",
-            pipeline_mode="fast-track",
             define_review_status="approved",
         )
         self.write_text(
@@ -1829,35 +1918,18 @@ risk: low.
 
         result = check_transition(self.feature_dir, "ship-build")
 
-        self.assertTrue(result["allowed"], result["issues"])
-        self.assertEqual(result["checked_previous_stages"], ["ship-discover", "ship-define", "ship-define-review"])
+        self.assertFalse(result["allowed"])
+        self.assertIn("ship-tech-discovery", result["checked_previous_stages"])
+        self.assertTrue(any(issue["code"] == "missing_stage_artifact" for issue in result["issues"]))
 
-    def test_fast_track_artifact_validation_does_not_require_design_or_plan(self) -> None:
+    def test_artifact_validation_requires_design_and_plan_before_build(self) -> None:
         self.write_meta(
             current_stage="ship-build",
             scenario="product_provided",
-            pipeline_mode="fast-track",
             define_review_status="approved",
         )
         self.write_requirements(status="ready")
         self.write_define_review(status="approved", signed=True)
-        self.write_text(
-            "fast-track-tasks.md",
-            f"""---
-stage: ship-build
-artifact_role: fast-track-tasks
-stage_status: draft
-evidence_complete: false
----
-
-### Task FT-001
-- status: DOING
-- allowed_files: src/pages/Login.tsx
-- ac_refs: AC-AUTH-001
-- verification_command: pnpm test -- Login
-{self.task_brief(goal="修复登录按钮状态", context="仓库探索证据：src/pages/Login.tsx；前端为 React 登录页。")}
-""",
-        )
         meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
         meta["stages"]["ship-define"]["status"] = "ready"
         meta["stages"]["ship-define-review"]["status"] = "approved"
@@ -1866,7 +1938,11 @@ evidence_complete: false
 
         result = validate_feature(self.feature_dir)
 
-        self.assertFalse(any(issue["path"] in {"tech-research.md", "frontend-plan.md", "backend-plan.md", "review-plan.md"} for issue in result["issues"]))
+        missing_paths = {issue.get("path") for issue in result["issues"] if issue["code"] == "missing_artifact"}
+        self.assertIn("tech-research.md", missing_paths)
+        self.assertIn("frontend-plan.md", missing_paths)
+        self.assertIn("backend-plan.md", missing_paths)
+        self.assertIn("review-plan.md", missing_paths)
 
 
 if __name__ == "__main__":

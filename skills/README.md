@@ -40,7 +40,7 @@
 - 进入 Design 后，`ship-tech-discovery` 对已有项目必须 Project Reality First：先查真实功能、表、API、页面、服务、权限和既有 feature 文档，再做技术调研/选型
 - `technical_plan_provided` 入口直接从 `ship-tech-discovery` 开始，只计划 selected scope；不会把整份技术方案纳入计划，未选中内容默认 `out_of_scope`
 - 规范路由从单一 `.docs/spec/INDEX.md` 开始；INDEX 只区分 `frontend / backend / shared`，frontmatter schema 不新增 `spec_type`
-- Build 任务项同时保留机器字段和执行简报；`frontend-plan.md`、`backend-plan.md`、`fast-track-tasks.md` 中每个任务都必须包含 `任务目标 / 上下文 / 约束 / 验收 / 输出`
+- Build 任务项同时保留机器字段和执行简报；`frontend-plan.md`、`backend-plan.md` 中每个任务都必须包含 `任务目标 / 上下文 / 约束 / 验收 / 输出`
 
 ## 为什么这样设计
 
@@ -249,7 +249,6 @@
 - `ship-spec` hook 契约与 `spec_context` 摘要字段
 - 各阶段 SKILL 的详细输入输出
 - review gate frontmatter 协议
-- fast-track 的最小路径和升级/降级规则
 - `agents/openai.yaml` 的安装展示元数据
 - `ship-orchestrator/tests/regression-prompts.md` 的 workflow 回归场景
 

@@ -49,7 +49,6 @@ ARTIFACT_SPECS: tuple[ArtifactSpec, ...] = (
     ArtifactSpec("ship-design-review", "review-design.md", "review"),
     ArtifactSpec("ship-delivery-plan", "frontend-plan.md", "artifact", "frontend-plan"),
     ArtifactSpec("ship-delivery-plan", "backend-plan.md", "artifact", "backend-plan"),
-    ArtifactSpec("ship-build", "fast-track-tasks.md", "artifact", "fast-track-tasks"),
     ArtifactSpec("ship-plan-review", "review-plan.md", "review"),
     ArtifactSpec("ship-verify", "verification.md", "artifact", frontmatter_stage="ship-handoff"),
     ArtifactSpec("ship-handoff", "handoff.md", "artifact"),
@@ -102,28 +101,16 @@ def _stage_is_active_enough(meta: dict[str, Any], stage: str) -> bool:
 
 
 def _artifact_required(meta: dict[str, Any], spec: ArtifactSpec) -> bool:
-    pipeline_mode = meta.get("pipeline_mode", "standard")
-    if pipeline_mode == "fast-track":
-        if spec.stage in (
-            "ship-shape",
-            "ship-tech-discovery",
-            "ship-contract",
-            "ship-frontend-design",
-            "ship-backend-design",
-            "ship-design-review",
-            "ship-delivery-plan",
-            "ship-plan-review",
-        ):
-            return False
-        if spec.path == "fast-track-tasks.md":
-            return _stage_is_active_enough(meta, spec.stage)
-    elif spec.path == "fast-track-tasks.md":
-        return False
-
     project_scope = meta.get("project_scope", "fullstack")
-    if project_scope == "backend_only" and spec.stage in ("ship-shape", "ship-frontend-design"):
+    if project_scope == "backend_only" and (
+        spec.stage in ("ship-shape", "ship-frontend-design")
+        or spec.path == "frontend-plan.md"
+    ):
         return False
-    if project_scope == "frontend_only" and spec.stage == "ship-backend-design":
+    if project_scope == "frontend_only" and (
+        spec.stage == "ship-backend-design"
+        or spec.path == "backend-plan.md"
+    ):
         return False
 
     return _stage_is_active_enough(meta, spec.stage)
