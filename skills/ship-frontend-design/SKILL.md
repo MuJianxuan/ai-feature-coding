@@ -21,14 +21,14 @@ description: "ShipKit stage. Designs frontend architecture based on UI/UX protot
 ## When to Use
 
 - api-contract.md 已完成且 stage_status 为 ready
-- 已有 UI/UX 设计稿（Figma / 墨刀 / 原型图）或可访问的设计资源
+- 已有 UI/UX 设计稿（Figma / 墨刀 / 原型图）或可访问的设计资源；上游 `ship-shape` 产出的 `design-brief.md` + `resource/wireframes/` 也视为可用 UIUX 资料
 - 需要为前端开发拆解出明确的页面与组件结构
 - 涉及前端状态管理、路由、权限等架构决策
 
 ## When NOT to Use
 
 - api-contract.md 尚未完成 —— 接口未定无法做映射
-- 没有任何 UI/UX 设计资料 —— 必须先要求用户提供设计稿或先做线框图
+- 没有任何 UI/UX 设计资料 —— 必须先要求用户提供设计稿，或回到 UIUX Material Gate / `ship-shape` 生成线框并确认
 - 纯后端项目 —— 跳过本阶段直接进入后端设计
 - 仅是已有页面的样式微调 —— 直接进入实现阶段
 
@@ -43,7 +43,7 @@ description: "ShipKit stage. Designs frontend architecture based on UI/UX protot
 
 如果没有设计稿：
 1. 优先要求用户提供 Figma / 墨刀 / 截图
-2. 若用户表示"按你的理解做"，先产出线框图（wireframe）并获取确认
+2. 若用户表示"按你的理解做"，回到 UIUX Material Gate / `ship-shape` 产出线框图（wireframe）并获取确认
 3. 不可在没有任何视觉依据时直接开始组件设计
 
 ## Diagram Guidance

@@ -99,6 +99,8 @@ NEW_FEATURE 确认启动前，必须先判定场景，决定是否进入 Discove
 - 场景 B 不进 Discover 大阶段；`stages.ship-discover.status` 和 `stages.ship-shape.status` 记为 `skipped`
 - 场景 D 不进 Discover 大阶段；`stages.ship-discover.status` 和 `stages.ship-shape.status` 记为 `skipped`；`stages.ship-define.generation_mode` 设为 `prd_direct`
 - 若场景 B/D 是由“新建模式选择”进入且用户尚未放资料，则先创建 raw `requirements.md` inbox 和 `resource/README.md`，并将 `stages.ship-define.status` 设为 `blocked`、`block_reason` 设为 `awaiting_materials`
+- 场景 B/D 若 `project_scope = fullstack | frontend_only` 且 feature 涉及 UI，必须执行 UIUX Material Gate：已有 Figma / 原型 / 截图 / `design-brief.md` 时继续 `ship-define`；缺少 UIUX 材料时，不得静默跳过到 `ship-frontend-design`，必须让用户选择补材料或显式授权生成线框。
+- UIUX Material Gate 中用户选择补材料时，保持 `stages.ship-define.status: blocked`，`block_reason` 写 `awaiting_uiux_materials` 或在 `awaiting_materials` 中明确 UIUX 缺口；用户选择“按你的理解做线框 / 生成线框”时，允许插入 `ship-shape` 并把本次插入记录到阶段假设或 `skip_log` 中，之后再回到 `ship-define`。
 - 场景 C 必须有现状基线；若用户没有指定已有 feature 目录、代码路径或明确现有功能，不创建新目录，先询问基于哪个对象增强
 - 场景 E 不进 Discover / Define 大阶段，直接进入 Design 大阶段的 `ship-tech-discovery`；`stages.ship-discover.status`、`stages.ship-shape.status`、`stages.ship-define.status`、`stages.ship-define-review.status` 记为 `skipped`，`stages.ship-define.generation_mode` 设为 `technical_plan`
 - 场景 E 只允许 `project_context: existing_project`；若用户说是新项目，必须阻塞并建议改走场景 A/B/D
@@ -229,9 +231,9 @@ ship-define → ship-define-review [硬门禁]
 | ship-contract | tech-selection.md ready | api-contract.md | stage_status: ready |
 | ship-frontend-design | api-contract.md ready；不要求 backend-design 已完成 | frontend-design.md | stage_status: ready |
 | ship-backend-design | api-contract.md ready；不要求 frontend-design 已完成 | backend-design.md | stage_status: ready |
-| ship-design-review | frontend-design + backend-design ready | review-design.md | review_status: approved + user_sign_off/signed_at |
-| ship-delivery-plan | review-design.md review_status: approved | frontend-plan.md + backend-plan.md | 两份产物均 `stage_status: ready` |
-| ship-plan-review | frontend-plan + backend-plan ready | review-plan.md | review_status: approved + user_sign_off/signed_at |
+| ship-design-review | `project_scope` 对应设计文档 ready（fullstack: frontend+backend；backend_only: backend；frontend_only: frontend） | review-design.md | review_status: approved + user_sign_off/signed_at |
+| ship-delivery-plan | review-design.md review_status: approved | `project_scope` 对应 plan（fullstack: frontend+backend+sync；backend_only: backend；frontend_only: frontend） | 对应 plan `stage_status: ready`，fullstack 还要求 sync 完成 |
+| ship-plan-review | `project_scope` 对应 plan ready | review-plan.md | review_status: approved + user_sign_off/signed_at |
 | ship-build | review-plan.md review_status: approved | 代码产物 | 所有 task 完成 |
 | ship-verify | ship-build 完成 | verification.md | `stage_status: ready` |
 | ship-handoff | verification.md stage_status: ready | handoff.md + verification.md | `handoff.md` 完成且 `verification.md stage_status: complete` |
@@ -342,8 +344,8 @@ hard gate 的运行时模型：
 - 对 hard gate 而言，`assistive_subagent` 解释为 `gate_check_subagent`
 - 对 hard gate 而言，`parallel_subagent` 是无效值；记录 warning 后回退
 - 无论哪种方式，主代理都必须重新读取正式 gate 文档并复核
-- 只有主代理可以把 `review_status` 从 `pending` 改成终态
-- 只有主代理可以在用户明确批准后写入 `user_sign_off` 和 `signed_at`
+- 只有主代理可以把 `review_status` 从 `pending` 改成终态；等待用户批准时正式 frontmatter 仍保持 `pending`，可在正文记录 `recommended_status`
+- 若主代理判断可通过，只有在用户明确批准后，才能一次性写入 `review_status: approved`、`user_sign_off` 和 `signed_at`
 - 三个 hard gate 的执行方式复用 `node_overrides` 与 `default_mode`，不再每次进入都单独询问
 
 写权限约束：
@@ -412,6 +414,7 @@ workspace resolution 规则：
 
 - 硬门禁失败：必须回退，不可跳过，不可强制通过
 - 软门禁失败：警告用户风险后，用户可选择强制推进（记录到 meta.yml 的 skip_log）
+- hard gate 永远不可通过 skip_log 跳过或强制通过；必须产生正式 review 文档并满足 `approved + user_sign_off + signed_at`
 - 连续两次门禁失败：建议用户重新审视需求或方案
 - 评审产物缺失：阻断推进，路由回评审阶段重新生成
 

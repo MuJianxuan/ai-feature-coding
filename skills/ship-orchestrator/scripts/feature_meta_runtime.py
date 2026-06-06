@@ -84,6 +84,14 @@ DISCOVER_SCENARIOS: frozenset[str] = frozenset({"greenfield", "evolve"})
 DEFINE_SCENARIOS: frozenset[str] = frozenset({"product_provided", "prd_direct"})
 TECHNICAL_PLAN_SCENARIOS: frozenset[str] = frozenset({"technical_plan_provided"})
 VALID_LIFECYCLE_STATUSES: tuple[str, ...] = ("active", "blocked", "completed", "abandoned")
+HARD_GATE_STAGES: frozenset[str] = frozenset(
+    {"ship-define-review", "ship-design-review", "ship-plan-review"}
+)
+HARD_GATE_ARTIFACTS: dict[str, str] = {
+    "ship-define-review": "review-define.md",
+    "ship-design-review": "review-design.md",
+    "ship-plan-review": "review-plan.md",
+}
 AWAITING_MATERIALS = "awaiting_materials"
 IGNORED_PROJECT_CANDIDATE_DIRS: frozenset[str] = frozenset(
     {
@@ -1187,6 +1195,10 @@ def record_skip(
         raise ValueError(f"invalid from_stage: {from_stage}")
     if to_stage not in CANONICAL_STAGE_ORDER:
         raise ValueError(f"invalid to_stage: {to_stage}")
+    if gate_type.strip().lower() == "hard" or from_stage in HARD_GATE_STAGES:
+        raise ValueError(
+            "hard gates cannot be skipped; require approved review_status plus user_sign_off and signed_at"
+        )
     if not reason.strip():
         raise ValueError("skip reason must be non-empty")
     if not user_sign_off.strip():
@@ -1206,6 +1218,27 @@ def record_skip(
     data["skip_log"].append(entry)
     _save_meta_with_updated_at(meta_path, data)
     return entry
+
+
+def _review_gate_is_approved(feature_dir: Path, stage: str) -> bool:
+    artifact_name = HARD_GATE_ARTIFACTS[stage]
+    artifact_path = feature_dir / artifact_name
+    if not artifact_path.exists():
+        return False
+    text = artifact_path.read_text(encoding="utf-8")
+    if not text.startswith("---\n"):
+        return False
+    end = text.find("\n---", 4)
+    if end == -1:
+        return False
+    frontmatter = yaml.safe_load(text[4:end]) or {}
+    if not isinstance(frontmatter, dict):
+        return False
+    return (
+        frontmatter.get("review_status") == "approved"
+        and bool(frontmatter.get("user_sign_off"))
+        and bool(frontmatter.get("signed_at"))
+    )
 
 
 def set_lifecycle_status(meta_path: Path, lifecycle_status: str) -> dict:
@@ -1295,6 +1328,10 @@ def advance_stage(
     data = load_meta(meta_path)
     if data.get("current_stage") != from_stage:
         raise ValueError(f"current_stage is {data.get('current_stage')}, expected {from_stage}")
+    if from_stage in HARD_GATE_STAGES and not _review_gate_is_approved(meta_path.parent, from_stage):
+        raise ValueError(
+            f"{from_stage} requires approved review_status plus user_sign_off and signed_at before advance-stage"
+        )
 
     stages = data.setdefault("stages", {})
     stages.setdefault(from_stage, {})["status"] = completed_status

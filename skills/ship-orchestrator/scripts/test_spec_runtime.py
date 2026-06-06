@@ -1027,6 +1027,114 @@ last_updated: "2026-05-23T10:00:00+08:00"
         self.assertEqual(saved["skip_log"][0]["reason"], "user requested direct define")
         self.assertEqual(saved["delegation"]["default_mode"], CURRENT_CONTEXT)
 
+    def test_record_skip_rejects_hard_gate(self) -> None:
+        feature_dir = self.root / "hard-gate-skip"
+        create_feature_meta(
+            feature_dir=feature_dir,
+            feature_name="Hard Gate Skip",
+            feature_id="feature-hard-gate-skip",
+            project_context="new_project",
+            project_scope="fullstack",
+            scenario="product_provided",
+        )
+        meta_path = feature_dir / "meta.yml"
+
+        with self.assertRaisesRegex(ValueError, "hard gates cannot be skipped"):
+            record_skip(
+                meta_path=meta_path,
+                from_stage="ship-define-review",
+                to_stage="ship-tech-discovery",
+                gate_type="hard",
+                reason="force past requirements review",
+                user_sign_off="skip review",
+            )
+
+        saved = self.load_meta(feature_dir)
+        self.assertEqual(saved["skip_log"], [])
+
+    def test_advance_stage_rejects_unsigned_hard_gate(self) -> None:
+        feature_dir = self.root / "hard-gate-advance"
+        create_feature_meta(
+            feature_dir=feature_dir,
+            feature_name="Hard Gate Advance",
+            feature_id="feature-hard-gate-advance",
+            project_context="new_project",
+            project_scope="fullstack",
+            scenario="product_provided",
+        )
+        meta_path = feature_dir / "meta.yml"
+        meta = self.load_meta(feature_dir)
+        meta["current_stage"] = "ship-define-review"
+        meta["stages"]["ship-define-review"]["status"] = "in_progress"
+        meta_path.write_text(yaml.safe_dump(meta, allow_unicode=False, sort_keys=False), encoding="utf-8")
+        (feature_dir / "review-define.md").write_text(
+            """---
+stage: ship-define-review
+gate_type: hard
+review_status: approved
+reviewer: ai
+reviewed_at: "2026-06-06T10:00:00+08:00"
+reviewed_documents: ["requirements.md"]
+revision_count: 0
+user_sign_off: ""
+signed_at: ""
+conditions: []
+---
+
+# Review
+""",
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(ValueError, "requires approved review_status plus user_sign_off and signed_at"):
+            advance_stage(
+                meta_path=meta_path,
+                from_stage="ship-define-review",
+                to_stage="ship-tech-discovery",
+            )
+
+    def test_advance_stage_allows_signed_hard_gate(self) -> None:
+        feature_dir = self.root / "signed-hard-gate-advance"
+        create_feature_meta(
+            feature_dir=feature_dir,
+            feature_name="Signed Hard Gate Advance",
+            feature_id="feature-signed-hard-gate-advance",
+            project_context="new_project",
+            project_scope="fullstack",
+            scenario="product_provided",
+        )
+        meta_path = feature_dir / "meta.yml"
+        meta = self.load_meta(feature_dir)
+        meta["current_stage"] = "ship-define-review"
+        meta["stages"]["ship-define-review"]["status"] = "approved"
+        meta_path.write_text(yaml.safe_dump(meta, allow_unicode=False, sort_keys=False), encoding="utf-8")
+        (feature_dir / "review-define.md").write_text(
+            """---
+stage: ship-define-review
+gate_type: hard
+review_status: approved
+reviewer: ai
+reviewed_at: "2026-06-06T10:00:00+08:00"
+reviewed_documents: ["requirements.md"]
+revision_count: 0
+user_sign_off: "approved by user"
+signed_at: "2026-06-06T10:05:00+08:00"
+conditions: []
+---
+
+# Review
+""",
+            encoding="utf-8",
+        )
+
+        payload = advance_stage(
+            meta_path=meta_path,
+            from_stage="ship-define-review",
+            to_stage="ship-tech-discovery",
+            completed_status="approved",
+        )
+        self.assertEqual(payload["current_stage"], "ship-tech-discovery")
+
 
 if __name__ == "__main__":
     unittest.main()

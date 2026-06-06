@@ -271,6 +271,8 @@ E2E 路径选择原则：
 
 `verification.md` 是 `ship-verify` 与 `ship-handoff` 的共享产物。`ship-verify` 负责写入测试章节，不负责最终 AC 验收结论。
 
+注意：`verification.md` frontmatter 中的 `stage: ship-handoff` 是刻意的 ownership 设计，用于表示最终验收归 `ship-handoff` 收口；这不代表 `ship-verify` 缺少产物。
+
 ### Frontmatter
 
 ```yaml

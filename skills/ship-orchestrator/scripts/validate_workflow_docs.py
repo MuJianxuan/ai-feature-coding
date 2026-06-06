@@ -95,6 +95,8 @@ def validate_protocol_doc() -> None:
     require("feature_root" in text, f"{path}: missing feature_root references")
     require("resolution_source" in text, f"{path}: missing resolution_source references")
     require("skip_log" in text, f"{path}: missing skip_log references")
+    require("只记录 soft gate 强制推进、条件性前置阶段跳过、资料入口跳过" in text, f"{path}: missing narrowed skip_log scope")
+    require("三个 hard gate 永远不可写入 skip_log" in text, f"{path}: missing hard gate skip prohibition")
     require("lifecycle_status" in text, f"{path}: missing lifecycle_status references")
     require("scenario" in text, f"{path}: missing scenario references")
     for snippet in (
@@ -135,6 +137,10 @@ def validate_protocol_doc() -> None:
         "frontend / backend / shared",
         "不新增 `review-tech-research.md`",
         "不新增 `review_status / user_sign_off / signed_at`",
+        "recommended_status",
+        "一次性写入 `review_status: approved`、`user_sign_off` 与 `signed_at`",
+        "UIUX Material Gate",
+        "awaiting_uiux_materials",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
     for node_id in CANONICAL_DELEGATION_NODES:
@@ -146,6 +152,7 @@ def validate_protocol_doc() -> None:
         require(row in text, f"{path}: missing macro row for {macro.current}/{macro.label}")
     require("5 个大阶段" in text or "五个大阶段" in text, f"{path}: missing 5-stage wording")
     require("4 个大阶段" not in text and "4 大阶段" not in text, f"{path}: contains legacy 4-stage wording")
+    require("强制跳过门禁" not in text, f"{path}: contains legacy hard-gate skip wording")
     for forbidden in ("自动推断", "自动下结论", "自动推出", "空字段自动"):
         require(forbidden not in text, f"{path}: contains forbidden legacy wording `{forbidden}`")
 
@@ -313,6 +320,8 @@ def validate_stage_delegation_boundaries() -> None:
             "`user_sign_off`、`signed_at` 必须保持为空",
             "主代理必须重新读取正式草案",
             "只有主代理可以把 `review_status` 改成",
+            "recommended_status",
+            "若 review_status 为 approved，已一次性写入用户明确批准、user_sign_off 和 signed_at",
         ):
             require(snippet in text, f"{path}: missing `{snippet}`")
 
@@ -373,6 +382,8 @@ def validate_orchestrator_doc() -> None:
         "ignored_source_policy: out_of_scope",
         "repository_scan_required",
         "ship-design-review",
+        "UIUX Material Gate",
+        "awaiting_uiux_materials",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
     require("ship-build 正式任务保持单 `DOING`" in text, f"{path}: missing build delegation wording")
@@ -401,6 +412,14 @@ def validate_orchestrator_doc() -> None:
     forbidden_soft_gate_status = "stage_status: draft / " + meta_progress_status
     require(forbidden_soft_gate_status not in text, f"{path}: must not mix artifact stage_status with meta in_progress")
     require("stage_status: ready 或 complete" in text, f"{path}: missing corrected soft gate stage_status wording")
+    for snippet in (
+        "`project_scope` 对应设计文档 ready",
+        "`project_scope` 对应 plan",
+        "对应 plan `stage_status: ready`",
+        "hard gate 永远不可通过 skip_log 跳过或强制通过",
+        "recommended_status",
+    ):
+        require(snippet in text, f"{path}: missing `{snippet}`")
     for forbidden in ("自动推断", "自动下结论", "自动推出", "空字段自动"):
         require(forbidden not in text, f"{path}: contains forbidden legacy wording `{forbidden}`")
 

@@ -284,6 +284,8 @@ conditions: []
 - [ ] 每个 Critical/Major 问题有具体修改建议
 - [ ] review-design.md 已按模板完整输出
 - [ ] 已明确告知用户评审结论，等待用户签字确认
+- [ ] 等待用户批准时 review_status 保持 pending，正文已记录 recommended_status
+- [ ] 若 review_status 为 approved，已一次性写入用户明确批准、user_sign_off 和 signed_at
 - [ ] Frontmatter 字段已正确填写
 ```
 
@@ -293,5 +295,6 @@ conditions: []
 |------|--------|
 | 存在 Critical 问题 | `rejected` |
 | 存在 Major 问题但无 Critical | `revision_needed` |
-| 仅有 Minor 问题或无问题 | 可标记 `approved`（用户确认后） |
+| 仅有 Minor 问题或无问题，但尚未获得用户明确批准 | `pending`，正文记录 `recommended_status: approved` |
+| 仅有 Minor 问题或无问题 + 用户明确批准 | `approved`，并同时写入 `user_sign_off` 与 `signed_at` |
 | 用户明确拒绝 | `rejected` |

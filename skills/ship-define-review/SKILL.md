@@ -341,7 +341,8 @@ generation_mode: ""  # 从 requirements.md 继承: interview | prd_direct
 
 ## 5. 用户签字
 
-- 评审结论：[pending / approved / rejected / revision_needed]
+- 建议结论：[recommended_status: approved / rejected / revision_needed]
+- 正式评审状态：[pending / approved / rejected / revision_needed]
 - 用户确认原话："[用户原话]"
 - 确认时间：[timestamp]
 ```
@@ -407,7 +408,8 @@ generation_mode: ""  # 从 requirements.md 继承: interview | prd_direct
 - [ ] 每个不通过项有明确的问题分级（Critical/Major/Minor）
 - [ ] 每个问题有具体的修改建议
 - [ ] review-define.md 的 frontmatter 字段完整
-- [ ] review_status 与用户明确表态一致
+- [ ] 等待用户批准时 review_status 保持 pending，正文已记录 recommended_status
+- [ ] 若 review_status 为 approved，已一次性写入用户明确批准、user_sign_off 和 signed_at
 - [ ] 如果 approved：无未解决的 Critical 问题
 - [ ] 如果 revision_needed：问题清单已明确传递给 `ship-define`
 - [ ] 用户签字章节有用户原话记录
@@ -418,7 +420,8 @@ generation_mode: ""  # 从 requirements.md 继承: interview | prd_direct
 | 条件 | status |
 |------|--------|
 | 评审未开始或进行中 | `pending` |
-| 无 Critical 问题 + 用户明确说"通过/approved" | `approved` |
+| 无 Critical 问题，但尚未获得用户明确批准 | `pending`，正文记录 `recommended_status: approved` |
+| 无 Critical 问题 + 用户明确说"通过/approved" | `approved`，并同时写入 `user_sign_off` 与 `signed_at` |
 | 用户明确说"不通过/rejected" | `rejected` |
 | 存在 Critical 问题，需修改后重审 | `revision_needed` |
 | 用户表态模糊 | 保持 `pending`，继续引导确认 |
