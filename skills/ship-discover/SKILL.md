@@ -143,7 +143,7 @@ description: "ShipKit pre-Define stage. Transforms vague ideas or change request
 
 **Step 2b: 现状扫描**
 
-场景 C 必须读取并回写 `meta.yml.evolve_source`，与 `product-brief.md.base_feature` 保持一致。`ship-discover(evolve)` 只做产品/影响粗分：确认变更目标、用户影响、受影响 surface 候选和待技术验证项；完整仓库事实扫描由 `ship-tech-discovery` 执行。
+场景 C 必须读取并回写 `meta.yml.evolve_source`，与 `product-brief.md.base_feature` 保持一致。`ship-discover(evolve)` 只做产品/影响粗分：确认变更目标、旧功能/现有行为基线、用户影响范围假设、初步 out-of-scope、受影响 surface 候选和待技术验证项；完整仓库事实扫描由 `ship-tech-discovery` 执行。
 
 必须先读取：
 - 已有 feature 目录（如果有 `meta.yml`、`requirements.md`、`handoff.md`）

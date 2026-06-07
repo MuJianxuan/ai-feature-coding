@@ -238,4 +238,92 @@ C 场景未给旧 feature/code/现有功能。
 期望：
 
 - 不创建目录，先询问 baseline
+
+## 22. Inserted Shape Transition Blocks Define
+
+```text
+B 场景已有 PRD、无 UIUX，用户授权生成线框；ship-shape.status=pending，尚无 design-brief.md。
+```
+
+期望：
+
+- `stage_transition_check.py --target-stage ship-define` 不允许推进
+- `checked_previous_stages` 包含 `ship-shape`
+- 缺少 `design-brief.md.stage_status=ready` 时阻塞
+
+## 23. D Backend Only Contract Material Gate
+
+```text
+D + backend_only，PRD 只有产品描述，没有 OpenAPI / endpoint list / interface doc / message protocol / CLI spec / SDK / request-response。
+```
+
+期望：
+
+- `ship-define-review` Phase 1 P1-6 判定 Critical
+- validator 报告 `backend_contract_material_missing`
+- 不允许 `review_status=approved`
+
+## 24. E Startup Summary Order
+
+```text
+启动 ship-orchestrator，基于 resource/order-export-tech-design.md 的 3.2 章节生成计划。
+```
+
+期望启动摘要顺序：
+
+- 技术方案来源与 selected scope
+- `ignored_source_policy: out_of_scope`
+- 跳过 `ship-define` / `ship-define-review`
+- 直接进入 `ship-tech-discovery` 并做 repository scan
+- 派生最小 requirements index
+- contract 前完成 `selected_scope_ac_confirmation`
+- 完成 contract 和裁剪后的 design
+- delivery-plan 前通过 `ship-design-review`
+
+## 25. UIUX Material Coverage
+
+```text
+B 场景提供一个 Figma 链接但无法访问，或只提供两张截图。
+```
+
+期望：
+
+- 不把“有链接”直接判为 sufficient
+- inaccessible 要求补材料或授权 `ship-shape`
+- partial / screenshot_only 可继续，但 `requirements.md` 或 `design-brief.md` 必须记录 UIUX risk/open question
+
+## 26. Inserted Shape Normalize Order
+
+```text
+B/D 先创建 raw requirements.md，之后用户补 PRD，并授权生成线框。
+```
+
+期望：
+
+- 回到 `ship-define` 时先 normalize raw inbox
+- `design-brief.md` 作为 UIUX source，不覆盖 PRD source
+- `generation_mode` 保持 B=`interview`、D=`prd_direct`
+
+## 27. Scope Freeze Drift
+
+```text
+ship-design-review 已 approved 后，把 project_scope 从 fullstack 改成 backend_only。
+```
+
+期望：
+
+- `validate_feature_artifacts.py` 报告 `scope_freeze_mismatch`
+- `stage_transition_check.py --target-stage ship-delivery-plan` 阻塞
+- 需要 reopen design-review 并重跑受影响 contract/design/plan
+
+## 28. E AC Source Completeness
+
+```text
+technical_plan_provided 的 requirements.md ready，但 AC 行没有 source locator 或 selected scope 边界。
+```
+
+期望：
+
+- `validate_requirements.py` 报告 `technical_plan_ac_missing_source_locator` 或 `technical_plan_ac_missing_scope_boundary`
+- delivery-plan 任务不得引用未确认 AC ID
 - validator 报告 `evolve_source_missing`

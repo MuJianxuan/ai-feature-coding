@@ -13,6 +13,8 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from validate_feature_artifacts import read_frontmatter  # noqa: E402
 
+UIUX_COVERAGE_VALUES = frozenset({"sufficient", "partial", "screenshot_only", "inaccessible", "generated"})
+
 
 def _issue(level: str, code: str, message: str, path: str = "design-brief.md") -> dict[str, str]:
     return {"level": level, "code": code, "message": message, "path": path}
@@ -38,6 +40,18 @@ def validate_ui_artifacts(feature_dir: Path) -> dict:
         issues.append(_issue("error", "missing_uiux_gate_sign_off", "inserted design brief requires UIUX gate sign-off"))
     if ready and fm.get("browser_verified") is not True:
         issues.append(_issue("error", "design_brief_browser_not_verified", "ready design brief requires browser_verified: true"))
+    coverage = fm.get("uiux_material_coverage")
+    if coverage is not None and coverage not in UIUX_COVERAGE_VALUES:
+        issues.append(_issue("error", "invalid_uiux_material_coverage", "uiux_material_coverage must be sufficient, partial, screenshot_only, inaccessible, or generated"))
+    if ready and coverage == "inaccessible":
+        issues.append(_issue("error", "uiux_material_inaccessible", "ready design brief cannot use inaccessible UIUX material coverage"))
+    if ready and coverage in {"partial", "screenshot_only"}:
+        risks = fm.get("uiux_risks")
+        open_questions = fm.get("open_questions")
+        has_risks = isinstance(risks, list) and bool(risks) or isinstance(risks, str) and bool(risks.strip())
+        has_questions = isinstance(open_questions, list) and bool(open_questions) or isinstance(open_questions, str) and bool(open_questions.strip())
+        if not has_risks and not has_questions:
+            issues.append(_issue("error", "uiux_partial_without_risk", "partial/screenshot_only UIUX coverage requires uiux_risks or open_questions"))
     for signal in ("tokens:", "Visual System", "viewport", "wireframe", "resource/wireframes"):
         if signal not in body and signal not in str(fm):
             issues.append(_issue("error" if ready else "warning", "missing_ui_manifest_signal", f"missing UI artifact signal: {signal}"))

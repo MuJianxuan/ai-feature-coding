@@ -61,6 +61,11 @@ description: "ShipKit stage. Performs project-reality-first technical discovery,
   blocking_gaps: []
   ```
 - derived `requirements.md` 只包含 selected scope 的 In Scope / Out of Scope、Domain ID、AC ID、NFR、待确认问题和 source index；不得把整份技术方案转成 PRD。
+- 最低完整度：
+  - 每个 selected scope item 至少映射一个 Domain ID。
+  - 每个可执行任务必须可回指至少一个 AC ID。
+  - 每条 AC 必须包含可验证结果、source locator、scope boundary，以及必要 NFR；若 NFR 不适用，必须写明 N/A reason。
+  - Out-of-scope 必须列出未选中内容的处理政策，并保持 `ignored_source_policy: out_of_scope`。
 - 优先按 selected scope 的章节名、接口、模块、标题、代码路径和关键词搜索仓库。
 - `Requirement-to-Reality Mapping` 只覆盖 derived `requirements.md` index 中 selected scope 对应的 Domain ID / AC ID。
 - 不扫描未选中章节对应的功能；未选中内容默认视为 out_of_scope。
@@ -328,6 +333,7 @@ selection 子段遵循 ADR 决策纪律：
 - [ ] tech-research.md frontmatter 已设置 `stage: ship-tech-discovery` 和 `artifact_role: research`
 - [ ] tech-selection.md frontmatter 已设置 `stage: ship-tech-discovery` 和 `artifact_role: selection`
 - [ ] technical_plan_provided 场景下，derived `requirements.md` 已设置 `generation_mode: technical_plan`、`source_documents` / `selected_scope` 来源索引、`selected_scope_ac_confirmed=true` 和 `stage_status: ready`，且 meta `selected_scope_ac_confirmation.status=confirmed`
+- [ ] technical_plan_provided 的每条 AC 都带 source locator、selected scope / scope boundary 信号、Domain ID 和可验证结果；confirmed AC IDs 覆盖 requirements body 中全部 AC IDs
 - [ ] tech-research.md 包含 Project Reality Scan / Requirement-to-Reality Mapping / Existing Surface Inventory / Evidence and Uncertainty / Research Alignment Check
 - [ ] existing_project 场景下 Project Reality Scan 有真实路径、接口、表、服务、组件、配置、测试或既有 feature 文档证据
 - [ ] new_project 场景下 Project Reality Scan 写明“不适用：new_project，无既有代码基线”

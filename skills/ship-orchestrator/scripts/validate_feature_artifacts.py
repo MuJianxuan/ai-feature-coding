@@ -18,13 +18,22 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from feature_meta_runtime import is_raw_prd_inbox_frontmatter, load_meta, validate_evolve_source  # noqa: E402
 from workflow_stage_map import CANONICAL_STAGE_ORDER, stage_view_for  # noqa: E402
+from workflow_invariants import (  # noqa: E402
+    TECHNICAL_PLAN_SCENARIO,
+    backend_contract_material_present,
+    design_review_meta_approved,
+    normalize_project_scope,
+    scope_forbidden_artifacts,
+    scope_freeze,
+    scope_freeze_is_valid,
+    stage_meta as _stage_meta,
+)
 
 NON_REVIEW_STATUSES = frozenset({"draft", "ready", "complete"})
 REVIEW_STATUSES = frozenset({"pending", "approved", "rejected", "revision_needed"})
 META_NON_REVIEW_STATUSES = frozenset({"pending", "in_progress", "ready", "blocked", "completed", "skipped"})
 META_REVIEW_STATUSES = frozenset({"pending", "in_progress", "approved", "rejected", "revision_needed", "skipped"})
 REVIEW_STAGES = frozenset({"ship-define-review", "ship-design-review", "ship-plan-review"})
-TECHNICAL_PLAN_SCENARIO = "technical_plan_provided"
 TECHNICAL_PLAN_SCAN_STATUSES = frozenset({"pending", "in_progress", "ready", "blocked"})
 AC_RE = re.compile(r"\bAC-[A-Z0-9]+-\d{3}\b")
 SOFT_BLOCKING_STAGES = frozenset({"ship-define", "ship-tech-discovery", "ship-contract", "ship-frontend-design", "ship-backend-design", "ship-delivery-plan", "ship-verify", "ship-handoff"})
@@ -84,14 +93,6 @@ def read_frontmatter(path: Path) -> tuple[dict[str, Any], str]:
     return data, text[end + 4 :]
 
 
-def _stage_meta(meta: dict[str, Any], stage: str) -> dict[str, Any]:
-    stages = meta.get("stages")
-    if not isinstance(stages, dict):
-        return {}
-    value = stages.get(stage)
-    return value if isinstance(value, dict) else {}
-
-
 def _stage_is_active_enough(meta: dict[str, Any], stage: str) -> bool:
     stage_meta = _stage_meta(meta, stage)
     status = stage_meta.get("status")
@@ -120,11 +121,7 @@ def _artifact_required(meta: dict[str, Any], spec: ArtifactSpec) -> bool:
 
 
 def _scope_forbidden_artifacts(project_scope: str) -> tuple[str, ...]:
-    if project_scope == "backend_only":
-        return ("design-brief.md", "frontend-design.md", "frontend-plan.md")
-    if project_scope == "frontend_only":
-        return ("backend-design.md", "backend-plan.md")
-    return ()
+    return scope_forbidden_artifacts(project_scope)
 
 
 def _validate_meta(feature_dir: Path, meta: dict[str, Any]) -> list[dict[str, str]]:
@@ -159,6 +156,7 @@ def _validate_meta(feature_dir: Path, meta: dict[str, Any]) -> list[dict[str, st
             issues.append(_issue("error", "invalid_meta_status", f"invalid meta status for {stage}: {status!r}", "meta.yml"))
 
     issues.extend(_validate_ship_shape_meta(meta))
+    issues.extend(_validate_scope_freeze_meta(meta))
     issues.extend(_validate_evolve_meta(meta))
     if meta.get("scenario") == TECHNICAL_PLAN_SCENARIO:
         issues.extend(_validate_technical_plan_meta(feature_dir, meta))
@@ -179,10 +177,46 @@ def _validate_ship_shape_meta(meta: dict[str, Any]) -> list[dict[str, str]]:
             issues.append(_issue("error", "invalid_shape_activation_mode", "B/D ship-shape requires activation_mode=uiux_material_gate_insert", "meta.yml"))
         if not shape.get("uiux_gate_user_sign_off") or not shape.get("uiux_gate_signed_at"):
             issues.append(_issue("error", "missing_uiux_gate_sign_off", "B/D inserted ship-shape requires user sign-off and signed_at", "meta.yml"))
+        if status in ("pending", "in_progress", "ready", "completed"):
+            issues.append(
+                _issue(
+                    "warning",
+                    "inserted_shape_transition_required",
+                    "B/D inserted ship-shape must be checked by transition through design-brief.md.stage_status before downstream stages",
+                    "meta.yml",
+                )
+            )
     if scenario == TECHNICAL_PLAN_SCENARIO and not status == "skipped":
         issues.append(_issue("error", "technical_plan_shape_forbidden", "technical_plan_provided must keep ship-shape skipped", "meta.yml"))
     if project_scope == "backend_only" and not status == "skipped":
         issues.append(_issue("error", "backend_only_shape_forbidden", "backend_only must keep ship-shape skipped", "meta.yml"))
+    return issues
+
+
+def _validate_scope_freeze_meta(meta: dict[str, Any]) -> list[dict[str, str]]:
+    issues: list[dict[str, str]] = []
+    freeze = scope_freeze(meta)
+    if design_review_meta_approved(meta) and not scope_freeze_is_valid(meta):
+        if not freeze:
+            issues.append(_issue("error", "scope_freeze_missing", "approved ship-design-review requires scope_freeze", "meta.yml"))
+        else:
+            issues.append(
+                _issue(
+                    "error",
+                    "scope_freeze_mismatch",
+                    "approved ship-design-review requires scope_freeze.status=frozen and frozen_scope equal to project_scope",
+                    "meta.yml",
+                )
+            )
+    elif freeze.get("status") == "frozen" and not scope_freeze_is_valid(meta):
+        issues.append(
+            _issue(
+                "error",
+                "scope_freeze_mismatch",
+                "scope_freeze.status=frozen must keep project_scope equal to frozen_scope",
+                "meta.yml",
+            )
+        )
     return issues
 
 
@@ -215,6 +249,15 @@ def _validate_evolve_product_brief(feature_dir: Path, meta: dict[str, Any]) -> l
 
     base_feature = str(frontmatter.get("base_feature", "")).strip()
     if not base_feature:
+        if frontmatter.get("stage_status") == "ready":
+            return [
+                _issue(
+                    "error",
+                    "evolve_base_feature_missing",
+                    "ready evolve product-brief.md must set base_feature that points back to meta.yml evolve_source",
+                    "product-brief.md",
+                )
+            ]
         return []
     if base_feature in _evolve_source_tokens(meta):
         return []
@@ -287,6 +330,8 @@ def _validate_technical_plan_meta(feature_dir: Path, meta: dict[str, Any]) -> li
                 if requirements_path.exists():
                     _fm, requirements_body = read_frontmatter(requirements_path)
                     body_ac_ids = set(AC_RE.findall(requirements_body))
+                    if not body_ac_ids:
+                        issues.append(_issue("error", "technical_plan_requirements_ac_ids_missing", "technical_plan requirements body must contain AC IDs", "requirements.md"))
                     missing = sorted(body_ac_ids - set(str(item) for item in confirmed_ac_ids))
                     if missing:
                         issues.append(_issue("error", "selected_scope_ac_confirmation_incomplete", "confirmed_ac_ids do not cover requirements AC IDs: " + ", ".join(missing), "meta.yml"))
@@ -375,6 +420,46 @@ def _validate_artifact_spec(feature_dir: Path, meta: dict[str, Any], spec: Artif
     return frontmatter, issues
 
 
+def _review_artifact_approved(artifacts: dict[str, dict[str, Any]], path: str) -> bool:
+    artifact = artifacts.get(path)
+    if not artifact:
+        return False
+    fm = artifact["frontmatter"]
+    return fm.get("review_status") == "approved" and bool(fm.get("user_sign_off")) and bool(fm.get("signed_at"))
+
+
+def _validate_scope_freeze_artifacts(meta: dict[str, Any], artifacts: dict[str, dict[str, Any]]) -> list[dict[str, str]]:
+    if not _review_artifact_approved(artifacts, "review-design.md"):
+        return []
+    if not scope_freeze(meta):
+        return [_issue("error", "scope_freeze_missing", "approved review-design.md requires scope_freeze", "meta.yml")]
+    if not scope_freeze_is_valid(meta):
+        return [_issue("error", "scope_freeze_mismatch", "project_scope conflicts with frozen_scope after design review", "meta.yml")]
+    return []
+
+
+def _validate_backend_contract_material(meta: dict[str, Any], requirements_fm: dict[str, Any], requirements_body: str) -> list[dict[str, str]]:
+    if meta.get("scenario") != "prd_direct":
+        return []
+    if normalize_project_scope(meta.get("project_scope")) != "backend_only":
+        return []
+    if requirements_fm.get("stage_status") != "ready":
+        return []
+    if requirements_fm.get("generation_mode") not in ("prd_direct", None):
+        return []
+    material_text = yaml.safe_dump(requirements_fm, allow_unicode=True, sort_keys=False) + "\n" + requirements_body
+    if backend_contract_material_present(material_text):
+        return []
+    return [
+        _issue(
+            "error",
+            "backend_contract_material_missing",
+            "D + backend_only requires contract-level material such as OpenAPI, endpoint list, API spec, message protocol, CLI spec, SDK, or request/response source index",
+            "requirements.md",
+        )
+    ]
+
+
 def validate_feature(feature_dir: Path) -> dict[str, Any]:
     feature_dir = feature_dir.resolve()
     meta_path = feature_dir / "meta.yml"
@@ -400,9 +485,7 @@ def validate_feature(feature_dir: Path) -> dict[str, Any]:
         }
 
     issues.extend(_validate_meta(feature_dir, meta))
-    project_scope = meta.get("project_scope", "fullstack")
-    if project_scope not in ("fullstack", "backend_only", "frontend_only"):
-        project_scope = "fullstack"
+    project_scope = normalize_project_scope(meta.get("project_scope", "fullstack"))
     if project_scope in ("backend_only", "frontend_only"):
         if not str(meta.get("project_scope_evidence", "")).strip():
             issues.append(
@@ -443,6 +526,7 @@ def validate_feature(feature_dir: Path) -> dict[str, Any]:
         issues.extend(requirements_result["issues"])
         try:
             requirements_fm, _requirements_body = read_frontmatter(requirements_path)
+            issues.extend(_validate_backend_contract_material(meta, requirements_fm, _requirements_body))
             if is_raw_prd_inbox_frontmatter(requirements_fm):
                 current_stage = meta.get("current_stage")
                 if current_stage in CANONICAL_STAGE_ORDER and CANONICAL_STAGE_ORDER.index(str(current_stage)) > CANONICAL_STAGE_ORDER.index("ship-define"):
@@ -468,6 +552,8 @@ def validate_feature(feature_dir: Path) -> dict[str, Any]:
 
         ui_result = validate_ui_artifacts(feature_dir)
         issues.extend(ui_result["issues"])
+
+    issues.extend(_validate_scope_freeze_artifacts(meta, artifacts))
 
     if (feature_dir / "tech-research.md").exists() or (feature_dir / "tech-selection.md").exists():
         from validate_tech_discovery import validate_tech_discovery  # noqa: WPS433
@@ -499,18 +585,14 @@ def validate_feature(feature_dir: Path) -> dict[str, Any]:
     ):
         from validate_design_alignment import validate_design_alignment  # noqa: WPS433
 
-        project_scope = meta.get("project_scope", "fullstack")
-        if project_scope not in ("fullstack", "backend_only", "frontend_only"):
-            project_scope = "fullstack"
+        project_scope = normalize_project_scope(meta.get("project_scope", "fullstack"))
         design_alignment_result = validate_design_alignment(feature_dir, project_scope)
         issues.extend(design_alignment_result["issues"])
 
     if (feature_dir / "frontend-plan.md").exists() or (feature_dir / "backend-plan.md").exists():
         from validate_delivery_plan import validate_delivery_plan  # noqa: WPS433
 
-        project_scope = meta.get("project_scope", "fullstack")
-        if project_scope not in ("fullstack", "backend_only", "frontend_only"):
-            project_scope = "fullstack"
+        project_scope = normalize_project_scope(meta.get("project_scope", "fullstack"))
         delivery_plan_result = validate_delivery_plan(feature_dir, project_scope)
         issues.extend(delivery_plan_result["issues"])
 
@@ -518,9 +600,7 @@ def validate_feature(feature_dir: Path) -> dict[str, Any]:
     if verification_path.exists():
         from validate_verification import validate_verification_file  # noqa: WPS433
 
-        project_scope = meta.get("project_scope", "fullstack")
-        if project_scope not in ("fullstack", "backend_only", "frontend_only"):
-            project_scope = "fullstack"
+        project_scope = normalize_project_scope(meta.get("project_scope", "fullstack"))
         verification_result = validate_verification_file(verification_path, project_scope)
         issues.extend(verification_result["issues"])
 

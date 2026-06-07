@@ -15,6 +15,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from feature_meta_runtime import load_meta  # noqa: E402
 from stage_transition_check import check_transition  # noqa: E402
 from validate_feature_artifacts import ARTIFACTS_BY_STAGE, REVIEW_STAGES, validate_feature  # noqa: E402
+from workflow_invariants import stage_meta  # noqa: E402
 from workflow_stage_map import CANONICAL_STAGE_ORDER, stage_view_for  # noqa: E402
 
 
@@ -23,14 +24,6 @@ def _issue(level: str, code: str, message: str, path: str | None = None) -> dict
     if path:
         payload["path"] = path
     return payload
-
-
-def _stage_meta(meta: dict[str, Any], stage: str) -> dict[str, Any]:
-    stages = meta.get("stages")
-    if not isinstance(stages, dict):
-        return {}
-    value = stages.get(stage)
-    return value if isinstance(value, dict) else {}
 
 
 def _artifact_statuses(validation: dict[str, Any]) -> list[dict[str, Any]]:
@@ -119,7 +112,7 @@ def _next_action(meta: dict[str, Any], validation: dict[str, Any], current_stage
             "detail": f"Allowed to advance from {current_stage} to {target_stage}.",
         }
 
-    stage_meta = _stage_meta(meta, current_stage)
+    current_stage_meta = stage_meta(meta, current_stage)
     if current_stage in REVIEW_STAGES:
         return {
             "action": "complete_hard_gate",
@@ -128,10 +121,10 @@ def _next_action(meta: dict[str, Any], validation: dict[str, Any], current_stage
             "transition_issues": transition["issues"],
         }
 
-    if stage_meta.get("status") == "blocked":
+    if current_stage_meta.get("status") == "blocked":
         return {
             "action": "resolve_blocker",
-            "detail": stage_meta.get("block_reason") or "Current stage is marked blocked in meta.yml.",
+            "detail": current_stage_meta.get("block_reason") or "Current stage is marked blocked in meta.yml.",
             "transition_issues": transition["issues"],
         }
 

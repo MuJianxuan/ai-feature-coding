@@ -15,6 +15,15 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from feature_meta_runtime import load_meta  # noqa: E402
 from validate_feature_artifacts import ARTIFACTS_BY_STAGE, REVIEW_STAGES, validate_feature  # noqa: E402
 from workflow_stage_map import CANONICAL_STAGE_ORDER  # noqa: E402
+from workflow_invariants import (  # noqa: E402
+    TECHNICAL_PLAN_SCENARIO,
+    is_stage_skipped,
+    normalize_project_scope,
+    scope_freeze,
+    scope_freeze_is_valid,
+    stage_meta as _stage_meta,
+    target_requires_scope_freeze,
+)
 
 
 def _issue(level: str, code: str, message: str, path: str | None = None) -> dict[str, str]:
@@ -22,14 +31,6 @@ def _issue(level: str, code: str, message: str, path: str | None = None) -> dict
     if path:
         payload["path"] = path
     return payload
-
-
-def _stage_meta(meta: dict[str, Any], stage: str) -> dict[str, Any]:
-    stages = meta.get("stages")
-    if not isinstance(stages, dict):
-        return {}
-    value = stages.get(stage)
-    return value if isinstance(value, dict) else {}
 
 
 def _artifact_for_stage(validation: dict[str, Any], stage: str, *, prefer_role: str | None = None) -> dict[str, Any] | None:
@@ -87,13 +88,18 @@ def _is_stage_complete_enough(meta: dict[str, Any], validation: dict[str, Any], 
 def _required_previous_stages(meta: dict[str, Any], target_stage: str) -> list[str]:
     target_index = CANONICAL_STAGE_ORDER.index(target_stage)
     stages = list(CANONICAL_STAGE_ORDER[:target_index])
-    project_scope = meta.get("project_scope", "fullstack")
+    project_scope = normalize_project_scope(meta.get("project_scope", "fullstack"))
     scenario = meta.get("scenario", "")
 
-    if scenario in ("product_provided", "prd_direct", "technical_plan_provided"):
-        stages = [stage for stage in stages if stage not in ("ship-discover", "ship-shape")]
-    if scenario == "technical_plan_provided":
+    if scenario in ("product_provided", "prd_direct"):
+        stages = [stage for stage in stages if stage != "ship-discover"]
+        if is_stage_skipped(meta, "ship-shape"):
+            stages = [stage for stage in stages if stage != "ship-shape"]
+    if scenario == TECHNICAL_PLAN_SCENARIO:
         stages = [stage for stage in stages if stage not in ("ship-define", "ship-define-review")]
+        for skipped_stage in ("ship-discover", "ship-shape"):
+            if is_stage_skipped(meta, skipped_stage):
+                stages = [stage for stage in stages if stage != skipped_stage]
     if project_scope == "backend_only":
         stages = [stage for stage in stages if stage not in ("ship-shape", "ship-frontend-design")]
     if project_scope == "frontend_only":
@@ -103,6 +109,36 @@ def _required_previous_stages(meta: dict[str, Any], target_stage: str) -> list[s
         # shared contract, but neither side may block the other from starting.
         stages = [stage for stage in stages if stage not in ("ship-frontend-design", "ship-backend-design")]
     return stages
+
+
+def _design_review_artifact_approved(validation: dict[str, Any]) -> bool:
+    artifact = validation.get("artifacts", {}).get("review-design.md")
+    if not artifact:
+        return False
+    fm = artifact["frontmatter"]
+    return fm.get("review_status") == "approved" and bool(fm.get("user_sign_off")) and bool(fm.get("signed_at"))
+
+
+def _scope_freeze_transition_issues(meta: dict[str, Any], validation: dict[str, Any], target_stage: str) -> list[dict[str, str]]:
+    if not target_requires_scope_freeze(target_stage):
+        return []
+    review_meta = _stage_meta(meta, "ship-design-review")
+    review_approved = review_meta.get("status") == "approved" or review_meta.get("approved") is True or _design_review_artifact_approved(validation)
+    if not review_approved:
+        return []
+    if scope_freeze_is_valid(meta):
+        return []
+    freeze = scope_freeze(meta)
+    if not freeze:
+        return [_issue("error", "scope_freeze_missing", "ship-design-review approved requires scope_freeze before delivery-plan", "meta.yml")]
+    return [
+        _issue(
+            "error",
+            "scope_freeze_mismatch",
+            f"project_scope {normalize_project_scope(meta.get('project_scope'))!r} conflicts with frozen_scope {freeze.get('frozen_scope')!r}",
+            "meta.yml",
+        )
+    ]
 
 
 def check_transition(feature_dir: Path, target_stage: str) -> dict[str, Any]:
@@ -133,6 +169,7 @@ def check_transition(feature_dir: Path, target_stage: str) -> dict[str, Any]:
         ok, stage_issues = _is_stage_complete_enough(meta, validation, stage)
         if not ok:
             issues.extend(stage_issues)
+    issues.extend(_scope_freeze_transition_issues(meta, validation, target_stage))
 
     current_stage = meta.get("current_stage")
     if current_stage in CANONICAL_STAGE_ORDER:

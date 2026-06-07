@@ -17,6 +17,11 @@ from validate_feature_artifacts import read_frontmatter  # noqa: E402
 
 DOMAIN_RE = re.compile(r"\bD-[A-Z0-9]+-\d{3}\b")
 AC_RE = re.compile(r"\bAC-[A-Z0-9]+-\d{3}\b")
+TECHNICAL_SOURCE_LOCATOR_RE = re.compile(
+    r"(source:|source=|来源[:：]|selected scope:|selected_scope:|technical source:|resource/|\.md#|§|file:)",
+    re.IGNORECASE,
+)
+SCOPE_BOUNDARY_RE = re.compile(r"(In Scope|Out of Scope|selected scope|selected_scope|scope boundary|范围|边界|in-scope|out-of-scope)", re.IGNORECASE)
 FUZZY_TERMS = ("尽量", "合理", "完善", "优化", "快速", "支持", "友好", "等等")
 NFR_KEYWORDS = {
     "performance": ("性能", "响应", "延迟", "吞吐", "并发", "P95", "p95", "load", "latency", "performance"),
@@ -62,6 +67,22 @@ def _lines_with(pattern: re.Pattern[str], text: str) -> list[str]:
 
 def _ac_lines(text: str) -> list[str]:
     return _lines_with(AC_RE, text)
+
+
+def _selected_scope_labels(frontmatter: dict[str, Any]) -> list[str]:
+    selected_scope = frontmatter.get("selected_scope")
+    labels: list[str] = []
+    if isinstance(selected_scope, str) and selected_scope.strip():
+        labels.append(selected_scope.strip())
+    elif isinstance(selected_scope, list):
+        for item in selected_scope:
+            if isinstance(item, str) and item.strip():
+                labels.append(item.strip())
+            elif isinstance(item, dict):
+                label = str(item.get("label") or item.get("title") or item.get("id") or "").strip()
+                if label:
+                    labels.append(label)
+    return labels
 
 
 def _blocking_question_lines(text: str) -> list[str]:
@@ -175,6 +196,40 @@ def validate_requirements_file(requirements_path: Path) -> dict[str, Any]:
     ]
     if ac_without_gwt:
         issues.append(_issue("warning", "ac_not_given_when_then", f"{len(ac_without_gwt)} AC lines do not contain Given/When/Then"))
+
+    if generation_mode == "technical_plan" and ready:
+        ac_without_source = [line for line in ac_lines if not TECHNICAL_SOURCE_LOCATOR_RE.search(line)]
+        if ac_without_source:
+            issues.append(
+                _issue(
+                    "error",
+                    "technical_plan_ac_missing_source_locator",
+                    f"{len(ac_without_source)} technical_plan AC lines lack source locator or selected scope reference",
+                )
+            )
+        ac_without_scope_boundary = [line for line in ac_lines if not SCOPE_BOUNDARY_RE.search(line)]
+        if ac_without_scope_boundary:
+            issues.append(
+                _issue(
+                    "error",
+                    "technical_plan_ac_missing_scope_boundary",
+                    f"{len(ac_without_scope_boundary)} technical_plan AC lines lack selected scope or boundary signal",
+                )
+            )
+        mapped_lines = [line.lower() for line in _lines_with(DOMAIN_RE, body) if AC_RE.search(line)]
+        missing_scope_mappings = [
+            label
+            for label in _selected_scope_labels(frontmatter)
+            if not any(label.lower() in line for line in mapped_lines)
+        ]
+        if missing_scope_mappings:
+            issues.append(
+                _issue(
+                    "error",
+                    "technical_plan_selected_scope_missing_domain_mapping",
+                    "selected scope items without Domain/AC mapping: " + ", ".join(missing_scope_mappings),
+                )
+            )
 
     for section_code, names in (
         ("missing_in_scope", ("In Scope", "本次必须实现", "范围")),

@@ -51,6 +51,7 @@ description: "ShipKit stage 1 (Define). Parses requirement materials (PRD, proto
 - **直接采纳已结构化的部分**：问题陈述、方案选择、范围、成功标准、设计 token、页面清单等已在上游定稿，不再做开放式提问
 - **聚焦补全 define 特有的内容**：Domain ID 体系、AC（Given/When/Then）、非功能需求量化、约束的技术化展开
 - **保留上游 Open Questions**：将 product-brief 中未解决的非阻塞问题转化为 define 的"约束与假设"或新一轮提问的起点
+- **记录 UIUX 材料覆盖级别**：读取 `design-brief.md`、Figma、截图或原型时，必须记录 `uiux_material_coverage`（sufficient / partial / screenshot_only / inaccessible / generated）及风险；不得把 partial 或 screenshot-only 当成完整设计稿
 - **evolve 分支特殊处理**：若 product-brief.discovery_mode=evolve，将影响分析章节中的"受影响 AC"作为已有 AC 的修订基线，新增/修改/删除明确标注
 
 ### 范围拆分规则
@@ -432,10 +433,12 @@ D-ORD-001 (订单创建)
 1. 读取 raw `requirements.md`，确认正文不是空模板。
 2. 将 raw PRD 原文迁移或保留到 `resource/raw-prd.md`。
 3. 建立 `resource/` 资料索引，将 `resource/raw-prd.md` 标记为 PRD source。
-4. 根据 `meta.yml.scenario` 决定后续生成方式：
+4. 若 B/D 经 UIUX Material Gate 插入过 `ship-shape`，先读取 `resource/README.md` 和所有 source documents，再读取 `design-brief.md` 与 `resource/wireframes/`；`design-brief.md` 只能作为 UIUX source，不覆盖 PRD source，冲突必须写入 conflict/open question。
+5. 根据 `meta.yml.scenario` 决定后续生成方式：
    - `prd_direct`：按 PRD Direct Mode 零提问提取，缺口标记为 `[GAP]`。
    - `product_provided`：按 Interview Mode 解析资料，并对阻塞缺口发起结构化提问。
-5. 改写 `requirements.md` 为结构化 requirements contract，frontmatter 不再使用 `generation_mode: raw_prd_input`。raw inbox 可作为 `ship-define` 输入材料；不可作为 `ship-define` ready 产物；不可进入 `ship-define-review`；不可被 contract/design/delivery plan 当需求事实源。
+6. 改写 `requirements.md` 为结构化 requirements contract，frontmatter 不再使用 `generation_mode: raw_prd_input`。raw inbox 可作为 `ship-define` 输入材料；不可作为 `ship-define` ready 产物；不可进入 `ship-define-review`；不可被 contract/design/delivery plan 当需求事实源。
+7. 保持原场景语义：B 仍为 `generation_mode: interview`，D 仍为 `generation_mode: prd_direct`；不得因为经过 `ship-shape` 切换成 `technical_plan`。
 
 ### Normalize 后的约束
 

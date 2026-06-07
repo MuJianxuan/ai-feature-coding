@@ -117,10 +117,13 @@
 ```
 
 默认响应：
-- 识别为场景 E，scenario = `technical_plan_provided`，起点 `ship-tech-discovery`，跳过 `ship-define` 执行阶段与 `ship-define-review` hard gate；但会派生最小 `requirements.md` index
-- 要求 `project_context: existing_project`
-- `ship-tech-discovery` 开头只围绕 selected scope 派生最小 requirements index / AC，未选中技术方案内容不会进入 plan
-- Design 大阶段仍必须做 Project Reality Scan，并且进入 `ship-delivery-plan` 前必须通过 `ship-design-review`
+- 识别为场景 E，scenario = `technical_plan_provided`，要求 `project_context: existing_project`
+- 明确技术方案来源与 selected scope；未选中内容按 `ignored_source_policy: out_of_scope` 忽略
+- 跳过 `ship-define` 执行阶段与 `ship-define-review` hard gate
+- 直接进入 `ship-tech-discovery`，先执行 repository scan，并在开头只围绕 selected scope 派生最小 `requirements.md` index / AC
+- 进入 `ship-contract` 前必须完成 `selected_scope_ac_confirmation`
+- 完成 contract 和按 scope 裁剪的 frontend/backend design
+- 进入 `ship-delivery-plan` 前必须通过 `ship-design-review`
 
 ### 继续已有 feature
 

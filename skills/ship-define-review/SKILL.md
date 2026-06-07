@@ -193,8 +193,10 @@ Phase 3: 标准 Checklist（8 项）
 | P1-3 | 内容无歧义 | 同一功能在 PRD 和原型中描述一致 | PRD 文字与原型交互存在矛盾 |
 | P1-4 | 非功能需求可执行 | 有量化指标或明确的技术约束 | 仅有"要快"/"要安全"等模糊表述 |
 | P1-5 | 角色/权限明确 | 角色定义清晰，权限边界可判定 | 角色描述模糊或权限未覆盖关键操作 |
+| P1-6 | backend_only contract material | 仅当 `generation_mode=prd_direct` 且 `meta.yml.project_scope=backend_only` 适用；源材料存在并可引用 OpenAPI / endpoint list / interface doc / design doc / message protocol / CLI spec / SDK contract / request-response 至少一种契约级材料 | 只有产品 PRD，无接口、消息、CLI、SDK 或 request/response 契约信息 |
 
 Phase 1 发现的问题归入 Critical 或 Major（视影响范围）。
+D + `backend_only` 的 P1-6 失败必须归入 Critical，禁止将 `review_status` 标记为 approved。
 
 #### Phase 2: 提取准确性审核
 

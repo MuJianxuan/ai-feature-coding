@@ -118,6 +118,19 @@ def _selected_scope_terms(meta: dict[str, Any]) -> list[str]:
     return terms
 
 
+def _confirmed_ac_ids(meta: dict[str, Any]) -> set[str]:
+    technical_plan_source = meta.get("technical_plan_source")
+    if not isinstance(technical_plan_source, dict):
+        return set()
+    confirmation = technical_plan_source.get("selected_scope_ac_confirmation")
+    if not isinstance(confirmation, dict) or confirmation.get("status") != "confirmed":
+        return set()
+    values = confirmation.get("confirmed_ac_ids")
+    if not isinstance(values, list):
+        return set()
+    return {str(item) for item in values if str(item).strip()}
+
+
 def _technical_plan_task_issues(blocks: list[tuple[str, str]], terms: list[str], path_name: str) -> list[dict[str, str]]:
     if not terms:
         return []
@@ -214,6 +227,8 @@ def validate_delivery_plan(feature_dir: Path, project_scope: str = "fullstack") 
     issues: list[dict[str, str]] = []
     plan_results: list[dict[str, Any]] = []
     selected_scope_terms: list[str] = []
+    confirmed_ac_ids: set[str] = set()
+    technical_plan_mode = False
     meta_path = feature_dir / "meta.yml"
     if meta_path.exists():
         try:
@@ -221,7 +236,9 @@ def validate_delivery_plan(feature_dir: Path, project_scope: str = "fullstack") 
         except Exception:
             meta = {}
         if meta.get("scenario") == "technical_plan_provided":
+            technical_plan_mode = True
             selected_scope_terms = _selected_scope_terms(meta)
+            confirmed_ac_ids = _confirmed_ac_ids(meta)
     expected = []
     if project_scope in ("fullstack", "frontend_only"):
         expected.append(("frontend-plan.md", "frontend-plan"))
@@ -236,6 +253,13 @@ def validate_delivery_plan(feature_dir: Path, project_scope: str = "fullstack") 
     all_ac_refs = sorted({ac for result in plan_results for task in result["tasks"] for ac in task["ac_refs"]})
     if not all_ac_refs:
         issues.append(_issue("warning", "missing_plan_ac_coverage", "no AC refs found across delivery plans"))
+    if technical_plan_mode:
+        if not confirmed_ac_ids:
+            issues.append(_issue("error", "selected_scope_ac_confirmation_missing", "technical_plan_provided delivery plan requires confirmed AC IDs", "meta.yml"))
+        else:
+            unconfirmed = sorted(set(all_ac_refs) - confirmed_ac_ids)
+            if unconfirmed:
+                issues.append(_issue("error", "task_refs_unconfirmed_ac", "delivery plan references unconfirmed AC IDs: " + ", ".join(unconfirmed), "meta.yml"))
 
     if project_scope == "fullstack":
         frontend_tasks = {task["task_id"] for result in plan_results if result["path"].endswith("frontend-plan.md") for task in result["tasks"]}

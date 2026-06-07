@@ -92,6 +92,21 @@ HARD_GATE_ARTIFACTS: dict[str, str] = {
     "ship-design-review": "review-design.md",
     "ship-plan-review": "review-plan.md",
 }
+STAGE_ARTIFACTS: dict[str, tuple[str, ...]] = {
+    "ship-discover": ("product-brief.md",),
+    "ship-shape": ("design-brief.md",),
+    "ship-define": ("requirements.md",),
+    "ship-define-review": ("review-define.md",),
+    "ship-tech-discovery": ("tech-research.md", "tech-selection.md"),
+    "ship-contract": ("api-contract.md",),
+    "ship-frontend-design": ("frontend-design.md",),
+    "ship-backend-design": ("backend-design.md",),
+    "ship-design-review": ("review-design.md",),
+    "ship-delivery-plan": ("frontend-plan.md", "backend-plan.md"),
+    "ship-plan-review": ("review-plan.md",),
+    "ship-verify": ("verification.md",),
+    "ship-handoff": ("handoff.md",),
+}
 AWAITING_MATERIALS = "awaiting_materials"
 IGNORED_PROJECT_CANDIDATE_DIRS: frozenset[str] = frozenset(
     {
@@ -347,6 +362,57 @@ def migrate_legacy_stage_names(data: dict) -> bool:
 def save_meta(meta_path: Path, data: dict) -> None:
     with meta_path.open("w", encoding="utf-8") as handle:
         yaml.safe_dump(data, handle, allow_unicode=False, sort_keys=False)
+
+
+def _read_artifact_frontmatter(path: Path) -> dict:
+    text = path.read_text(encoding="utf-8")
+    if not text.startswith("---\n"):
+        return {}
+    end = text.find("\n---", 4)
+    if end == -1:
+        return {}
+    data = yaml.safe_load(text[4:end]) or {}
+    return data if isinstance(data, dict) else {}
+
+
+def sync_meta_from_artifacts(feature_dir: Path, data: dict | None = None) -> dict:
+    feature_dir = feature_dir.resolve()
+    synced = dict(data) if data is not None else load_meta(feature_dir / "meta.yml")
+    stages = dict(synced.get("stages") or {})
+    synced["stages"] = stages
+
+    for stage, relative_paths in STAGE_ARTIFACTS.items():
+        found_statuses: list[str] = []
+        approved = False
+        for relative_path in relative_paths:
+            path = feature_dir / relative_path
+            if not path.exists():
+                continue
+            fm = _read_artifact_frontmatter(path)
+            if stage in HARD_GATE_STAGES:
+                review_status = fm.get("review_status")
+                if isinstance(review_status, str) and review_status:
+                    found_statuses.append(review_status)
+                    if review_status == "approved" and fm.get("user_sign_off") and fm.get("signed_at"):
+                        approved = True
+            else:
+                stage_status = fm.get("stage_status")
+                if isinstance(stage_status, str) and stage_status:
+                    found_statuses.append("completed" if stage_status == "complete" else stage_status)
+        if not found_statuses:
+            continue
+        stage_summary = dict(stages.get(stage) or {})
+        if stage in HARD_GATE_STAGES:
+            stage_summary["status"] = "approved" if approved else found_statuses[0]
+            stage_summary["approved"] = approved
+        elif all(status in {"ready", "completed"} for status in found_statuses):
+            stage_summary["status"] = "ready" if "ready" in found_statuses else "completed"
+        else:
+            stage_summary["status"] = found_statuses[0]
+        stages[stage] = stage_summary
+
+    ensure_macro_stage(synced)
+    return synced
 
 
 def ensure_macro_stage(data: dict) -> dict:
@@ -871,6 +937,32 @@ def insert_shape_from_uiux_gate(data: dict, user_sign_off: str, signed_at: str) 
     shape["uiux_gate_signed_at"] = signed_at.strip()
     data["current_stage"] = "ship-shape"
     ensure_macro_stage(data)
+
+
+def freeze_project_scope_after_design_review(data: dict, user_sign_off: str, signed_at: str) -> dict:
+    if not user_sign_off.strip():
+        raise ValueError("scope freeze user_sign_off must be non-empty")
+    if not signed_at.strip():
+        raise ValueError("scope freeze signed_at must be non-empty")
+    project_scope = str(data.get("project_scope") or "fullstack").strip()
+    if project_scope not in {"fullstack", "backend_only", "frontend_only"}:
+        raise ValueError(f"invalid project_scope for freeze: {project_scope}")
+    freeze = data.setdefault("scope_freeze", {})
+    freeze["status"] = "frozen"
+    freeze["frozen_scope"] = project_scope
+    freeze["frozen_at"] = signed_at.strip()
+    freeze["frozen_by_gate"] = "ship-design-review"
+    freeze["user_sign_off"] = user_sign_off.strip()
+    freeze.setdefault("reopen_reason", "")
+    return freeze
+
+
+def validate_scope_change_allowed(data: dict, new_scope: str) -> None:
+    if new_scope not in {"fullstack", "backend_only", "frontend_only"}:
+        raise ValueError(f"invalid project_scope: {new_scope}")
+    freeze = data.get("scope_freeze") if isinstance(data.get("scope_freeze"), dict) else {}
+    if freeze.get("status") == "frozen" and str(freeze.get("frozen_scope", "")).strip() != new_scope:
+        raise ValueError("project_scope is frozen after ship-design-review; reopen design review before changing scope")
 
 
 def validate_evolve_source(data: dict) -> list[str]:

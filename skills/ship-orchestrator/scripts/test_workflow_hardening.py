@@ -27,6 +27,7 @@ from validate_design_alignment import validate_design_alignment
 from validate_frontend_design import validate_frontend_design
 from validate_backend_design import validate_backend_design
 from workflow_doctor import diagnose_feature
+from feature_meta_runtime import freeze_project_scope_after_design_review, sync_meta_from_artifacts, validate_scope_change_allowed
 
 
 class WorkflowHardeningTest(unittest.TestCase):
@@ -135,6 +136,7 @@ Out of Scope: 用户注册。
 
 ## 9. 需求资料索引
 - resource/prd.md 已解析
+- endpoint: POST /api/v1/login request/response
 """,
         )
 
@@ -166,7 +168,7 @@ Out of Scope: 订单导入。
 - D-ORDER-001 订单导出
 
 ## 5. 验收标准
-- AC-ORDER-001 | D-ORDER-001 | Given 管理员在订单页, When 提交导出, Then 系统返回导出任务 ID
+- AC-ORDER-001 | D-ORDER-001 | selected scope: 3.2 Order export async task | source: resource/order-export-tech-design.md#3.2-order-export | In Scope | Given 管理员在订单页, When 提交导出, Then 系统返回导出任务 ID
 
 ## 6. 非功能需求
 性能：导出请求 P95 < 500ms。
@@ -204,6 +206,36 @@ conditions: []
 """,
         )
 
+    def write_design_brief(self, *, status: str = "ready", coverage: str = "generated", risks: bool = True) -> None:
+        risk_lines = "uiux_risks:\n  - partial material risk recorded\n" if risks else ""
+        self.write_text(
+            "design-brief.md",
+            f"""---
+stage: ship-shape
+stage_status: {status}
+activation_mode: uiux_material_gate_insert
+uiux_gate_user_sign_off: "user authorized wireframes"
+uiux_gate_signed_at: "2026-05-31T10:00:00+08:00"
+browser_verified: true
+variations_count: 3
+wireframe_index_path: resource/wireframes/index.html
+uiux_material_coverage: {coverage}
+{risk_lines}updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# Design Brief
+
+tokens:
+Visual System
+viewport
+wireframe
+resource/wireframes
+""",
+        )
+        for name in ("index.html", "variant-conservative.html", "variant-neutral.html", "variant-bold.html"):
+            self.write_text(f"resource/wireframes/{name}", "<html><body>wireframe</body></html>")
+
     def test_ready_requirements_allows_define_review_entry(self) -> None:
         self.write_meta(current_stage="ship-define")
         self.write_requirements(status="ready")
@@ -211,6 +243,50 @@ conditions: []
         result = check_transition(self.feature_dir, "ship-define-review")
 
         self.assertTrue(result["allowed"], result["issues"])
+
+    def test_product_provided_inserted_shape_blocks_define_until_ready(self) -> None:
+        self.write_meta(current_stage="ship-shape", scenario="product_provided", define_status="pending")
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["stages"]["ship-shape"] = {
+            "status": "pending",
+            "activation_mode": "uiux_material_gate_insert",
+            "uiux_gate_user_sign_off": "user authorized wireframes",
+            "uiux_gate_signed_at": "2026-05-31T10:00:00+08:00",
+        }
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        result = check_transition(self.feature_dir, "ship-define")
+
+        self.assertFalse(result["allowed"])
+        self.assertIn("ship-shape", result["checked_previous_stages"])
+        self.assertTrue(any(issue["code"] == "missing_stage_artifact" for issue in result["issues"]))
+
+    def test_prd_direct_inserted_shape_ready_allows_define_review_checks(self) -> None:
+        self.write_meta(current_stage="ship-define", scenario="prd_direct", define_status="ready")
+        self.write_design_brief(status="ready")
+        self.write_requirements(status="ready")
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["stages"]["ship-shape"] = {
+            "status": "ready",
+            "activation_mode": "uiux_material_gate_insert",
+            "uiux_gate_user_sign_off": "user authorized wireframes",
+            "uiux_gate_signed_at": "2026-05-31T10:00:00+08:00",
+        }
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        result = check_transition(self.feature_dir, "ship-define-review")
+
+        self.assertTrue(result["allowed"], result["issues"])
+        self.assertIn("ship-shape", result["checked_previous_stages"])
+
+    def test_product_provided_skipped_shape_does_not_require_design_brief(self) -> None:
+        self.write_meta(current_stage="ship-define", scenario="product_provided", define_status="ready")
+        self.write_requirements(status="ready")
+
+        result = check_transition(self.feature_dir, "ship-define-review")
+
+        self.assertTrue(result["allowed"], result["issues"])
+        self.assertNotIn("ship-shape", result["checked_previous_stages"])
 
     def test_unsigned_approved_gate_blocks_transition(self) -> None:
         self.write_meta(current_stage="ship-define-review", define_review_status="approved")
@@ -234,6 +310,18 @@ conditions: []
 
         self.assertFalse(result["ok"])
         self.assertTrue(any(issue["code"] == "meta_artifact_status_conflict" for issue in result["issues"]))
+
+    def test_sync_meta_from_artifacts_uses_frontmatter_statuses(self) -> None:
+        self.write_meta(current_stage="ship-define-review", define_status="draft", define_review_status="pending")
+        self.write_requirements(status="ready")
+        self.write_define_review(status="approved", signed=True)
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+
+        synced = sync_meta_from_artifacts(self.feature_dir, meta)
+
+        self.assertEqual(synced["stages"]["ship-define"]["status"], "ready")
+        self.assertEqual(synced["stages"]["ship-define-review"]["status"], "approved")
+        self.assertTrue(synced["stages"]["ship-define-review"]["approved"])
 
     def test_requirements_ready_requires_domain_ac_and_no_blockers(self) -> None:
         self.write_requirements(status="ready")
@@ -317,6 +405,130 @@ Out of Scope: 用户注册。
 
         self.assertTrue(result["ok"], result["issues"])
 
+    def test_prd_direct_backend_only_requires_contract_material(self) -> None:
+        self.write_meta(
+            current_stage="ship-define-review",
+            scenario="prd_direct",
+            project_scope="backend_only",
+            project_scope_evidence="用户明确声明纯后端 API 项目",
+            define_status="ready",
+        )
+        self.write_text(
+            "requirements.md",
+            """---
+stage: ship-define
+stage_status: ready
+generation_mode: prd_direct
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# Requirements
+
+## 3. 功能范围
+In Scope: 管理后台订单导出。
+Out of Scope: 订单导入。
+
+## 4. 业务域建模
+- D-ORDER-001 订单导出
+
+## 5. 验收标准
+- AC-ORDER-001 | D-ORDER-001 | Given 管理员导出订单, When 提交任务, Then 系统创建导出任务
+
+## 6. 非功能需求
+性能：P95 < 500ms。
+安全：需要认证、授权和审计。
+可用性：服务异常时返回明确错误。
+可访问性：N/A backend_only。
+
+## 8. 待确认问题清单
+- 无阻塞问题。
+
+## 9. 需求资料索引
+- resource/prd.md
+""",
+        )
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "backend_contract_material_missing" for issue in result["issues"]))
+
+    def test_prd_direct_backend_only_accepts_openapi_contract_material(self) -> None:
+        self.write_meta(
+            current_stage="ship-define-review",
+            scenario="prd_direct",
+            project_scope="backend_only",
+            project_scope_evidence="用户明确声明纯后端 API 项目",
+            define_status="ready",
+        )
+        self.write_text(
+            "requirements.md",
+            """---
+stage: ship-define
+stage_status: ready
+generation_mode: prd_direct
+source_documents:
+  - resource/openapi.yaml
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# Requirements
+
+## 3. 功能范围
+In Scope: 管理后台订单导出。
+Out of Scope: 订单导入。
+
+## 4. 业务域建模
+- D-ORDER-001 订单导出
+
+## 5. 验收标准
+- AC-ORDER-001 | D-ORDER-001 | Given 管理员导出订单, When 提交 POST /api/v1/orders/export, Then 返回导出任务 ID
+
+## 6. 非功能需求
+性能：P95 < 500ms。
+安全：需要认证、授权和审计。
+可用性：服务异常时返回明确错误。
+可访问性：N/A backend_only。
+
+## 8. 待确认问题清单
+- 无阻塞问题。
+
+## 9. 需求资料索引
+- OpenAPI: resource/openapi.yaml
+- endpoint list: POST /api/v1/orders/export request/response
+""",
+        )
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(any(issue["code"] == "backend_contract_material_missing" for issue in result["issues"]))
+
+    def test_frontend_only_does_not_require_backend_contract_material(self) -> None:
+        self.write_meta(
+            current_stage="ship-define-review",
+            scenario="prd_direct",
+            project_scope="frontend_only",
+            project_scope_evidence="用户明确声明纯前端 UI 项目",
+            define_status="ready",
+        )
+        self.write_requirements(status="ready")
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(any(issue["code"] == "backend_contract_material_missing" for issue in result["issues"]))
+
+    def test_partial_uiux_coverage_requires_risk_or_open_question(self) -> None:
+        from validate_ui_artifacts import validate_ui_artifacts
+
+        self.write_design_brief(status="ready", coverage="partial", risks=False)
+
+        result = validate_ui_artifacts(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "uiux_partial_without_risk" for issue in result["issues"]))
+
     def test_technical_plan_requirements_ready_requires_selected_scope_source_index(self) -> None:
         self.write_text(
             "requirements.md",
@@ -386,7 +598,7 @@ Out of Scope: 订单导入。
 - D-ORDER-001 订单导出
 
 ## 5. 验收标准
-- AC-ORDER-001 | D-ORDER-001 | Given 管理员在订单页, When 提交导出, Then 系统返回导出任务 ID
+- AC-ORDER-001 | D-ORDER-001 | selected scope: 3.2 Order export async task | source: resource/order-export-tech-design.md#3.2-order-export | In Scope | Given 管理员在订单页, When 提交导出, Then 系统返回导出任务 ID
 
 ## 6. 非功能需求
 性能：导出请求 P95 < 500ms。
@@ -405,6 +617,103 @@ Out of Scope: 订单导入。
         result = validate_requirements_file(self.feature_dir / "requirements.md")
 
         self.assertTrue(result["ok"], result["issues"])
+
+    def test_technical_plan_requirements_maps_each_selected_scope_to_domain_ac(self) -> None:
+        self.write_text(
+            "requirements.md",
+            """---
+stage: ship-define
+stage_status: ready
+generation_mode: technical_plan
+selected_scope_ac_confirmed: true
+source_documents:
+  - resource/order-export-tech-design.md#3.2-order-export
+selected_scope:
+  - 3.2 Order export async task
+  - 3.3 Order export audit log
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+blocking_gaps: []
+---
+
+# Requirements
+
+## 3. 功能范围
+In Scope: 订单导出。
+Out of Scope: 订单导入。
+
+## 4. 业务域建模
+- D-ORDER-001 订单导出
+
+## 5. 验收标准
+- AC-ORDER-001 | D-ORDER-001 | selected scope: 3.2 Order export async task | source: resource/order-export-tech-design.md#3.2-order-export | In Scope | Given 管理员在订单页, When 提交导出, Then 系统返回导出任务 ID
+
+## 6. 非功能需求
+性能：导出请求 P95 < 500ms。
+安全：导出接口需要认证、授权和审计。
+可用性：任务服务异常时返回明确错误。
+可访问性：下载入口支持键盘导航。
+
+## 8. 待确认问题清单
+- 无阻塞问题。
+
+## 9. 需求资料索引
+- selected scope: resource/order-export-tech-design.md#3.2-order-export
+""",
+        )
+
+        result = validate_requirements_file(self.feature_dir / "requirements.md")
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "technical_plan_selected_scope_missing_domain_mapping" for issue in result["issues"]))
+
+    def test_technical_plan_requirements_ac_requires_source_locator(self) -> None:
+        self.write_text(
+            "requirements.md",
+            """---
+stage: ship-define
+stage_status: ready
+generation_mode: technical_plan
+selected_scope_ac_confirmed: true
+source_documents:
+  - resource/order-export-tech-design.md#3.2-order-export
+selected_scope:
+  - 3.2 Order export async task
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+blocking_gaps: []
+---
+
+# Requirements
+
+## 3. 功能范围
+In Scope: 订单导出。
+Out of Scope: 订单导入。
+
+## 4. 业务域建模
+- D-ORDER-001 订单导出
+
+## 5. 验收标准
+- AC-ORDER-001 | D-ORDER-001 | Given 管理员在订单页, When 提交导出, Then 系统返回导出任务 ID
+
+## 6. 非功能需求
+性能：导出请求 P95 < 500ms。
+安全：导出接口需要认证、授权和审计。
+可用性：任务服务异常时返回明确错误。
+可访问性：下载入口支持键盘导航。
+
+## 8. 待确认问题清单
+- 无阻塞问题。
+
+## 9. 需求资料索引
+- selected scope: resource/order-export-tech-design.md#3.2-order-export
+""",
+        )
+
+        result = validate_requirements_file(self.feature_dir / "requirements.md")
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "technical_plan_ac_missing_source_locator" for issue in result["issues"]))
 
     def test_traceability_reports_ac_gaps_and_orphans(self) -> None:
         self.write_requirements(status="ready")
@@ -1001,6 +1310,7 @@ N/A frontend-e2e reason: backend_only scope
         meta["stages"]["ship-build"]["status"] = "completed"
         meta["stages"]["ship-build"]["tasks_done"] = 1
         meta["stages"]["ship-build"]["tasks_total"] = 1
+        freeze_project_scope_after_design_review(meta, "approved", "2026-05-31T10:00:00+08:00")
         self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
 
         aggregate = validate_feature(self.feature_dir)
@@ -1592,6 +1902,62 @@ auth, rate limit, logging, metrics, error handling covered.
 
         self.assertTrue(result["allowed"], result["issues"])
 
+    def test_scope_freeze_runtime_rejects_scope_drift(self) -> None:
+        self.write_meta(project_scope="fullstack")
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+
+        freeze_project_scope_after_design_review(meta, "approved", "2026-05-31T10:00:00+08:00")
+
+        self.assertEqual(meta["scope_freeze"]["frozen_scope"], "fullstack")
+        with self.assertRaises(ValueError):
+            validate_scope_change_allowed(meta, "backend_only")
+
+    def test_approved_design_review_requires_scope_freeze_in_validator(self) -> None:
+        self.write_meta(current_stage="ship-delivery-plan")
+        self.write_text(
+            "review-design.md",
+            """---
+stage: ship-design-review
+gate_type: hard
+review_status: approved
+user_sign_off: "approved"
+signed_at: "2026-05-31T10:00:00+08:00"
+---
+
+# Design Review
+approved
+""",
+        )
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["stages"]["ship-design-review"]["status"] = "approved"
+        meta["stages"]["ship-design-review"]["approved"] = True
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "scope_freeze_missing" for issue in result["issues"]))
+
+    def test_frozen_scope_mismatch_is_validator_error(self) -> None:
+        self.write_meta(current_stage="ship-delivery-plan", project_scope="backend_only", project_scope_evidence="用户明确声明纯后端 API 项目")
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["stages"]["ship-design-review"]["status"] = "approved"
+        meta["stages"]["ship-design-review"]["approved"] = True
+        meta["scope_freeze"] = {
+            "status": "frozen",
+            "frozen_scope": "fullstack",
+            "frozen_at": "2026-05-31T10:00:00+08:00",
+            "frozen_by_gate": "ship-design-review",
+            "user_sign_off": "approved",
+            "reopen_reason": "",
+        }
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "scope_freeze_mismatch" for issue in result["issues"]))
+
     def test_backend_only_discover_scope_skips_shape_for_define(self) -> None:
         self.write_meta(
             current_stage="ship-define-review",
@@ -1720,6 +2086,43 @@ scope architecture workflow risk
 
         self.assertFalse(result["ok"])
         self.assertTrue(any(issue["code"] == "evolve_base_feature_mismatch" and issue["level"] == "error" for issue in result["issues"]))
+
+    def test_evolve_ready_product_brief_requires_base_feature(self) -> None:
+        self.write_meta(
+            current_stage="ship-discover",
+            scenario="evolve",
+            project_context="existing_project",
+            define_status="pending",
+        )
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["evolve_source"] = {
+            "feature_dirs": ["feature-old-checkout"],
+            "code_paths": [],
+            "existing_behavior_summary": "",
+        }
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+        self.write_text(
+            "product-brief.md",
+            """---
+stage: ship-discover
+stage_status: ready
+discovery_mode: evolve
+user_direction_sign_off: "确认方向"
+direction_confirmed_at: "2026-05-31T10:00:00+08:00"
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+blocking_gaps: []
+---
+
+# Product Brief
+待技术验证项：需要确认 checkout service 影响。
+""",
+        )
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "evolve_base_feature_missing" for issue in result["issues"]))
 
     def test_technical_plan_meta_requires_selected_scope(self) -> None:
         self.write_meta(

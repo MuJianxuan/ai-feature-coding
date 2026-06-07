@@ -17,7 +17,7 @@ D-EXP-001 export orders.
 ## Out of Scope
 Import.
 ## Acceptance Criteria
-- AC-EXP-001 D-EXP-001 Given a user requests export, When the job is submitted, Then an export job is created.
+- AC-EXP-001 D-EXP-001 selected scope: 3.2 Export source: resource/tech.md#3.2 In Scope Given a user requests export, When the job is submitted, Then an export job is created.
 ## Open Questions
 None.
 ## 需求资料索引
