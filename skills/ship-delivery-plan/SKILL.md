@@ -16,7 +16,7 @@ description: "ShipKit stage. Combines frontend and backend planning into one del
 
 核心原则：
 - **Contract-First**：接口对齐任务和 checkpoint 先定义
-- **Scope-Aware Order**：fullstack 默认先写前端计划，再写后端计划；单侧 scope 只写对应计划
+- **Consumer-First Planning Order**：fullstack 默认先写前端计划，再写后端计划；单侧 scope 只写对应计划。该固定顺序是计划收敛策略，先从用户路径/API consumer 视角列出前端 contract tasks，再让后端计划补齐 provider、数据、集成和测试任务，最后 sync 消除依赖错位；不做并行计划草稿是为了防止两份 plan 各自发散、sync 成本上升。
 - **Cross-Checked**：fullstack 阶段末必须做一次前后端计划一致性校验；单侧 scope 不执行双侧 sync
 - **Project-Explicit**：project_group 需求下，每个任务必须写明目标 `project:`，或在任务标题中显式标明目标项目
 
@@ -84,6 +84,8 @@ task_count: 0
 4. 写回 task_count 与阶段摘要
    verify: 实际产出的 plan frontmatter 和 meta 索引一致
 ```
+
+若存在 `blocking_gaps`，必须保持 `stage_status: draft` 或 meta blocked，不得进入下游。
 
 ## Delegation Boundary
 

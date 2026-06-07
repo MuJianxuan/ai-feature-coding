@@ -67,6 +67,12 @@ def validate_meta_template() -> None:
         "technical_plan_provided",
         "technical_plan_source:",
         "repository_scan_required: true",
+        "selected_scope_ac_confirmation",
+        "activation_mode",
+        "uiux_material_gate_insert",
+        "browser_verified",
+        "evolve_source",
+        "scenario_change_log",
         "generation_mode: \"\"       # interview | prd_direct | technical_plan",
         "project_scope: fullstack",
         "project_scope_evidence: \"\"",
@@ -95,7 +101,7 @@ def validate_protocol_doc() -> None:
     require("feature_root" in text, f"{path}: missing feature_root references")
     require("resolution_source" in text, f"{path}: missing resolution_source references")
     require("skip_log" in text, f"{path}: missing skip_log references")
-    require("只记录 soft gate 强制推进、条件性前置阶段跳过、资料入口跳过" in text, f"{path}: missing narrowed skip_log scope")
+    require("只记录 soft_optional gate 强制推进、条件性前置阶段跳过、资料入口跳过" in text, f"{path}: missing narrowed skip_log scope")
     require("三个 hard gate 永远不可写入 skip_log" in text, f"{path}: missing hard gate skip prohibition")
     require("lifecycle_status" in text, f"{path}: missing lifecycle_status references")
     require("scenario" in text, f"{path}: missing scenario references")
@@ -141,6 +147,20 @@ def validate_protocol_doc() -> None:
         "一次性写入 `review_status: approved`、`user_sign_off` 与 `signed_at`",
         "UIUX Material Gate",
         "awaiting_uiux_materials",
+        "default_discover_shape",
+        "uiux_material_gate_insert",
+        "browser_verified",
+        "selected_scope_ac_confirmation",
+        "selected_scope_ac_confirmed",
+        "technical_plan_ac_not_confirmed",
+        "raw_inbox_past_define",
+        "raw_inbox_marked_structured",
+        "input_kind: raw_prd",
+        "artifact `complete`",
+        "meta `completed`",
+        "Consumer-First",
+        "pasted_excerpt_file",
+        "technical-plan-excerpt.md",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
     for node_id in CANONICAL_DELEGATION_NODES:
@@ -210,6 +230,10 @@ def validate_readmes() -> None:
         "Delivery Plan DAG",
         "Build Preflight",
         "Handoff Evidence",
+        "UIUX Gate Inserted Shape",
+        "Technical Plan AC Confirmation",
+        "Raw Inbox Recovery",
+        "Evolve Baseline Required",
     ):
         require(snippet in regression_text, f"{regression_prompts}: missing `{snippet}`")
 
@@ -347,6 +371,7 @@ def validate_review_template_delegation() -> None:
         "子代理起草正式 gate 草案时",
         "required_changes",
         "fix_owner",
+        "不得由 agent 自行签字",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
 
@@ -673,6 +698,44 @@ def validate_root_readme_commands() -> None:
     require("14 个 canonical" in text or "14 个内部阶段名" in text or "14 个阶段" in text, f"{path}: missing 14-stage wording")
 
 
+
+def validate_semantic_contracts() -> None:
+    protocol_text = read_text(ROOT / "skills/ship-orchestrator/_templates/protocol/workflow-protocol.md")
+    orchestrator_text = read_text(ROOT / "skills/ship-orchestrator/SKILL.md")
+    runtime_text = read_text(ROOT / "skills/ship-orchestrator/scripts/feature_meta_runtime.py")
+    artifacts_text = read_text(ROOT / "skills/ship-orchestrator/scripts/validate_feature_artifacts.py")
+    requirements_text = read_text(ROOT / "skills/ship-orchestrator/scripts/validate_requirements.py")
+    regression_text = read_text(ROOT / "skills/ship-orchestrator/tests/regression-prompts.md")
+    combined = "\n".join([protocol_text, orchestrator_text, runtime_text, artifacts_text, requirements_text, regression_text])
+    for snippet in (
+        "UIUX Material Gate",
+        "default_discover_shape",
+        "uiux_material_gate_insert",
+        "browser_verified",
+        "selected_scope_ac_confirmation",
+        "selected_scope_ac_confirmed",
+        "technical_plan_ac_not_confirmed",
+        "raw_inbox_past_define",
+        "raw_inbox_marked_structured",
+        "input_kind: raw_prd",
+        "evolve_source",
+        "produced_by",
+        "accepted_by",
+        "artifact_phase",
+        "soft_blocking",
+        "blocking_gaps",
+        "artifact `complete`",
+        "meta `completed`",
+        "Consumer-First",
+        "pasted_excerpt_file",
+        "technical-plan-excerpt.md",
+        "repository_scan_status",
+        "不是唯一事实源",
+    ):
+        require(snippet in combined, f"semantic contracts missing `{snippet}`")
+    require("ship-shape` 仅 A/C 激活" not in combined, "unconditional ship-shape A/C-only wording remains")
+
+
 def main() -> int:
     validators = [
         validate_stage_map_script,
@@ -688,6 +751,7 @@ def main() -> int:
         validate_project_local_stage_docs,
         validate_cross_file_semantics,
         validate_root_readme_commands,
+        validate_semantic_contracts,
     ]
     for validator in validators:
         validator()

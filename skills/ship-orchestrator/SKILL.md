@@ -87,9 +87,9 @@ NEW_FEATURE 确认启动前，必须先判定场景，决定是否进入 Discove
 | 场景 | 入口信号 | 起点 stage | Discover 大阶段 |
 |------|---------|------------|-----------------|
 | A 零到一 | 用户只有一句话想法、无附件、无引用已有代码 | `ship-discover`（greenfield） | 激活 |
-| B 产品提供 | 用户附了 PRD/Figma/原型/UIUX 文档，或选择先创建目录后补资料 | `ship-define`（interview mode） | 跳过 |
+| B 产品提供 | 用户附了 PRD/Figma/原型/UIUX 文档，或选择先创建目录后补资料 | `ship-define`（interview mode） | 默认跳过；UIUX Gate 可插入 `ship-shape` |
 | C 迭代增强 | 用户引用已有 feature 目录或具体代码路径并描述变更 | `ship-discover`（evolve） | 激活 |
-| D PRD 直通 | 用户附了完整 PRD + 原型/设计稿，或选择先创建目录粘贴完整 PRD，且明确表示不需要需求录入 | `ship-define`（prd_direct mode） | 跳过 |
+| D PRD 直通 | 用户附了完整 PRD + 原型/设计稿，或选择先创建目录粘贴完整 PRD，且明确表示不需要需求录入 | `ship-define`（prd_direct mode） | 默认跳过；UIUX Gate 可插入 `ship-shape` |
 | E 技术方案选区入口 | 用户提供已有技术方案文件或粘贴片段，并指定章节、接口、模块或标题；明确这是已有项目迭代；`scenario: technical_plan_provided` | `ship-tech-discovery`（technical plan entry） | 跳过 |
 
 判定规则：
@@ -100,12 +100,12 @@ NEW_FEATURE 确认启动前，必须先判定场景，决定是否进入 Discove
 - 场景 D 不进 Discover 大阶段；`stages.ship-discover.status` 和 `stages.ship-shape.status` 记为 `skipped`；`stages.ship-define.generation_mode` 设为 `prd_direct`
 - 若场景 B/D 是由“新建模式选择”进入且用户尚未放资料，则先创建 raw `requirements.md` inbox 和 `resource/README.md`，并将 `stages.ship-define.status` 设为 `blocked`、`block_reason` 设为 `awaiting_materials`
 - 场景 B/D 若 `project_scope = fullstack | frontend_only` 且 feature 涉及 UI，必须执行 UIUX Material Gate：已有 Figma / 原型 / 截图 / `design-brief.md` 时继续 `ship-define`；缺少 UIUX 材料时，不得静默跳过到 `ship-frontend-design`，必须让用户选择补材料或显式授权生成线框。
-- UIUX Material Gate 中用户选择补材料时，保持 `stages.ship-define.status: blocked`，`block_reason` 写 `awaiting_uiux_materials` 或在 `awaiting_materials` 中明确 UIUX 缺口；用户选择“按你的理解做线框 / 生成线框”时，允许插入 `ship-shape` 并把本次插入记录到阶段假设或 `skip_log` 中，之后再回到 `ship-define`。
-- 场景 C 必须有现状基线；若用户没有指定已有 feature 目录、代码路径或明确现有功能，不创建新目录，先询问基于哪个对象增强
-- 场景 E 不进 Discover / Define 大阶段，直接进入 Design 大阶段的 `ship-tech-discovery`；`stages.ship-discover.status`、`stages.ship-shape.status`、`stages.ship-define.status`、`stages.ship-define-review.status` 记为 `skipped`，`stages.ship-define.generation_mode` 设为 `technical_plan`
+- UIUX Material Gate 中用户选择补材料时，保持 `stages.ship-define.status: blocked`，`block_reason` 写 `awaiting_uiux_materials` 或在 `awaiting_materials` 中明确 UIUX 缺口；用户选择“按你的理解做线框 / 生成线框”时，必须覆写 `stages.ship-shape.status: pending`，记录 `activation_mode: uiux_material_gate_insert`、`uiux_gate_user_sign_off`、`uiux_gate_signed_at`，设置 `current_stage: ship-shape`，完成后再回到 `ship-define`。
+- 场景 C 必须有现状基线；若用户没有指定已有 feature 目录、代码路径或明确现有功能，不创建新目录，先询问基于哪个对象增强，并在 `meta.yml.evolve_source` 记录 `feature_dirs/code_paths/existing_behavior_summary` 至少一种基线
+- 场景 E 跳过 `ship-define` 执行阶段与 `ship-define-review` hard gate；但 `ship-tech-discovery` 会为 selected scope 派生最小 `requirements.md` index，frontmatter 仍使用 `stage: ship-define`、`generation_mode: technical_plan`，仅用于 AC traceability。`stages.ship-discover.status`、`stages.ship-shape.status`、`stages.ship-define.status`、`stages.ship-define-review.status` 记为 `skipped`
 - 场景 E 只允许 `project_context: existing_project`；若用户说是新项目，必须阻塞并建议改走场景 A/B/D
 - 场景 E 必须写入 `technical_plan_source`，包含技术方案来源、selected scope、`ignored_source_policy: out_of_scope`、`repository_scan_required: true`
-- 场景 E 只创建 `resource/README.md`，不创建 raw PRD inbox；`requirements.md` 由 `ship-tech-discovery` 开头围绕 selected scope 派生为最小 requirements index，用于后续 AC traceability
+- 场景 E 只创建 `resource/README.md`，不创建 raw PRD inbox；`requirements.md` 由 `ship-tech-discovery` 开头围绕 selected scope 派生为最小 requirements index，用于后续 AC traceability；`selection_mode=pasted_excerpt` 时必须把粘贴内容归档为 `resource/technical-plan-excerpt.md` 并写入 `pasted_excerpt_file`
 
 场景 B 与 D 的区分：
 - 场景 B：用户提供了 PRD/原型等材料，但未明确表示跳过需求录入 → `ship-define` 走 interview 模式（多轮采访）
@@ -143,20 +143,20 @@ Scenario × Scope 组合矩阵：
 | B + `frontend_only` | 允许 | 标准路径，跳过 `ship-backend-design` |
 | C + `backend_only` | 允许 | `ship-discover` evolve 子分支聚焦 API surface 与消费者 |
 | C + `frontend_only` | 允许 | `ship-discover` evolve 子分支聚焦组件/页面影响 |
-| D + `backend_only` | 允许（附加提示） | 启动确认时提示：用户提供的"PRD"应包含 OpenAPI / 接口文档 / 设计 doc 等契约级材料；若仅有产品文档无技术规约，建议改走场景 B |
+| D + `backend_only` | 允许（材料类型确认） | D + backend_only 需要 PRD 同时具备契约级材料（OpenAPI / 接口文档 / 设计 doc / 消息协议 / CLI spec 等）。若只有产品 PRD，无接口或技术规约，默认建议降级为 B/interview 补齐契约信息 |
 | D + `frontend_only` | 允许 | 标准路径 |
 
 NEW_FEATURE 启动确认模板：
 - 简述功能名称和目标
 - 标明识别到的场景（A/B/C/D/E）及起点阶段
 - 标明识别到的范围（fullstack / backend_only / frontend_only）及跳过的阶段
-  - `backend_only` 时显式列出："将跳过 `ship-frontend-design`；若场景为 A/C，`ship-shape` 也将跳过"
+  - `backend_only` 时显式列出："将跳过 `ship-frontend-design`；若场景为 A/C，`ship-shape` 因 `backend_only` 路由跳过，不代表 UI 原型遗漏"
   - `frontend_only` 时显式列出："将跳过 `ship-backend-design`"
 - 列出将要经历的大阶段序列（含 Discover 是否激活）
 - 预估涉及的技术领域
 - 标明下一次需要用户确认的门禁时点
-- 若组合为 `D + backend_only`，附加提示：用户提供的"PRD"应包含 OpenAPI / 接口文档 / 设计 doc 等契约级材料；若仅有产品文档无技术规约，建议改走场景 B（interview 模式）以补足契约信息
-- 若场景为 E，必须额外展示：技术方案来源、selected scope、未选中内容按 `ignored_source_policy: out_of_scope` 忽略、直接进入 `ship-tech-discovery`、仓库探索要求 `repository_scan_required: true`、`ship-tech-discovery` 会派生最小 requirements index、进入 `ship-delivery-plan` 前仍需通过 `ship-design-review`
+- 若组合为 `D + backend_only`，必须做材料类型确认：用户提供的"PRD"应包含 OpenAPI / 接口文档 / 设计 doc / 消息协议 / CLI spec 等契约级材料；若仅有产品文档无技术规约，默认建议降级为 B（interview 模式）以补足契约信息
+- 若场景为 E，必须额外展示：技术方案来源、selected scope、未选中内容按 `ignored_source_policy: out_of_scope` 忽略、跳过 `ship-define` 执行阶段与 `ship-define-review` hard gate、直接进入 `ship-tech-discovery`、仓库探索要求 `repository_scan_required: true`、`ship-tech-discovery` 会派生最小 requirements index、进入 `ship-delivery-plan` 前仍需通过 `ship-design-review`，并在 contract 前完成 `selected_scope_ac_confirmation`
 - 等待用户一句话确认（"好的""开始""go"等均视为确认）
 
 ## Process
@@ -252,7 +252,7 @@ Macro stage 映射：
 - `Build`：`ship-delivery-plan`, `ship-plan-review`, `ship-build`, `ship-verify`
 - `Close`：`ship-handoff`
 
-`Discover` 是条件性大阶段，只在场景 A（零到一）或场景 C（迭代增强）出现；场景 B（产品提供完整材料）和场景 D（PRD 直通）直接跳过 Discover，相关 stage 状态记为 `skipped`。场景 D 与 B 的区别在于 `ship-define` 的执行模式：D 走 `prd_direct`（零提问纯提取），B 走 `interview`（多轮采访）。
+`Discover` 是条件性大阶段：`ship-discover` 只在场景 A/C 出现；`ship-shape` 默认随 A/C 出现。场景 B/D 默认跳过 Discover，但若 UIUX Material Gate 中用户显式授权生成线框，可临时插入 `ship-shape`（不执行 `ship-discover`）。场景 E、backend_only、无 UI 禁止 `ship-shape`。场景 D 与 B 的区别在于 `ship-define` 的执行模式：D 走 `prd_direct`（零提问纯提取），B 走 `interview`（多轮采访）。
 
 ### Workflow Path
 

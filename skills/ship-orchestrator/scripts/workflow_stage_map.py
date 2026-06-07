@@ -44,7 +44,7 @@ CANONICAL_STAGE_ORDER: tuple[str, ...] = (
     "ship-handoff",
 )
 
-# Stages that are conditional (only active in scenario A/C)
+# Conditional pre-Define stages. ship-discover is A/C only; ship-shape is A/C by default and may be inserted for B/D via UIUX Material Gate.
 CONDITIONAL_STAGES: frozenset[str] = frozenset({"ship-discover", "ship-shape"})
 
 STAGE_VIEW_MAP: dict[str, StageView] = {

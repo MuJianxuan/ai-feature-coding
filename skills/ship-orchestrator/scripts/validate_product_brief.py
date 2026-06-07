@@ -43,6 +43,9 @@ def validate_product_brief(path: Path) -> dict:
     alternatives = body.count("备选") + body.lower().count("alternative")
     if ready and alternatives < 1:
         issues.append(_issue("error", "missing_real_alternative", "ready product brief must record at least one rejected alternative"))
+    if ready and not fm.get("user_direction_sign_off"):
+        level = "error" if fm.get("discovery_mode") == "greenfield" and fm.get("approach_selected") else "warning"
+        issues.append(_issue(level, "missing_product_direction_sign_off", "ready product brief should record user_direction_sign_off"))
     if "scope" not in body.lower() and "architecture" not in body.lower() and "workflow" not in body.lower() and "risk" not in body.lower():
         issues.append(_issue("warning", "weak_option_differentiation", "alternatives should differ in scope, architecture, workflow, or delivery risk"))
     return {"path": str(path), "ok": not any(i["level"] == "error" for i in issues), "issues": issues}

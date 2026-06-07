@@ -48,8 +48,20 @@ def validate_verification_file(path: Path, project_scope: str = "fullstack") -> 
     ready = frontmatter.get("stage_status") in ("ready", "complete")
     if frontmatter.get("stage") != "ship-handoff":
         issues.append(_issue("error", "invalid_stage", f"expected stage ship-handoff, found {frontmatter.get('stage')!r}"))
-    if frontmatter.get("stage_status") not in ("draft", "ready", "complete"):
-        issues.append(_issue("error", "invalid_stage_status", f"invalid stage_status: {frontmatter.get('stage_status')!r}"))
+    stage_status = frontmatter.get("stage_status")
+    if stage_status not in ("draft", "ready", "complete"):
+        issues.append(_issue("error", "invalid_stage_status", f"invalid stage_status: {stage_status!r}"))
+    if stage_status in ("ready", "complete"):
+        produced_by = frontmatter.get("produced_by")
+        if not isinstance(produced_by, list) or "ship-verify" not in produced_by:
+            issues.append(_issue("error", "missing_verification_produced_by", "ready/complete verification.md requires produced_by including ship-verify"))
+        if frontmatter.get("accepted_by") != "ship-handoff":
+            issues.append(_issue("error", "invalid_verification_accepted_by", "verification.md requires accepted_by: ship-handoff"))
+        phase = frontmatter.get("artifact_phase")
+        if stage_status == "ready" and phase not in {"testing", "acceptance"}:
+            issues.append(_issue("error", "invalid_verification_artifact_phase", "ready verification.md requires artifact_phase testing or acceptance"))
+        if stage_status == "complete" and phase != "acceptance":
+            issues.append(_issue("error", "verification_complete_not_acceptance", "complete verification.md requires artifact_phase: acceptance"))
 
     required = _required_tracks(project_scope)
     present = {track for track in TRACKS if _has_track(body, track)}

@@ -143,6 +143,8 @@ description: "ShipKit pre-Define stage. Transforms vague ideas or change request
 
 **Step 2b: 现状扫描**
 
+场景 C 必须读取并回写 `meta.yml.evolve_source`，与 `product-brief.md.base_feature` 保持一致。`ship-discover(evolve)` 只做产品/影响粗分：确认变更目标、用户影响、受影响 surface 候选和待技术验证项；完整仓库事实扫描由 `ship-tech-discovery` 执行。
+
 必须先读取：
 - 已有 feature 目录（如果有 `meta.yml`、`requirements.md`、`handoff.md`）
 - 相关代码文件（API 路由、组件、数据模型）
@@ -168,7 +170,7 @@ description: "ShipKit pre-Define stage. Transforms vague ideas or change request
 
 ### 规格自检 (Step 8)
 
-编写完 `product-brief.md` 后，执行自检清单：
+编写完 `product-brief.md` 后，执行自检清单；`product-brief.md.stage_status=ready` 前必须记录产品方向确认：`user_direction_sign_off` 与 `direction_confirmed_at`。若用户只确认“先按这个方向走”，也要写入原话。
 
 | 检查项 | 标准 |
 |--------|------|

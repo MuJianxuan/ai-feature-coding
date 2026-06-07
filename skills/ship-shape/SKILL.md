@@ -17,7 +17,7 @@ UIUX 原型设计是开发工作流的条件性前置阶段，在无外部设计
 
 ## When to Use
 
-- `product-brief.md` 已 ready（来自 ship-discover）
+- `product-brief.md` 已 ready（来自 ship-discover）；或者：场景 B/D 在 UIUX Material Gate 中，用户明确授权“按你的理解生成线框”。此时不要求 `product-brief.md` 存在，但必须读取已有 PRD/raw inbox/resource，并在 `design-brief.md.activation_mode` 记录 `uiux_material_gate_insert`
 - feature 涉及 UI（有页面、组件、交互）
 - 用户未提供外部 UIUX 材料（无 Figma/Sketch/墨刀/设计稿）
 - orchestrator 判定需要进入 ship-shape
@@ -27,7 +27,7 @@ UIUX 原型设计是开发工作流的条件性前置阶段，在无外部设计
 - 用户已提供 Figma/原型/UIUX 设计稿——直接进 `ship-define`
 - feature 是纯后端/CLI/API，无 UI——跳过本阶段
 - `project_scope = backend_only`——本阶段自动跳过，orchestrator 将 `stages.ship-shape.status = skipped`
-- 用户明确说"不需要设计，直接开始"——尊重用户意图
+- 用户明确说"不需要设计，直接开始"时不得静默跳过；若前端涉及 UI 且无材料，必须记录用户选择：补材料 / 授权生成线框 / 接受无 UIUX 风险
 
 ## Process
 
@@ -167,6 +167,7 @@ tokens:
 - 控制台无 JS 错误、无 404、无 React warning
 - 在 375px 和 1280px 宽度下布局不崩溃
 - 主流程可点击走通
+- `design-brief.md.stage_status=ready` 前必须写入 `browser_verified: true` 与 `browser_verified_at`
 
 ### Step 7: Core Asset Protocol（涉及品牌时）
 
@@ -223,6 +224,11 @@ tokens:
 ---
 stage: ship-shape
 stage_status: draft  # draft | ready
+activation_mode: default_discover_shape  # default_discover_shape | uiux_material_gate_insert
+uiux_gate_user_sign_off: ""
+uiux_gate_signed_at: ""
+browser_verified: false
+browser_verified_at: ""
 design_direction: ""              # 选定方向名
 variations_count: 0               # 已产出的变体数量（≥3）
 wireframe_index_path: "resource/wireframes/index.html"
@@ -230,6 +236,8 @@ asset_protocol_invoked: false     # 是否走了 Core Asset Protocol
 brand_spec_path: ""               # 走了的话，resource/brand-spec.md
 updated_at: ""
 evidence_complete: false
+soft_gate_class: soft_optional
+blocking_gaps: []
 ---
 ```
 

@@ -15,13 +15,13 @@ npx skills add MuJianxuan/ai-feature-coding
 - 入口：`ship-orchestrator`
 - 大阶段：`[Discover →] Define → Design → Build → Close`
 
-这 5 个大阶段是默认对外视图，其中 `Discover` 只在场景 A（零到一）和场景 C（迭代增强）出现。内部仍然保留细阶段、硬门禁、文档产物和恢复协议，用于精确推进与诊断。
+这 5 个大阶段是默认对外视图，其中 `ship-discover` 只在场景 A（零到一）和场景 C（迭代增强）出现；`ship-shape` 默认随 A/C 激活，场景 B/D 在 UIUX Material Gate 中经用户显式授权生成 wireframe 时可临时插入。内部仍然保留细阶段、硬门禁、文档产物和恢复协议，用于精确推进与诊断。
 
 `ship-spec` 以 workflow utility 形态接入，不占用 stage map；它会在 `ship-tech-discovery`、`ship-frontend-design`、`ship-backend-design`、`ship-build`、`ship-handoff` 被自动消费并通过 `meta.yml.spec_context` 留痕。规范边界始终是 workspace，project_group 下的 `projects` 是默认执行范围，不是硬边界。
 
 Design 大阶段现在采用 Project Reality First：已有项目上的需求必须先通过 `ship-tech-discovery` 发现真实功能、表、API、页面、服务、权限、worker/MQ、日志/metrics 和既有 feature 文档，再进入技术调研、选型、contract、frontend/backend design。规范路由从单一 `.docs/spec/INDEX.md` 开始，INDEX 只使用 `frontend / backend / shared` 分类，frontmatter schema 不新增 `spec_type`。
 
-`technical_plan_provided`（技术方案选区）入口适用于已有项目迭代：用户提供技术方案文件或粘贴片段，并指定章节、接口、模块等 selected scope。该入口要求 `existing_project`，直接从 `ship-tech-discovery` 开始；不会把整份技术方案纳入计划，未选中内容默认 `out_of_scope`，进入 `ship-delivery-plan` 前仍必须通过 `ship-design-review`。
+`technical_plan_provided`（技术方案选区）入口适用于已有项目迭代：用户提供技术方案文件或粘贴片段，并指定章节、接口、模块等 selected scope。该入口要求 `existing_project`，跳过 `ship-define` 执行阶段与 `ship-define-review` hard gate；但 `ship-tech-discovery` 会为 selected scope 派生最小 `requirements.md` index，frontmatter 仍使用 `stage: ship-define`、`generation_mode: technical_plan`，仅用于 AC traceability。不会把整份技术方案纳入计划，未选中内容默认 `out_of_scope`，进入 `ship-delivery-plan` 前仍必须通过 `ship-design-review`。
 
 Build 阶段的任务源（`frontend-plan.md`、`backend-plan.md`）都使用同一任务项合同：机器字段保留 `allowed_files`、AC refs、verification command，同时每个任务必须包含 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报。
 

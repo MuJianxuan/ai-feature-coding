@@ -281,18 +281,18 @@
   </style>
 </head>
 <body>
-  <!-- Visual system: warm paper + blueprint grid, compact cards, semantic accents. Content source: skills/README.md, workflow-protocol.md, ship-orchestrator/SKILL.md, workflow_stage_map.py, validators, agents/openai.yaml. -->
+  <!-- Visual system: warm paper + blueprint grid, compact cards, semantic accents. Content source: skills/README.md, workflow-protocol.md, all ship-*/SKILL.md files, stage references, validators, tests, agents/openai.yaml. -->
   <main class="page">
     <div class="system-note">
-      本页是 <strong>skills workflow 使用指南</strong>，面向查看和对齐流程。事实源以 <code>skills/ship-orchestrator/_templates/protocol/workflow-protocol.md</code>、<code>skills/README.md</code>、<code>ship-orchestrator/SKILL.md</code>、<code>workflow_stage_map.py</code>、validators 和 <code>skills/agents/openai.yaml</code> 为准；本页只做可视化汇总。
+      本页是 <strong>skills workflow 使用指南</strong>，面向查看和对齐流程。事实源以 <code>skills/ship-orchestrator/_templates/protocol/workflow-protocol.md</code>、<code>skills/README.md</code>、<code>ship-orchestrator/SKILL.md</code>、各阶段 <code>SKILL.md</code>、reference templates、validators、tests 和 <code>skills/agents/openai.yaml</code> 为准；本页只做可视化汇总。
     </div>
 
     <section class="hero">
       <div class="hero-main">
-        <p class="eyebrow">ShipKit Skills Workflow · 2026-06-02 Snapshot</p>
+        <p class="eyebrow">ShipKit Skills Workflow · 2026-06-07 Full Analysis</p>
         <h1>先从一个入口启动，再按五个大阶段交付。</h1>
         <p class="hero-copy">
-          默认只和 <strong>ship-orchestrator</strong> 交互。日常视图是 <strong>[Discover →] Define → Design → Build → Close</strong>；维护视图再展开 14 个 canonical stage、frontmatter 事实源、三道 hard gate、workspace <strong>ship-spec</strong>、delegation contract 和 validators。
+          默认只和 <strong>ship-orchestrator</strong> 交互。日常视图是 <strong>[Discover →] Define → Design → Build → Close</strong>；维护视图再展开 <strong>14 个 canonical stage + 1 个 utility</strong>、frontmatter 事实源、三道 hard gate、workspace <strong>ship-spec</strong>、delegation contract、reference templates、validators 和 regression tests。
         </p>
       </div>
       <aside class="hero-side">
@@ -380,6 +380,49 @@ review-plan.md</pre></div>
         <div class="node" style="--accent: var(--amber)"><span class="order">10</span><h3>ship-build</h3><p>代码 + 任务状态<br>Contract-First，一次一个正式 <code>DOING</code>。</p></div>
         <div class="node" style="--accent: var(--amber)"><span class="order">11</span><h3>ship-verify</h3><p><code>verification.md</code><br>测试轨道可辅助并行，主上下文归档。</p></div>
         <div class="node" style="--accent: var(--red)"><span class="order">12</span><h3>ship-handoff</h3><p><code>handoff.md</code><br>验收结论、残余风险、proposal。</p></div>
+      </div>
+    </section>
+
+
+    <section class="band">
+      <div class="band-header">
+        <h2>完整目录分析</h2>
+        <p><code>skills/</code> 不是一组松散 prompt，而是一套产物驱动的 workflow package：入口 skill、阶段 skill、utility、模板、runtime helper、validator、测试提示和安装元数据共同构成闭环。</p>
+      </div>
+      <div class="artifact-grid">
+        <div class="artifact"><strong>入口与路由</strong><span><code>ship-orchestrator/SKILL.md</code> 负责 NEW / CONTINUE / INSPECT、场景 A-E 判定、workspace 解析、stage routing、gate protocol、delegation 和 spec hook；不直接产出业务阶段正文。</span></div>
+        <div class="artifact"><strong>条件性前置</strong><span><code>ship-discover</code> 把模糊想法或迭代请求变成 <code>product-brief.md</code>；<code>ship-shape</code> 在缺 UIUX 材料时产出 <code>design-brief.md</code> 与 HTML wireframes。</span></div>
+        <div class="artifact"><strong>需求与三道门</strong><span><code>ship-define</code> 统一 interview / prd_direct / technical_plan 需求索引；<code>ship-define-review</code>、<code>ship-design-review</code>、<code>ship-plan-review</code> 是不可跳过的 hard gate。</span></div>
+        <div class="artifact"><strong>设计链路</strong><span><code>ship-tech-discovery</code> 先 Project Reality Scan 再 selection；<code>ship-contract</code> 固定为共享契约；前后端设计可并行但必须回到设计评审收口。</span></div>
+        <div class="artifact"><strong>构建与验证</strong><span><code>ship-delivery-plan</code> 拆分 frontend / backend / sync 计划；<code>ship-build</code> 按 Contract-First 单 <code>DOING</code> 执行；<code>ship-verify</code> 汇总自动化与契约验证。</span></div>
+        <div class="artifact"><strong>收尾与规范</strong><span><code>ship-handoff</code> 消费 <code>verification.md</code> 做 AC 映射、风险和总结；<code>ship-spec</code> 是 utility，通过 hook 消费 workspace <code>.docs/spec</code>，不是 canonical stage。</span></div>
+        <div class="artifact"><strong>模板资产</strong><span><code>_templates/</code> 保存共享协议、meta/review/project 模板；<code>references/</code> 保存 product brief、design brief、contract、frontend/backend design 等阶段写作引导。</span></div>
+        <div class="artifact"><strong>运行时护栏</strong><span><code>scripts/</code> 覆盖 stage map、meta/spec runtime、stage transition、artifact validators、build preflight、workflow doctor、doc consistency 和 unittest。</span></div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="band-header">
+        <h2>技能职责矩阵</h2>
+        <p>逐个 skill 的边界如下：每个阶段都必须读上游产物、写自己的正式产物，并通过 frontmatter 暴露状态；不允许用对话记忆替代文件事实源。</p>
+      </div>
+      <div class="artifact-grid">
+        <div class="artifact"><strong><code>ship-orchestrator</code></strong><span>调度器。识别入口、初始化 feature 目录、读取/修正 <code>meta.yml</code>、展示 macro stage、执行 gate 与 skip 规则、解析 delegation/spec hook。</span></div>
+        <div class="artifact"><strong><code>ship-discover</code></strong><span>需求探索。greenfield 走方案对比与规格自检；evolve 走现状扫描和影响分析；输出 <code>product-brief.md</code>。</span></div>
+        <div class="artifact"><strong><code>ship-shape</code></strong><span>UIUX shaping。选择设计方向、声明 visual tokens、产出 3+ HTML 变体和 <code>design-brief.md</code>，并执行 Anti-Slop / Core Asset Protocol。</span></div>
+        <div class="artifact"><strong><code>ship-define</code></strong><span>需求定义。把资料规范化为 <code>requirements.md</code>，维护 Domain ID、AC、NFR、source index；支持 interview、PRD direct 和 technical plan derived index。</span></div>
+        <div class="artifact"><strong><code>ship-define-review</code></strong><span>需求硬门。检查目标、用户路径、业务域、AC、NFR、约束、open questions 和资料一致性；输出 <code>review-define.md</code>。</span></div>
+        <div class="artifact"><strong><code>ship-tech-discovery</code></strong><span>技术发现。双产物 <code>tech-research.md</code> / <code>tech-selection.md</code>；已有项目必须先查真实代码、DB、API、页面、服务、权限、测试和历史 feature。</span></div>
+        <div class="artifact"><strong><code>ship-contract</code></strong><span>共享契约。设计 REST / gRPC / message / cron / CLI / SDK 等 contract form，要求 machine-readable policy、error model、traceability。</span></div>
+        <div class="artifact"><strong><code>ship-frontend-design</code></strong><span>前端方案。输出页面树、组件分层、Page-API mapping、状态矩阵、权限 UX、设计证据质量、性能/可访问性测试关注点。</span></div>
+        <div class="artifact"><strong><code>ship-backend-design</code></strong><span>后端方案。输出 domain-to-module、数据模型、service design、contract implementation map、事务一致性、MQ/cron、observability 和 rollback。</span></div>
+        <div class="artifact"><strong><code>ship-design-review</code></strong><span>设计硬门。按 scope 交叉验证 contract ↔ frontend ↔ backend，检查字段、错误码、数据流、NFR 和测试关注点。</span></div>
+        <div class="artifact"><strong><code>ship-delivery-plan</code></strong><span>交付计划。fullstack 固定 frontend → backend → sync；任务必须包含机器字段和 <code>任务目标 / 上下文 / 约束 / 验收 / 输出</code> 执行简报。</span></div>
+        <div class="artifact"><strong><code>ship-plan-review</code></strong><span>计划硬门。审查任务粒度、DAG、关键路径、并行可行性、AC 映射和任务简报质量；输出 <code>review-plan.md</code>。</span></div>
+        <div class="artifact"><strong><code>ship-build</code></strong><span>编码执行。一次只推进一个正式 <code>DOING</code>，先 contract task，再端侧实现，再集成；每个 slice 完成后验证并等待用户决定是否继续。</span></div>
+        <div class="artifact"><strong><code>ship-verify</code></strong><span>测试验证。后端 unit / integration / contract、前端 component / E2E 分轨执行，主上下文统一写回 <code>verification.md</code> 测试章节。</span></div>
+        <div class="artifact"><strong><code>ship-handoff</code></strong><span>交付验收。补齐 AC evidence matrix、手工验证、残余风险、部署说明、follow-up 和 spec proposal；输出 <code>handoff.md</code>。</span></div>
+        <div class="artifact"><strong><code>ship-spec</code></strong><span>规范 utility。管理 workspace <code>.docs/spec/INDEX.md</code> 与 spec frontmatter，通过 hook 让设计、构建、验收引用规范；proposal-first 写回。</span></div>
       </div>
     </section>
 
@@ -505,14 +548,15 @@ python3 skills/ship-orchestrator/scripts/validate_workflow_docs.py</pre>
 
     <section class="evidence">
       <h2>复查清单</h2>
-      <p>最近复查日期：2026-06-02。已按校准型更新复查 README、orchestrator、共享协议、阶段 SKILL、stage map、validators 与本页一致性；本页保持“首屏使用指南 + 后半维护细节”的信息结构。</p>
+      <p>最近复查日期：2026-06-07。已完整复查 README、orchestrator、共享协议、阶段 SKILL、stage map、meta/spec runtime、templates、validators、tests、安装元数据与本页一致性；本页保持“首屏使用指南 + 后半维护细节”的信息结构，并新增目录级分析与逐 skill 职责矩阵。</p>
       <ul>
         <li>已把使用者入口前置：新建、继续、状态检查、PRD 直通、技术方案选区、硬门禁和维护验证。</li>
         <li>已覆盖五种入口场景：A 零到一、B 产品提供、C 迭代增强、D PRD 直通、E 技术方案选区。</li>
-        <li>已覆盖五个 macro stage、14 个 canonical stage、三道 hard gate、standard / fast-track、project_scope 裁剪和单侧 plan 规则。</li>
+        <li>已覆盖五个 macro stage、14 个 canonical stage、1 个 utility（<code>ship-spec</code>）、三道 hard gate、standard / fast-track、project_scope 裁剪和单侧 plan 规则。</li>
         <li>已覆盖 frontmatter 事实源、<code>meta.yml</code> 索引层、delegation contract、workspace spec boundary、恢复和查询协议。</li>
         <li>已覆盖 doctor、artifact lint、stage transition、requirements、traceability、contract、design alignment、delivery plan、build preflight、verification、handoff 等 validators。</li>
-        <li>已覆盖 <code>skills/agents/openai.yaml</code> 安装展示元数据、<code>ship-orchestrator/tests/README.md</code> 和 regression prompts。</li>
+        <li>已覆盖 <code>skills/agents/openai.yaml</code> 安装展示元数据、<code>_templates/</code>、<code>references/</code>、<code>ship-orchestrator/tests/README.md</code> 和 regression prompts。</li>
+        <li>已新增 <code>skills/</code> 目录组成分析和逐 skill 职责矩阵，明确入口、前置、需求、设计、构建、验证、收尾、utility、模板和运行时护栏边界。</li>
         <li>维护时请同步检查 <code>workflow-protocol.md</code>、<code>workflow_stage_map.py</code>、validators、<code>agents/openai.yaml</code> 与本页是否仍一致。</li>
       </ul>
     </section>

@@ -56,6 +56,8 @@ description: "ShipKit stage. Runs frontend and backend tests to verify implement
 2. **前端聚合**：前端 E2E 集中跑，避免每改一处就跑全套
 3. **契约统一**：前后端对契约的理解必须由独立的契约测试验证
 
+若存在 `blocking_gaps`，必须保持 `stage_status: draft` 或 meta blocked，不得进入下游。
+
 ## Delegation Boundary
 
 本阶段适合按测试轨道做**辅助并行委派**。
@@ -264,7 +266,7 @@ E2E 路径选择原则：
 - 测试运行命令与输出
 - 覆盖率报告路径
 - 失败列表与处理状态
-- 若自动化验证通过且无阻塞，设置 `verification.md.stage_status: ready`
+- 若自动化验证通过且无阻塞，设置 `verification.md.stage_status: ready` 且保持 `artifact_phase: testing`、`produced_by: [ship-verify]`、`accepted_by: ship-handoff`
 - 若仍有未解决 blocker，保持 `verification.md.stage_status: draft`
 
 ## Output: verification.md
@@ -279,6 +281,10 @@ E2E 路径选择原则：
 ---
 stage: ship-handoff
 stage_status: draft  # draft / ready / complete
+produced_by:
+  - ship-verify
+accepted_by: ship-handoff
+artifact_phase: testing       # testing | acceptance
 updated_at: ""
 all_ac_verified: false
 ---

@@ -27,10 +27,10 @@
 
 说明：
 
-- `ship-discover` 和 `ship-shape` 是条件性前置阶段（Discover 大阶段），仅在场景 A（零到一）或场景 C（迭代增强）时激活；场景 B（产品提供完整材料）、场景 D（PRD 直通）和场景 E（技术方案选区，`technical_plan_provided`）直接跳过，对应 `stages.*.status = skipped`。
+- `ship-discover` 仅在场景 A/C 激活。`ship-shape` 默认随 A/C 的 Discover 大阶段激活；但场景 B/D 在 UIUX Material Gate 中，如果 feature 涉及 UI、缺少外部 UIUX 材料且用户显式授权生成线框，可临时插入 `ship-shape`，完成后回到 `ship-define`。场景 E、`backend_only`、无 UI 时禁止 `ship-shape`。
 - 前置阶段不设独立硬门禁；场景 A/B/C/D 的下游 `ship-define-review` 是统一的需求质量门。场景 E 直接进入 `ship-tech-discovery`，由 `ship-tech-discovery` 派生最小 `requirements.md` 索引，不单独执行 `ship-define-review`。
 - `ship-frontend-design` 与 `ship-backend-design` 是 sibling stages：两者共同依赖 `ship-contract`，但 fullstack 下任一侧启动时不得要求另一侧已完成；`ship-design-review` 才是两侧设计产物的统一收口点。
-- `verification.md` 是 `ship-verify` 与 `ship-handoff` 的 shared artifact。为保持最终验收 ownership，frontmatter `stage` 固定写 `ship-handoff`；`ship-verify` 只写测试章节并将 `stage_status` 推到 `ready`，`ship-handoff` 完成 AC 验收后再推到 `complete`。
+- `verification.md` 是 `ship-verify` 与 `ship-handoff` 的 shared artifact。为保持最终验收 ownership，frontmatter `stage` 固定写 `ship-handoff`；`ship-verify` 只写测试章节并将 `stage_status` 推到 `ready`，`ship-handoff` 完成 AC 验收后再推到 `complete`。辅助字段固定使用 `produced_by: [ship-verify]`、`accepted_by: ship-handoff`、`artifact_phase: testing | acceptance`。
 
 ## 2. Macro Stage View
 
@@ -44,7 +44,7 @@
 | `build` | `Build` | `ship-delivery-plan`, `ship-plan-review`, `ship-build`, `ship-verify` |
 | `close` | `Close` | `ship-handoff` |
 
-`Discover` 是条件性大阶段，只在场景 A（零到一）或场景 C（迭代增强）时出现；场景 B（产品提供完整 PRD/原型/UIUX）、场景 D（PRD 直通）和场景 E（技术方案选区，`technical_plan_provided`）直接跳过，meta.yml 中相关阶段记为 `skipped`。
+`Discover` 是条件性大阶段：`ship-discover` 只在场景 A/C 出现；`ship-shape` 默认随 A/C 出现。当 B/D 通过 UIUX Material Gate 显式插入 `ship-shape` 时，`current_stage` 仍为 `ship-shape`；默认 macro label 可显示为 Discover / UIUX shaping，但语义是 Define 前的材料补齐，不代表执行了 `ship-discover` 产品探索。场景 E、`backend_only`、无 UI 时相关阶段记为 `skipped`。
 
 使用规则：
 
@@ -78,8 +78,19 @@ evidence_complete: false
 
 - `draft`：产物尚未完成，或证据/前置条件不足。
 - `ready`：允许进入下一阶段，但不代表所有最终验收已结束。
-- `complete`：仅用于最终态产物，如 `verification.md` 在 `ship-handoff` 完成后。
+- `complete`：仅用于 artifact frontmatter 的最终态产物，如 `verification.md` 在 `ship-handoff` 完成后；meta 索引层对应使用 `completed`。
 - `artifact_role`：仅在 `ship-tech-discovery` 和 `ship-delivery-plan` 中使用，用于区分双产物角色。
+
+### 4.1 Soft Gate Classification Contract
+
+非评审产物可以使用以下通用 frontmatter 字段：
+
+```yaml
+soft_gate_class: soft_blocking  # soft_optional | soft_blocking
+blocking_gaps: []
+```
+
+`soft_optional` 可由用户强推，但必须写入 `skip_log`；`soft_blocking` 不是 hard review gate，但若 artifact `blocking_gaps` 非空，不得推进 `current_stage`。`skip_log` 只允许记录 `soft_optional` 的用户强推；若 artifact `blocking_gaps` 非空，属于 `soft_blocking`，不得推进 current_stage。默认：`product-brief.md`、`design-brief.md` 是 `soft_optional`，但方向签字或 browser verification 缺失时不可 ready；`requirements.md`、`tech-research.md`、`tech-selection.md`、`api-contract.md`、frontend/backend design、frontend/backend plan、`verification.md` 是 `soft_blocking`。
 
 ## 5. Review Gate Contract
 
@@ -111,8 +122,8 @@ conditions: []
 
 `meta.yml` 记录 orchestrator 摘要状态时遵循：
 
-- 普通阶段摘要状态：`pending / in_progress / ready / blocked / completed`
-- 评审阶段摘要状态：`pending / in_progress / approved / rejected / revision_needed`
+- 普通阶段摘要状态：`pending / in_progress / ready / blocked / completed / skipped`
+- 评审阶段摘要状态：`pending / in_progress / approved / rejected / revision_needed / skipped`
 - `current_stage` 只允许使用 Canonical Stage IDs
 - `macro_stage.current` 只允许使用 `discover / define / design / build / close`
 - `macro_stage.label` 只允许使用 `Discover / Define / Design / Build / Close`
@@ -140,11 +151,12 @@ conditions: []
   - `referenced_spec_ids`: 本 feature 已留痕的规范集合
   - `warnings`: 最近一次 helper 解析的告警
   - `pending_proposals`: `ship-handoff` 生成、待用户确认的规范沉淀提案
-- `skip_log` 只记录 soft gate 强制推进、条件性前置阶段跳过、资料入口跳过等非 hard gate 的事实留痕：
+- `skip_log` 只记录 soft_optional gate 强制推进、条件性前置阶段跳过、资料入口跳过等非 hard gate 的事实留痕：
   - 每条记录至少包含 `at / from_stage / to_stage / gate_type / reason / user_sign_off`
   - 仅用于审计和回放，不改变 stage status 的语义
   - 若跳过行为影响后续决策，下游阶段必须显式引用该记录作为风险或假设来源
   - `ship-define-review / ship-design-review / ship-plan-review` 三个 hard gate 永远不可写入 skip_log 作为跳过依据
+  - `soft_blocking` gate 不允许通过 skip_log 绕过，只能补材料、缩 scope 或显式转场景
 - `lifecycle_status` 是 feature 级状态，不是 stage status：
   - `active`: 正常推进
   - `blocked`: 当前 feature 无法继续推进
@@ -157,6 +169,20 @@ conditions: []
   - `node_overrides`: 节点级覆盖；key 使用 `stage` 或 `stage.substage`
   - `node_overrides` 合法值：`current_context | assistive_subagent | parallel_subagent | gate_check_subagent`
   - `warnings`: 最近一次 delegation 解析产生的告警；不得与 `spec_context.warnings` 混用
+
+### 6.1 meta/artifact 状态映射表
+
+| artifact frontmatter | meta stage status | 含义 |
+|---|---|---|
+| `draft` | `in_progress` / `blocked` | 产物未达到可推进条件；若有 `blocking_gaps` 用 blocked |
+| `ready` | `ready` | 产物可进入下一阶段，但不是最终验收完成 |
+| artifact `complete` | meta `completed` | 最终态产物完成；常见于 `verification.md` 在 handoff 后 |
+| 无 artifact | meta `skipped` | 条件性阶段被路由跳过或 scope 跳过，仅用于索引层 |
+| review `pending` | `in_progress` / `pending` | gate 检查中或等待检查 |
+| review `approved` | `approved` | hard gate 通过，且必须有 `user_sign_off/signed_at` |
+| review `revision_needed/rejected` | 同名 | gate 未通过 |
+
+`complete` 只出现在 artifact frontmatter；`completed/skipped` 只出现在 meta 索引层。
 
 ## 7. Delegation Contract
 
@@ -193,6 +219,8 @@ conditions: []
 | `ship-backend-design` | `parallel_owned_outputs` | 可与前端设计并行，拥有 `backend-design.md` |
 | `ship-design-review` | `gate_check_switchable` + `user_gate_only` | 质量检查可由当前上下文或子代理执行；最终 gate 结论和签字不可委派 |
 | `ship-delivery-plan` | `forbidden` | 阶段内固定 `frontend -> backend -> sync` |
+
+固定 `frontend -> backend -> sync` 是 Consumer-First planning order，是计划收敛策略，不否定 Design 阶段前后端方案可并行。其目的：先从用户路径/API consumer 视角列出前端 contract tasks，再让后端计划补齐 provider、数据、集成和测试任务，最后 sync 消除依赖错位。
 | `ship-plan-review` | `gate_check_switchable` + `user_gate_only` | 质量检查可由当前上下文或子代理执行；最终评审结论和签字不可委派 |
 | `ship-build` | `assistive_only` + `user_gate_only` | 正式编码任务保持单 `DOING`；只读准备/验证支线可委派 |
 | `ship-verify` | `assistive_only` | 后端单测/集成/契约、前端组件/E2E 可分轨并行；`verification.md` 统一归档 |
@@ -470,7 +498,18 @@ Research Alignment Check 是 research 子段内部的过程动作，不是 hard 
 
 ## 9. Testing / Handoff Ownership
 
-`verification.md` 是跨 13/14 两阶段共享的验收证据文件，ownership 分工如下：
+`verification.md` 是跨 13/14 两阶段共享的验收证据文件，ownership 分工如下。frontmatter 必须保留 shared ownership 辅助字段：
+
+```yaml
+stage: ship-handoff
+stage_status: draft
+produced_by:
+  - ship-verify
+accepted_by: ship-handoff
+artifact_phase: testing       # testing | acceptance
+```
+
+语义：`ship-verify` 写测试章节：`artifact_phase=testing`、`stage_status=ready`；`ship-handoff` 完成验收：`artifact_phase=acceptance`、`stage_status=complete`。
 
 - `ship-verify`：
   - 创建或更新 `verification.md`
@@ -497,9 +536,9 @@ Research Alignment Check 是 research 子段内部的过程动作，不是 hard 
 | 场景 | 入口信号 | 起点 stage | Discover 大阶段 |
 |------|---------|------------|-----------------|
 | A 零到一 | 用户只有一句话想法、无附件 | `ship-discover`（greenfield 分支） | 激活 |
-| B 产品提供 | 用户附了 PRD/Figma/原型/UIUX 文档，或选择先创建目录后补资料 | `ship-define`（interview mode） | 跳过（`stages.ship-discover.status / ship-shape.status = skipped`） |
+| B 产品提供 | 用户附了 PRD/Figma/原型/UIUX 文档，或选择先创建目录后补资料 | `ship-define`（interview mode） | 默认跳过；UIUX Gate 可插入 `ship-shape` |
 | C 迭代增强 | 用户引用已有 feature 目录或具体代码路径并描述变更 | `ship-discover`（evolve 分支） | 激活 |
-| D PRD 直通 | 用户附了完整 PRD + 原型/设计稿，或选择先创建目录粘贴完整 PRD，且明确表示不需要需求录入 | `ship-define`（prd_direct mode） | 跳过（`stages.ship-discover.status / ship-shape.status = skipped`） |
+| D PRD 直通 | 用户附了完整 PRD + 原型/设计稿，或选择先创建目录粘贴完整 PRD，且明确表示不需要需求录入 | `ship-define`（prd_direct mode） | 默认跳过；UIUX Gate 可插入 `ship-shape` |
 | E 技术方案选区 | 用户提供已有技术方案文件或粘贴片段，并指定章节、接口、模块、标题等 selected scope；必须是 `existing_project` | `ship-tech-discovery`（technical plan entry） | 跳过（`stages.ship-discover.status / ship-shape.status / ship-define.status / ship-define-review.status = skipped`） |
 
 判定规则：
@@ -510,16 +549,16 @@ Research Alignment Check 是 research 子段内部的过程动作，不是 hard 
 - 场景 B 不进 Discover 大阶段；若资料已存在，orchestrator 路由到 `ship-define`（interview mode）；若用户选择先创建目录后补资料，则 `stages.ship-define.status: blocked` 且 `block_reason: awaiting_materials`
 - 场景 D 不进 Discover 大阶段；若资料已存在，orchestrator 路由到 `ship-define`（prd_direct mode）；若用户选择先创建目录后补资料，则 `stages.ship-define.status: blocked` 且 `block_reason: awaiting_materials`；`stages.ship-define.generation_mode` 设为 `prd_direct`
 - 场景 B/D 若 `project_scope = fullstack | frontend_only` 且 feature 涉及 UI，必须执行 UIUX Material Gate：已有 Figma / 原型 / 截图 / `design-brief.md` 时继续 `ship-define`；缺少 UIUX 材料时，不得静默跳过到 `ship-frontend-design`，必须让用户选择补材料或显式授权生成线框。
-- UIUX Material Gate 中用户选择补材料时，保持 `stages.ship-define.status: blocked`，`block_reason` 写 `awaiting_uiux_materials` 或在 `awaiting_materials` 中明确 UIUX 缺口；用户选择“按你的理解做线框 / 生成线框”时，允许插入 `ship-shape` 并把本次插入记录到阶段假设或 `skip_log` 中，之后再回到 `ship-define`。
+- UIUX Material Gate 中用户选择补材料时，保持 `stages.ship-define.status: blocked`，`block_reason` 写 `awaiting_uiux_materials` 或在 `awaiting_materials` 中明确 UIUX 缺口；用户选择“按你的理解做线框 / 生成线框”时，必须显式插入 `ship-shape` 并记录 `activation_mode: uiux_material_gate_insert`、`uiux_gate_user_sign_off`、`uiux_gate_signed_at`，之后再回到 `ship-define`。
 - 场景 B/D 的 raw `requirements.md` inbox 只是原始资料入口，不是下游 contract；必须经 `ship-define` normalize 后才能进入 `ship-define-review`
-- 场景 E 不新增 canonical stage；`meta.yml.scenario = technical_plan_provided`，`current_stage = ship-tech-discovery`，`stages.ship-define.status = skipped`，`stages.ship-define.generation_mode = technical_plan`（即 derived `requirements.md` 使用 `generation_mode: technical_plan`），`stages.ship-define-review.status = skipped`，`technical_plan_source.repository_scan_required = true`
+- 场景 E 不新增 canonical stage；跳过 `ship-define` 执行阶段与 `ship-define-review` hard gate；但 `ship-tech-discovery` 会为 selected scope 派生最小 `requirements.md` index，frontmatter 仍使用 `stage: ship-define`、`generation_mode: technical_plan`，仅用于 AC traceability。`meta.yml.scenario = technical_plan_provided`，`current_stage = ship-tech-discovery`，`stages.ship-define.status = skipped`，`stages.ship-define.generation_mode = technical_plan`，`stages.ship-define-review.status = skipped`，`technical_plan_source.repository_scan_required = true`
 - 场景 E 只允许 `project_context: existing_project`；若用户试图用于 `new_project`，必须阻塞并改走场景 A/B/D
-- 场景 E 只创建 `resource/README.md` 作为资料归档提示，不创建 raw PRD inbox；`requirements.md` 由 `ship-tech-discovery` 开头派生为最小 requirements index，用于后续 AC traceability
+- 场景 E 只创建 `resource/README.md` 作为资料归档提示，不创建 raw PRD inbox；`requirements.md` 由 `ship-tech-discovery` 开头派生为最小 requirements index，用于后续 AC traceability。若 `selection_mode=pasted_excerpt`，粘贴片段必须归档到 `pasted_excerpt_file`，默认 `resource/technical-plan-excerpt.md`。
 - 场景 E 不能直接进入 `ship-delivery-plan`；仍必须通过 `ship-tech-discovery`、`ship-contract`、必要的 frontend/backend design 和 `ship-design-review`
 
 场景 B 与 D 的区分：
 
-- 场景 B：用户提供了 PRD/原型等材料，但未明确表示跳过需求录入 → `ship-define` 走 interview 模式（多轮采访，完整生成 requirements.md）
+- 场景 B：用户提供了 PRD/原型等材料，但不保证完整，允许继续澄清缺口 → `ship-define` 走 interview 模式（多轮采访，完整生成 requirements.md）
 - 场景 D：用户提供了完整 PRD + 原型，且有明确信号表示不需要需求录入（如"PRD 已完整"/"跳过需求录入"/"不需要生成需求文档"/"直接用 PRD"/"PRD 直通"） → `ship-define` 走 prd_direct 模式（零提问，产出索引式 requirements.md，引用 PRD 来源位置而非复制原文）
 - 若用户提供了材料但未明确表态，默认走场景 B；可在启动确认时询问用户偏好
 
@@ -528,16 +567,16 @@ Research Alignment Check 是 research 子段内部的过程动作，不是 hard 
 - `technical_plan_source` 是索引层，不是正文事实源。原始技术方案文件或粘贴片段必须归档到 `resource/` 或记录为用户明确提供的可读路径。
 - `technical_plan_source.selected_scope` 是本期唯一进入计划的范围；未选中内容按 `ignored_source_policy: out_of_scope` 处理，不得自动纳入 `requirements.md`、contract、design 或 delivery plan。
 - `selection_mode` 只能是 `referenced_sections` 或 `pasted_excerpt`；粘贴片段必须归档为 `pasted_excerpt_file`。
-- `ship-tech-discovery` 开头必须从 selected scope 派生最小 `requirements.md` index：只包含本期 In Scope / Out of Scope、Domain ID、最小 AC、NFR、待确认问题和 source index。若技术方案没有明确 AC，agent 只能提取最小可验收结果草案，并在 Research Alignment Check 中要求用户确认；AC 缺失时不得把 `requirements.md.stage_status` 标记为 `ready`，也不得把 `tech-research.md` 和 `tech-selection.md` 同时标记为 ready。
+- `ship-tech-discovery` 开头必须从 selected scope 派生最小 `requirements.md` index：只包含本期 In Scope / Out of Scope、Domain ID、最小 AC、NFR、待确认问题和 source index。若技术方案没有明确 AC，agent 可以提取最小可验收结果草案，但不得把该草案视为已确认需求。进入 `ship-contract` 前必须完成 `selected_scope_ac_confirmation`：向用户展示 In Scope、Out of Scope、AC ID、NFR 和待确认问题，用户明确确认后记录 `user_sign_off` 与 `confirmed_at`。该确认不是 hard review gate，不新增 `review-*.md`，但它是 E 场景的 soft_blocking 前置。E 场景下，derived `requirements.md.stage_status=ready` 的必要条件包括 `selected_scope_ac_confirmed: true`，且 `technical_plan_source.selected_scope_ac_confirmation.status=confirmed`。
 - `ship-tech-discovery` 必须执行 Project Reality Scan，但扫描范围只围绕 selected scope；`Requirement-to-Reality Mapping` 只覆盖 derived `requirements.md` index 对应的 Domain ID / AC ID。若未选中内容构成前置依赖或冲突，记录为 risk / open question，不自动扩大 scope。
-- `repository_scan_status: ready` 只是补充索引，不能替代 `tech-research.md` / `tech-selection.md` 的 frontmatter 与内容校验。
+- `repository_scan_status` 是 meta 一致性索引，不是唯一事实源；scan blocked 必须反映为 `tech-research.md.stage_status=draft`、open questions 或 risks；当 tech-discovery 产物 ready 后，meta 索引也必须同步为 ready。
 - `ship-contract`、`ship-frontend-design`、`ship-backend-design`、`ship-delivery-plan` 都必须按 selected scope 裁剪；每个 delivery plan task 必须引用 AC ID、selected scope 或 technical source、仓库探索证据、`allowed_files`、verification command，以及 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报。
 
 Discover 阶段产物补充契约：
 
-- `product-brief.md` 在通用 frontmatter 之外增加：`discovery_mode`（必填）、`approach_selected`（greenfield 必填）、`base_feature`（evolve 必填）、`discovery_rounds`、`fact_check_done`
-- `design-brief.md` 在通用 frontmatter 之外增加：`design_direction`、`variations_count`、`wireframe_index_path`、`asset_protocol_invoked`、`brand_spec_path`
-- `resource/wireframes/` 至少包含 `index.html`（变体导航）+ 至少 3 个变体 HTML 入口；HTML 必须在浏览器中可访问、控制台无报错
+- `product-brief.md` 在通用 frontmatter 之外增加：`discovery_mode`（必填）、`approach_selected`（greenfield 必填）、`user_direction_sign_off`、`direction_confirmed_at`、`base_feature`（evolve 必填）、`discovery_rounds`、`fact_check_done`
+- `design-brief.md` 在通用 frontmatter 之外增加：`activation_mode`（`default_discover_shape | uiux_material_gate_insert`）、`uiux_gate_user_sign_off`、`uiux_gate_signed_at`、`browser_verified`、`browser_verified_at`、`design_direction`、`variations_count`、`wireframe_index_path`、`asset_protocol_invoked`、`brand_spec_path`
+- `resource/wireframes/` 至少包含 `index.html`（变体导航）+ 至少 3 个变体 HTML 入口；HTML 必须在浏览器中可访问、控制台无报错；`design-brief.md.stage_status=ready` 前必须记录 `browser_verified: true` 与 `browser_verified_at`
 
 ## 12. Project Scope Contract
 
@@ -597,3 +636,28 @@ Discover 阶段产物补充契约：
 - `backend_only`：跳过 `ship-verify.frontend-component` 和 `ship-verify.frontend-e2e`
 - `frontend_only`：跳过 `ship-verify.backend-unit`、`ship-verify.backend-integration`、`ship-verify.backend-contract`
 - `fullstack`：所有轨道可用
+
+
+## 13. User Confirmation Record Contract
+
+所有用户确认记录必须包含：
+
+- `user_sign_off`：用户原话或准确摘要
+- `signed_at` / `confirmed_at`：ISO8601 时间
+- `confirmed_scope`：确认影响范围
+- `confirmed_by`：默认 `user`
+- `conditions`：附带条件；无则空数组
+
+区分：hard gate 使用 review frontmatter 的 `user_sign_off/signed_at`；non-review confirmation 使用 artifact 或 meta 中的 `*_confirmation` 字段；skip/force 使用 `skip_log`。Discover 方向、Shape 方向、E AC、hard gates、skip_log 都必须有明确记录位置。
+
+## 14. Scenario C Discovery / Tech Discovery Boundary
+
+场景 C 必须在 `meta.yml.evolve_source` 记录至少一种基线：旧 feature 目录、代码路径或现有行为摘要；若三者均缺失，不创建 feature 目录，先询问用户基于哪个对象增强。`ship-discover(evolve)` 只做产品/影响粗分：确认变更目标、用户影响、受影响 surface 候选和待技术验证项；`ship-tech-discovery` 才做可执行级 Project Reality Scan、Requirement-to-Reality Mapping 和 evidence-backed 技术决策。
+
+## 15. PRD Direct Blocking GAP Contract
+
+若 PRD Direct 因阻塞 GAP 导致 `requirements.md.stage_status=draft`，保持 `scenario=prd_direct`，要求用户补充 PRD/source material 后重新执行 D 提取；不得在 D 模式下临时采访补业务规则。若用户同意通过采访补缺口，必须显式切换为 `scenario=product_provided` / interview，并在 meta `scenario_change_log` 与 requirements 中记录场景变更原因。D + backend_only 需要 PRD 同时具备契约级材料（OpenAPI / 接口文档 / 设计 doc / 消息协议 / CLI spec 等）。若只有产品 PRD，无接口或技术规约，默认建议降级为 B/interview 补齐契约信息。
+
+## 16. Validator Semantic Codes
+
+`validate_requirements.py` 在 E 场景 derived requirements ready 但未确认 AC 时必须报告 `technical_plan_ac_not_confirmed`。`validate_feature_artifacts.py` 必须覆盖 `raw_inbox_past_define`、`raw_inbox_marked_structured`、`raw_inbox_approved_gate`、`ready_with_blocking_gaps`、`soft_blocking_skip_not_allowed` 等语义错误；raw inbox 通过 `generation_mode: raw_prd_input` 或 `input_kind: raw_prd` 识别。

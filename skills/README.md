@@ -13,7 +13,7 @@
 
 | 大阶段 | 目标 | 用户默认会看到什么 | 条件 |
 |--------|------|--------------------|------|
-| `Discover` | 把模糊想法或变更请求转化为结构化产品简报和 UIUX 原型 | 方案对比、设计方向选择、HTML 原型预览 | 仅场景 A/C 激活 |
+| `Discover` | 把模糊想法或变更请求转化为结构化产品简报和 UIUX 原型 | 方案对比、设计方向选择、HTML 原型预览 | 默认仅场景 A/C 激活；场景 B/D 若 UIUX Material Gate 中用户显式授权生成线框，可临时插入 `ship-shape`（不执行 `ship-discover`） |
 | `Define` | 把需求整理成可验证输入，并完成首道确认 | 当前目标、需求是否已明确、下一次确认点 | 始终 |
 | `Design` | 先完成项目真实现状发现，再完成调研、选型、接口契约、前后端方案，并通过设计评审 | 方案是否成形、是否需要你批准设计 | 始终 |
 | `Build` | 完成实施计划、编码执行、自动化验证 | 是否可以开始编码、当前进展、下一次确认点 | 始终 |
@@ -24,10 +24,10 @@
 | 场景 | 描述 | 起点 | Discover |
 |------|------|------|----------|
 | A 零到一 | 只有一句话想法，无 PRD/原型/设计稿 | `ship-discover` (greenfield) | 激活 |
-| B 产品提供 | 已有完整 PRD/Figma/原型/UIUX | `ship-define` (interview mode) | 跳过 |
+| B 产品提供 | 已有需求/原型/UIUX 等材料，但不保证完整，允许继续澄清缺口 | `ship-define` (interview mode) | 默认跳过；UIUX Gate 可插入 `ship-shape` |
 | C 迭代增强 | 基于已有功能做修改/扩展，有旧代码但无新 PRD | `ship-discover` (evolve) | 激活 |
-| D PRD 直通 | 已有完整 PRD + 原型 + 设计稿，用户明确不需要需求录入 | `ship-define` (prd_direct mode) | 跳过 |
-| E 技术方案选区 | 已有技术方案文件或粘贴片段，只围绕指定章节/接口/模块生成计划；仅适用于 `existing_project` | `ship-tech-discovery` (technical plan entry) | 跳过 |
+| D PRD 直通 | 已有完整 PRD + 原型 + 设计稿，用户明确不需要需求录入 | `ship-define` (prd_direct mode) | 默认跳过；UIUX Gate 可插入 `ship-shape` |
+| E 技术方案选区 | 已有技术方案文件或粘贴片段，只围绕指定章节/接口/模块生成计划；仅适用于 `existing_project` | `ship-tech-discovery` (technical plan entry) | 禁止 `ship-shape` |
 
 默认原则：
 
@@ -76,7 +76,8 @@
 ```
 
 默认响应：
-- 识别为场景 B，起点 `ship-define`（interview mode），跳过 Discover
+- 识别为场景 B，起点 `ship-define`（interview mode），默认跳过 Discover
+- 若涉及 UI 且缺少 UIUX 材料，系统会先要求补材料或请求授权生成 wireframe；授权后会插入 `ship-shape`，完成后回到 `ship-define`（meta 记录 `activation_mode: uiux_material_gate_insert`）
 - 当前处于 `Define`
 - 系统正在整理需求并准备首道确认
 - 下一次需要你的动作：确认需求评审结论
@@ -90,7 +91,8 @@
 ```
 
 默认响应：
-- 识别为场景 D，起点 `ship-define`（prd_direct mode），跳过 Discover
+- 识别为场景 D，起点 `ship-define`（prd_direct mode），默认跳过 Discover
+- 若涉及 UI 且缺少 UIUX 材料，系统会先要求补材料或请求授权生成 wireframe；授权后会插入 `ship-shape`，完成后回到 `ship-define`（meta 记录 `activation_mode: uiux_material_gate_insert`）
 - 当前处于 `Define`
 - 系统正在从 PRD 和原型中提取结构化索引（零提问）
 - 产出的 requirements.md 为索引式（引用 PRD 来源位置，不复制原文）
@@ -115,7 +117,7 @@
 ```
 
 默认响应：
-- 识别为场景 E，scenario = `technical_plan_provided`，起点 `ship-tech-discovery`，跳过 Discover 和 Define
+- 识别为场景 E，scenario = `technical_plan_provided`，起点 `ship-tech-discovery`，跳过 `ship-define` 执行阶段与 `ship-define-review` hard gate；但会派生最小 `requirements.md` index
 - 要求 `project_context: existing_project`
 - `ship-tech-discovery` 开头只围绕 selected scope 派生最小 requirements index / AC，未选中技术方案内容不会进入 plan
 - Design 大阶段仍必须做 Project Reality Scan，并且进入 `ship-delivery-plan` 前必须通过 `ship-design-review`
@@ -147,8 +149,8 @@
 
 | 大阶段 | 内部阶段 | 条件 |
 |--------|----------|------|
-| `Discover` | `ship-discover`, `ship-shape` | 仅场景 A/C |
-| `Define` | `ship-define`, `ship-define-review` | 场景 E 跳过 |
+| `Discover` | `ship-discover`, `ship-shape` | `ship-discover` 仅 A/C；`ship-shape` 默认 A/C，B/D 可由 UIUX Material Gate 显式插入；E 禁止 |
+| `Define` | `ship-define`, `ship-define-review` | 场景 E 跳过执行阶段与 hard gate，但派生 `requirements.md` index |
 | `Design` | `ship-tech-discovery`, `ship-contract`, `ship-frontend-design`, `ship-backend-design`, `ship-design-review` | 始终 |
 | `Build` | `ship-delivery-plan`, `ship-plan-review`, `ship-build`, `ship-verify` | 始终 |
 | `Close` | `ship-handoff` | 始终 |
@@ -205,7 +207,7 @@
 <target-project>/.docs/feature-YYYYMMDD-<short-name>/
 ├── meta.yml
 ├── product-brief.md           ← 仅场景 A/C（来自 ship-discover）
-├── design-brief.md            ← 仅场景 A/C 且涉及 UI（来自 ship-shape）
+├── design-brief.md            ← 场景 A/C 且涉及 UI，或 B/D 经 UIUX Material Gate 授权插入（来自 ship-shape）
 ├── requirements.md
 ├── review-define.md
 ├── tech-research.md

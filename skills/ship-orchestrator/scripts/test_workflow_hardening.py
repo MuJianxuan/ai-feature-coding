@@ -139,18 +139,21 @@ Out of Scope: 用户注册。
         )
 
     def write_technical_plan_requirements(self, *, status: str = "ready") -> None:
+        selected_scope_ac_confirmed = "true" if status == "ready" else "false"
         self.write_text(
             "requirements.md",
             f"""---
 stage: ship-define
 stage_status: {status}
 generation_mode: technical_plan
+selected_scope_ac_confirmed: {selected_scope_ac_confirmed}
 source_documents:
   - resource/order-export-tech-design.md#3.2-order-export
 selected_scope:
   - 3.2 Order export async task
 updated_at: "2026-05-31T10:00:00+08:00"
 evidence_complete: true
+blocking_gaps: []
 ---
 
 # Requirements
@@ -363,12 +366,14 @@ Out of Scope: 订单导入。
 stage: ship-define
 stage_status: ready
 generation_mode: technical_plan
+selected_scope_ac_confirmed: true
 source_documents:
   - resource/order-export-tech-design.md#3.2-order-export
 selected_scope:
   - 3.2 Order export async task
 updated_at: "2026-05-31T10:00:00+08:00"
 evidence_complete: true
+blocking_gaps: []
 ---
 
 # Requirements
@@ -801,8 +806,14 @@ evidence_complete: false
             f"""---
 stage: ship-handoff
 stage_status: {status}
+produced_by:
+  - ship-verify
+accepted_by: ship-handoff
+artifact_phase: testing
 updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
 all_ac_verified: {str(all_ac_verified).lower()}
+blocking_gaps: []
 ---
 
 {body}
@@ -1362,6 +1373,13 @@ Relation types covered: reuse / extend / replace / new / avoid / unknown.
             "ignored_source_policy": "out_of_scope",
             "repository_scan_required": True,
             "repository_scan_status": "ready",
+            "selected_scope_ac_confirmation": {
+                "status": "confirmed",
+                "confirmed_ac_ids": ["AC-ORDER-001"],
+                "user_sign_off": "确认 AC-ORDER-001",
+                "confirmed_at": "2026-05-31T10:00:00+08:00",
+                "source_summary": "3.2 Order export async task",
+            },
         }
         meta["stages"]["ship-tech-discovery"]["status"] = "ready"
         self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
@@ -1660,6 +1678,49 @@ evidence_complete: true
         self.assertFalse(result["ok"])
         self.assertTrue(any(issue["code"] == "missing_project_scope_evidence" for issue in result["issues"]))
 
+    def test_evolve_ready_product_brief_base_feature_must_match_evolve_source(self) -> None:
+        self.write_meta(
+            current_stage="ship-discover",
+            scenario="evolve",
+            project_context="existing_project",
+            define_status="pending",
+        )
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["evolve_source"] = {
+            "feature_dirs": ["feature-old-checkout"],
+            "code_paths": [],
+            "existing_behavior_summary": "",
+            "baseline_confirmed_at": "2026-05-31T10:00:00+08:00",
+            "user_sign_off": "基于旧结账增强",
+        }
+        meta["stages"]["ship-discover"]["status"] = "ready"
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+        self.write_text(
+            "product-brief.md",
+            """---
+stage: ship-discover
+stage_status: ready
+discovery_mode: evolve
+approach_selected: ""
+base_feature: feature-new-checkout
+user_direction_sign_off: "确认方向"
+direction_confirmed_at: "2026-05-31T10:00:00+08:00"
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+blocking_gaps: []
+---
+
+# Product Brief
+备选：保持旧方案。
+scope architecture workflow risk
+""",
+        )
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "evolve_base_feature_mismatch" and issue["level"] == "error" for issue in result["issues"]))
+
     def test_technical_plan_meta_requires_selected_scope(self) -> None:
         self.write_meta(
             current_stage="ship-tech-discovery",
@@ -1777,6 +1838,13 @@ evidence_complete: true
             "ignored_source_policy": "out_of_scope",
             "repository_scan_required": True,
             "repository_scan_status": "ready",
+            "selected_scope_ac_confirmation": {
+                "status": "confirmed",
+                "confirmed_ac_ids": ["AC-ORDER-001"],
+                "user_sign_off": "确认 AC-ORDER-001",
+                "confirmed_at": "2026-05-31T10:00:00+08:00",
+                "source_summary": "3.2 Export",
+            },
         }
         meta["stages"]["ship-define"]["status"] = "skipped"
         meta["stages"]["ship-define-review"]["status"] = "skipped"

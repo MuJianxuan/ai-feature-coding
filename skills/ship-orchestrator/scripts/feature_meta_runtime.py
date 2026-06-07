@@ -822,6 +822,66 @@ def resolve_feature_dir(feature_arg: str, workspace_context: WorkspaceSpecContex
     return feature_dir
 
 
+def ensure_technical_plan_ac_confirmation(data: dict) -> dict:
+    technical_plan_source = data.setdefault("technical_plan_source", {})
+    confirmation = technical_plan_source.setdefault("selected_scope_ac_confirmation", {})
+    confirmation.setdefault("status", "pending")
+    confirmation.setdefault("confirmed_ac_ids", [])
+    confirmation.setdefault("user_sign_off", "")
+    confirmation.setdefault("confirmed_at", "")
+    confirmation.setdefault("source_summary", "")
+    return confirmation
+
+
+def confirm_selected_scope_ac(
+    data: dict,
+    ac_ids: list[str],
+    user_sign_off: str,
+    confirmed_at: str,
+    source_summary: str = "",
+) -> None:
+    if data.get("scenario") != "technical_plan_provided":
+        raise ValueError("selected scope AC confirmation only applies to technical_plan_provided")
+    if not ac_ids:
+        raise ValueError("confirmed_ac_ids must be non-empty")
+    if not user_sign_off.strip():
+        raise ValueError("user_sign_off must be non-empty")
+    confirmation = ensure_technical_plan_ac_confirmation(data)
+    confirmation["status"] = "confirmed"
+    confirmation["confirmed_ac_ids"] = sorted(set(ac_ids))
+    confirmation["user_sign_off"] = user_sign_off.strip()
+    confirmation["confirmed_at"] = confirmed_at
+    confirmation["source_summary"] = source_summary.strip()
+
+
+def insert_shape_from_uiux_gate(data: dict, user_sign_off: str, signed_at: str) -> None:
+    if data.get("scenario") not in {"product_provided", "prd_direct"}:
+        raise ValueError("UIUX gate insertion only applies to product_provided/prd_direct")
+    if data.get("project_scope") == "backend_only":
+        raise ValueError("backend_only cannot insert ship-shape")
+    if not user_sign_off.strip():
+        raise ValueError("uiux gate user_sign_off must be non-empty")
+    if not signed_at.strip():
+        raise ValueError("uiux gate signed_at must be non-empty")
+    stages = data.setdefault("stages", {})
+    shape = stages.setdefault("ship-shape", {})
+    shape["status"] = "pending"
+    shape["activation_mode"] = "uiux_material_gate_insert"
+    shape["uiux_gate_user_sign_off"] = user_sign_off.strip()
+    shape["uiux_gate_signed_at"] = signed_at.strip()
+    data["current_stage"] = "ship-shape"
+    ensure_macro_stage(data)
+
+
+def validate_evolve_source(data: dict) -> list[str]:
+    if data.get("scenario") != "evolve":
+        return []
+    source = data.get("evolve_source") or {}
+    if not source.get("feature_dirs") and not source.get("code_paths") and not str(source.get("existing_behavior_summary", "")).strip():
+        return ["evolve_source_missing"]
+    return []
+
+
 def apply_scope_skips(data: dict) -> None:
     scope = data.get("project_scope", "fullstack")
     stages = data.get("stages", {})
@@ -852,12 +912,14 @@ def apply_scenario_initial_state(data: dict, scenario: str) -> None:
         discover["status"] = "pending"
         discover["discovery_mode"] = scenario
         shape.setdefault("status", "pending")
+        shape.setdefault("activation_mode", "default_discover_shape")
         define["block_reason"] = ""
         define["generation_mode"] = "interview"
     elif scenario in TECHNICAL_PLAN_SCENARIOS:
         data["current_stage"] = "ship-tech-discovery"
         discover["status"] = "skipped"
         shape["status"] = "skipped"
+        shape["activation_mode"] = ""
         define["status"] = "skipped"
         define["block_reason"] = ""
         define["evidence_complete"] = False
@@ -877,10 +939,12 @@ def apply_scenario_initial_state(data: dict, scenario: str) -> None:
         technical_plan_source["ignored_source_policy"] = "out_of_scope"
         technical_plan_source["repository_scan_required"] = True
         technical_plan_source.setdefault("repository_scan_status", "pending")
+        ensure_technical_plan_ac_confirmation(data)
     else:
         data["current_stage"] = "ship-define"
         discover["status"] = "skipped"
         shape["status"] = "skipped"
+        shape["activation_mode"] = ""
         define["status"] = "blocked"
         define["block_reason"] = AWAITING_MATERIALS
         define["evidence_complete"] = False
@@ -935,6 +999,8 @@ def build_technical_plan_source(
     normalized_pasted_excerpt_file = pasted_excerpt_file.strip()
     if normalized_selection_mode not in ("referenced_sections", "pasted_excerpt"):
         raise ValueError("technical selection mode must be referenced_sections or pasted_excerpt")
+    if normalized_selection_mode == "pasted_excerpt" and not normalized_pasted_excerpt_file:
+        raise ValueError("selection_mode=pasted_excerpt requires pasted_excerpt_file")
 
     selected_scope = _selected_scope_items(selected_scopes, normalized_source_files)
     return {
@@ -945,7 +1011,62 @@ def build_technical_plan_source(
         "ignored_source_policy": "out_of_scope",
         "repository_scan_required": True,
         "repository_scan_status": "pending",
+        "selected_scope_ac_confirmation": {
+            "status": "pending",
+            "confirmed_ac_ids": [],
+            "user_sign_off": "",
+            "confirmed_at": "",
+            "source_summary": "",
+        },
     }
+
+
+def archive_technical_plan_excerpt(
+    feature_dir: Path,
+    excerpt_text: str,
+    target: str = "resource/technical-plan-excerpt.md",
+) -> str:
+    if not excerpt_text.strip():
+        raise ValueError("pasted technical plan excerpt cannot be empty")
+    path = feature_dir / target
+    if not path.resolve(strict=False).is_relative_to(feature_dir.resolve(strict=False)):
+        raise ValueError("pasted technical plan excerpt archive target must stay inside feature_dir")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(excerpt_text, encoding="utf-8")
+    return target
+
+
+def _read_markdown_frontmatter(path: Path) -> dict:
+    text = path.read_text(encoding="utf-8")
+    if not text.startswith("---\n"):
+        return {}
+    end = text.find("\n---", 4)
+    if end == -1:
+        return {}
+    data = yaml.safe_load(text[4:end]) or {}
+    return data if isinstance(data, dict) else {}
+
+
+def is_raw_prd_inbox_frontmatter(frontmatter: dict) -> bool:
+    return (
+        frontmatter.get("generation_mode") in {"raw_prd_input", "raw_prd"}
+        or frontmatter.get("input_kind") == "raw_prd"
+    )
+
+
+def is_raw_prd_inbox_file(path: Path) -> bool:
+    if not path.exists():
+        return False
+    return is_raw_prd_inbox_frontmatter(_read_markdown_frontmatter(path))
+
+
+def is_raw_prd_inbox_empty(requirements_path: Path) -> bool:
+    if not requirements_path.exists():
+        return True
+
+    content = requirements_path.read_text(encoding="utf-8").strip()
+    template = RAW_PRD_INBOX_TEMPLATE_PATH.read_text(encoding="utf-8").strip()
+    return not content or content == template
 
 
 def _is_raw_prd_inbox_empty(requirements_path: Path) -> bool:
@@ -972,7 +1093,7 @@ def _has_resource_materials(resource_dir: Path) -> bool:
 
 def has_materials_ready(feature_dir: Path) -> bool:
     return (
-        not _is_raw_prd_inbox_empty(feature_dir / "requirements.md")
+        not is_raw_prd_inbox_empty(feature_dir / "requirements.md")
         or _has_resource_materials(feature_dir / "resource")
     )
 
@@ -991,6 +1112,12 @@ def create_feature_meta(
     technical_selection_mode: str = "",
     technical_selected_scopes: list[str] | tuple[str, ...] | None = None,
     technical_pasted_excerpt_file: str = "",
+    technical_pasted_excerpt_text: str = "",
+    evolve_feature_dirs: list[str] | None = None,
+    evolve_code_paths: list[str] | None = None,
+    evolve_existing_behavior_summary: str = "",
+    evolve_user_sign_off: str = "",
+    evolve_baseline_confirmed_at: str = "",
 ) -> Path:
     if scenario not in VALID_SCENARIOS:
         raise ValueError(f"invalid scenario: {scenario}")
@@ -1002,6 +1129,22 @@ def create_feature_meta(
         )
     if scenario in TECHNICAL_PLAN_SCENARIOS and project_context != "existing_project":
         raise ValueError("technical_plan_provided requires project_context=existing_project")
+
+    feature_dir.mkdir(parents=True, exist_ok=True)
+
+    if scenario in TECHNICAL_PLAN_SCENARIOS and technical_selection_mode == "pasted_excerpt":
+        if technical_pasted_excerpt_text.strip():
+            target = technical_pasted_excerpt_file.strip() or "resource/technical-plan-excerpt.md"
+            technical_pasted_excerpt_file = archive_technical_plan_excerpt(
+                feature_dir,
+                technical_pasted_excerpt_text,
+                target,
+            )
+        elif technical_pasted_excerpt_file.strip():
+            pasted_path = Path(technical_pasted_excerpt_file.strip())
+            resolved_pasted_path = pasted_path if pasted_path.is_absolute() else feature_dir / pasted_path
+            if not resolved_pasted_path.exists():
+                raise ValueError("selection_mode=pasted_excerpt requires archived pasted_excerpt_file to exist")
 
     technical_plan_source = None
     if scenario in TECHNICAL_PLAN_SCENARIOS:
@@ -1018,7 +1161,6 @@ def create_feature_meta(
         else list(projects or [])
     )
 
-    feature_dir.mkdir(parents=True, exist_ok=True)
     create_material_intake_files(feature_dir, scenario)
 
     meta_path = feature_dir / "meta.yml"
@@ -1040,6 +1182,14 @@ def create_feature_meta(
     data["lifecycle_status"] = "active"
     if technical_plan_source is not None:
         data["technical_plan_source"] = technical_plan_source
+    if scenario == "evolve":
+        data["evolve_source"] = {
+            "feature_dirs": list(evolve_feature_dirs or []),
+            "code_paths": list(evolve_code_paths or []),
+            "existing_behavior_summary": evolve_existing_behavior_summary.strip(),
+            "baseline_confirmed_at": evolve_baseline_confirmed_at.strip(),
+            "user_sign_off": evolve_user_sign_off.strip(),
+        }
     apply_scenario_initial_state(data, scenario)
     apply_scope_skips(data)
     ensure_macro_stage(data)
@@ -1051,6 +1201,24 @@ def create_feature_meta(
     ensure_lifecycle_status(data)
     save_meta(meta_path, data)
     return meta_path
+
+
+def switch_prd_direct_to_interview(data: dict, user_sign_off: str, switched_at: str) -> None:
+    if data.get("scenario") != "prd_direct":
+        raise ValueError("only prd_direct can switch to interview")
+    if not user_sign_off.strip():
+        raise ValueError("user_sign_off must be non-empty")
+    data["scenario"] = "product_provided"
+    data.setdefault("stages", {}).setdefault("ship-define", {})["generation_mode"] = "interview"
+    data.setdefault("scenario_change_log", []).append(
+        {
+            "from": "prd_direct",
+            "to": "product_provided",
+            "reason": "blocking GAP requires interview clarification",
+            "user_sign_off": user_sign_off.strip(),
+            "switched_at": switched_at,
+        }
+    )
 
 
 def mark_materials_ready(meta_path: Path) -> dict:
@@ -1415,6 +1583,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="Archived pasted excerpt path, e.g. resource/technical-plan-excerpt.md",
     )
+    init_parser.add_argument(
+        "--technical-pasted-excerpt-text",
+        default="",
+        help="Pasted technical plan excerpt text to archive automatically",
+    )
 
     refresh_parser = subparsers.add_parser("refresh", help="Refresh macro_stage from current_stage")
     refresh_parser.add_argument("meta_path", help="Path to meta.yml")
@@ -1514,6 +1687,7 @@ def main(argv: list[str]) -> int:
             technical_selection_mode=args.technical_selection_mode,
             technical_selected_scopes=args.technical_selected_scope,
             technical_pasted_excerpt_file=args.technical_pasted_excerpt_file,
+            technical_pasted_excerpt_text=args.technical_pasted_excerpt_text,
         )
         print(meta_path)
         return 0

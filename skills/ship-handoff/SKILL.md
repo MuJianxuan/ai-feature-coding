@@ -20,7 +20,7 @@ description: "ShipKit stage. Consumes verification.md from ship-verify, complete
 - `verification.md` —— 共享验收证据文件；本阶段补齐 AC 映射、手工验证、残余风险与最终结论
 - `handoff.md` —— 交付摘要与移交清单
 
-`verification.md` frontmatter 固定使用 `stage: ship-handoff`，这是共享产物 ownership 设计：`ship-verify` 先写测试章节并置为 `ready`，本阶段再补齐 AC 验收并置为 `complete`。
+`verification.md` frontmatter 固定使用 `stage: ship-handoff`，这是共享产物 ownership 设计：`ship-verify` 先写测试章节并置为 `ready`，本阶段再补齐 AC 验收，把 `artifact_phase` 从 `testing` 改为 `acceptance`，并置为 `complete`。
 
 ## When to Use
 

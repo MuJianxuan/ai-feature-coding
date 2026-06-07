@@ -1,6 +1,11 @@
 ---
 stage: ship-shape
 stage_status: draft
+activation_mode: default_discover_shape  # default_discover_shape | uiux_material_gate_insert
+uiux_gate_user_sign_off: ""
+uiux_gate_signed_at: ""
+browser_verified: false
+browser_verified_at: ""
 design_direction: ""
 variations_count: 0
 wireframe_index_path: "resource/wireframes/index.html"
@@ -8,6 +13,8 @@ asset_protocol_invoked: false
 brand_spec_path: ""
 updated_at: ""
 evidence_complete: false
+soft_gate_class: soft_optional
+blocking_gaps: []
 ---
 
 # 设计简报：[功能名称]
@@ -145,6 +152,14 @@ tokens:
 | 焦点指示器 | 可见、高对比 |
 | 键盘导航 | 主流程可完整走通 |
 | 屏幕阅读器 | 关键操作有 aria-label |
+
+## 用户确认记录
+
+| 确认项 | 用户原话/证据 | 时间 |
+|---|---|---|
+| UIUX Gate 授权（B/D only） |  |  |
+| 设计方向选择 |  |  |
+| 浏览器验证结果确认 |  |  |
 
 ## 8. Anti-Slop Self-Check
 

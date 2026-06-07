@@ -34,6 +34,10 @@ def validate_ui_artifacts(feature_dir: Path) -> dict:
     variations = fm.get("variations_count", 0)
     if ready and (not isinstance(variations, int) or variations < 3):
         issues.append(_issue("error", "insufficient_variants", "ready design brief requires 3+ variants"))
+    if fm.get("activation_mode") == "uiux_material_gate_insert" and (not fm.get("uiux_gate_user_sign_off") or not fm.get("uiux_gate_signed_at")):
+        issues.append(_issue("error", "missing_uiux_gate_sign_off", "inserted design brief requires UIUX gate sign-off"))
+    if ready and fm.get("browser_verified") is not True:
+        issues.append(_issue("error", "design_brief_browser_not_verified", "ready design brief requires browser_verified: true"))
     for signal in ("tokens:", "Visual System", "viewport", "wireframe", "resource/wireframes"):
         if signal not in body and signal not in str(fm):
             issues.append(_issue("error" if ready else "warning", "missing_ui_manifest_signal", f"missing UI artifact signal: {signal}"))

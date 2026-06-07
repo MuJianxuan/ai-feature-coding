@@ -1,0 +1,67 @@
+feature_name: Fixture
+feature_id: fixture
+created_at: '2026-06-07T00:00:00+08:00'
+updated_at: '2026-06-07T00:00:00+08:00'
+lifecycle_status: active
+current_stage: ship-tech-discovery
+scenario: technical_plan_provided
+macro_stage:
+  current: design
+  label: Design
+  summary: tech
+  next_user_decision: contract
+project_context: existing_project
+project_scope: fullstack
+project_scope_evidence: fullstack fixture
+skip_log: []
+stages:
+  ship-discover:
+    status: skipped
+  ship-shape:
+    status: skipped
+  ship-define:
+    status: skipped
+  ship-define-review:
+    status: skipped
+  ship-tech-discovery:
+    status: ready
+    evidence_complete: true
+    current_part: selection
+  ship-contract:
+    status: skipped
+  ship-frontend-design:
+    status: skipped
+  ship-backend-design:
+    status: skipped
+  ship-design-review:
+    status: skipped
+  ship-delivery-plan:
+    status: skipped
+  ship-plan-review:
+    status: skipped
+  ship-build:
+    status: skipped
+  ship-verify:
+    status: skipped
+  ship-handoff:
+    status: skipped
+technical_plan_source:
+  source_files:
+  - resource/tech.md
+  selection_mode: referenced_sections
+  selected_scope:
+  - type: section
+    label: 3.2 Export
+    source_file: resource/tech.md
+    locator: heading
+  pasted_excerpt_file: ''
+  ignored_source_policy: out_of_scope
+  repository_scan_required: true
+  repository_scan_status: ready
+  selected_scope_ac_confirmation:
+    status: confirmed
+    confirmed_ac_ids:
+    - AC-EXP-001
+    user_sign_off: 确认 AC-EXP-001
+    confirmed_at: '2026-06-07T00:00:00+08:00'
+    source_summary: 3.2 Export

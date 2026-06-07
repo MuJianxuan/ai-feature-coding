@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,7 +16,7 @@ import yaml
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
-from feature_meta_runtime import load_meta  # noqa: E402
+from feature_meta_runtime import is_raw_prd_inbox_frontmatter, load_meta, validate_evolve_source  # noqa: E402
 from workflow_stage_map import CANONICAL_STAGE_ORDER, stage_view_for  # noqa: E402
 
 NON_REVIEW_STATUSES = frozenset({"draft", "ready", "complete"})
@@ -25,6 +26,8 @@ META_REVIEW_STATUSES = frozenset({"pending", "in_progress", "approved", "rejecte
 REVIEW_STAGES = frozenset({"ship-define-review", "ship-design-review", "ship-plan-review"})
 TECHNICAL_PLAN_SCENARIO = "technical_plan_provided"
 TECHNICAL_PLAN_SCAN_STATUSES = frozenset({"pending", "in_progress", "ready", "blocked"})
+AC_RE = re.compile(r"\bAC-[A-Z0-9]+-\d{3}\b")
+SOFT_BLOCKING_STAGES = frozenset({"ship-define", "ship-tech-discovery", "ship-contract", "ship-frontend-design", "ship-backend-design", "ship-delivery-plan", "ship-verify", "ship-handoff"})
 
 
 @dataclass(frozen=True)
@@ -155,13 +158,78 @@ def _validate_meta(feature_dir: Path, meta: dict[str, Any]) -> list[dict[str, st
         if status not in allowed:
             issues.append(_issue("error", "invalid_meta_status", f"invalid meta status for {stage}: {status!r}", "meta.yml"))
 
+    issues.extend(_validate_ship_shape_meta(meta))
+    issues.extend(_validate_evolve_meta(meta))
     if meta.get("scenario") == TECHNICAL_PLAN_SCENARIO:
-        issues.extend(_validate_technical_plan_meta(meta))
+        issues.extend(_validate_technical_plan_meta(feature_dir, meta))
+    if meta.get("scenario") == "evolve":
+        issues.extend(_validate_evolve_product_brief(feature_dir, meta))
 
     return issues
 
 
-def _validate_technical_plan_meta(meta: dict[str, Any]) -> list[dict[str, str]]:
+def _validate_ship_shape_meta(meta: dict[str, Any]) -> list[dict[str, str]]:
+    issues: list[dict[str, str]] = []
+    scenario = meta.get("scenario")
+    project_scope = meta.get("project_scope")
+    shape = _stage_meta(meta, "ship-shape")
+    status = shape.get("status")
+    if scenario in {"product_provided", "prd_direct"} and not status == "skipped":
+        if not shape.get("activation_mode") == "uiux_material_gate_insert":
+            issues.append(_issue("error", "invalid_shape_activation_mode", "B/D ship-shape requires activation_mode=uiux_material_gate_insert", "meta.yml"))
+        if not shape.get("uiux_gate_user_sign_off") or not shape.get("uiux_gate_signed_at"):
+            issues.append(_issue("error", "missing_uiux_gate_sign_off", "B/D inserted ship-shape requires user sign-off and signed_at", "meta.yml"))
+    if scenario == TECHNICAL_PLAN_SCENARIO and not status == "skipped":
+        issues.append(_issue("error", "technical_plan_shape_forbidden", "technical_plan_provided must keep ship-shape skipped", "meta.yml"))
+    if project_scope == "backend_only" and not status == "skipped":
+        issues.append(_issue("error", "backend_only_shape_forbidden", "backend_only must keep ship-shape skipped", "meta.yml"))
+    return issues
+
+
+def _validate_evolve_meta(meta: dict[str, Any]) -> list[dict[str, str]]:
+    # validate_evolve_source emits evolve_source_missing when no baseline exists.
+    return [_issue("error", code, "scenario=evolve requires meta.yml.evolve_source baseline", "meta.yml") for code in validate_evolve_source(meta)]
+
+
+def _evolve_source_tokens(meta: dict[str, Any]) -> set[str]:
+    source = meta.get("evolve_source") if isinstance(meta.get("evolve_source"), dict) else {}
+    tokens: set[str] = set()
+    for key in ("feature_dirs", "code_paths"):
+        values = source.get(key)
+        if isinstance(values, list):
+            tokens.update(str(item).strip() for item in values if str(item).strip())
+    summary = str(source.get("existing_behavior_summary", "")).strip()
+    if summary:
+        tokens.add(summary)
+    return tokens
+
+
+def _validate_evolve_product_brief(feature_dir: Path, meta: dict[str, Any]) -> list[dict[str, str]]:
+    product_brief_path = feature_dir / "product-brief.md"
+    if not product_brief_path.exists():
+        return []
+    try:
+        frontmatter, _body = read_frontmatter(product_brief_path)
+    except ValueError as exc:
+        return [_issue("error", "invalid_product_brief_frontmatter", str(exc), "product-brief.md")]
+
+    base_feature = str(frontmatter.get("base_feature", "")).strip()
+    if not base_feature:
+        return []
+    if base_feature in _evolve_source_tokens(meta):
+        return []
+    level = "error" if frontmatter.get("stage_status") == "ready" else "warning"
+    return [
+        _issue(
+            level,
+            "evolve_base_feature_mismatch",
+            "product-brief.md base_feature must match meta.yml evolve_source feature_dirs/code_paths/existing_behavior_summary",
+            "product-brief.md",
+        )
+    ]
+
+
+def _validate_technical_plan_meta(feature_dir: Path, meta: dict[str, Any]) -> list[dict[str, str]]:
     issues: list[dict[str, str]] = []
     technical_plan_source = meta.get("technical_plan_source")
     if not isinstance(technical_plan_source, dict):
@@ -184,6 +252,13 @@ def _validate_technical_plan_meta(meta: dict[str, Any]) -> list[dict[str, str]]:
         issues.append(_issue("error", "missing_technical_source", "technical_plan_source requires source_files or pasted_excerpt_file", "meta.yml"))
     if not isinstance(selected_scope, list) or not selected_scope:
         issues.append(_issue("error", "missing_selected_scope", "technical_plan_source.selected_scope must be non-empty", "meta.yml"))
+    if selection_mode == "pasted_excerpt":
+        if not str(pasted_excerpt_file or "").strip():
+            issues.append(_issue("error", "missing_pasted_excerpt_file", "selection_mode=pasted_excerpt requires pasted_excerpt_file", "meta.yml"))
+        else:
+            pasted_path = Path(str(pasted_excerpt_file))
+            if not pasted_path.is_absolute() and not (feature_dir / pasted_path).exists():
+                issues.append(_issue("error", "missing_pasted_excerpt_archive", "pasted_excerpt_file must exist relative to feature_dir", "meta.yml"))
     if technical_plan_source.get("ignored_source_policy") != "out_of_scope":
         issues.append(_issue("error", "invalid_ignored_source_policy", "technical_plan_source.ignored_source_policy must be out_of_scope", "meta.yml"))
     if technical_plan_source.get("repository_scan_required") is not True:
@@ -193,8 +268,28 @@ def _validate_technical_plan_meta(meta: dict[str, Any]) -> list[dict[str, str]]:
 
     stages = meta.get("stages") if isinstance(meta.get("stages"), dict) else {}
     tech_discovery = stages.get("ship-tech-discovery") if isinstance(stages.get("ship-tech-discovery"), dict) else {}
-    if tech_discovery.get("status") in ("ready", "completed") and repository_scan_status != "ready":
-        issues.append(_issue("error", "repository_scan_not_ready", "repository_scan_status must be ready after ship-tech-discovery is ready", "meta.yml"))
+    if tech_discovery.get("status") in ("ready", "completed"):
+        if not repository_scan_status == "ready":
+            issues.append(_issue("error", "repository_scan_not_ready", "repository_scan_status must be ready after ship-tech-discovery is ready", "meta.yml"))
+        confirmation = technical_plan_source.get("selected_scope_ac_confirmation")
+        if not isinstance(confirmation, dict):
+            issues.append(_issue("error", "missing_selected_scope_ac_confirmation", "technical_plan_source.selected_scope_ac_confirmation is required", "meta.yml"))
+        else:
+            if not confirmation.get("status") == "confirmed":
+                issues.append(_issue("error", "selected_scope_ac_not_confirmed", "selected_scope_ac_confirmation.status must be confirmed before contract", "meta.yml"))
+            if not confirmation.get("user_sign_off") or not confirmation.get("confirmed_at"):
+                issues.append(_issue("error", "selected_scope_ac_unsigned", "selected_scope_ac_confirmation requires user_sign_off and confirmed_at", "meta.yml"))
+            confirmed_ac_ids = confirmation.get("confirmed_ac_ids")
+            if not isinstance(confirmed_ac_ids, list) or not confirmed_ac_ids:
+                issues.append(_issue("error", "selected_scope_ac_ids_missing", "selected_scope_ac_confirmation.confirmed_ac_ids must be non-empty", "meta.yml"))
+            else:
+                requirements_path = feature_dir / "requirements.md"
+                if requirements_path.exists():
+                    _fm, requirements_body = read_frontmatter(requirements_path)
+                    body_ac_ids = set(AC_RE.findall(requirements_body))
+                    missing = sorted(body_ac_ids - set(str(item) for item in confirmed_ac_ids))
+                    if missing:
+                        issues.append(_issue("error", "selected_scope_ac_confirmation_incomplete", "confirmed_ac_ids do not cover requirements AC IDs: " + ", ".join(missing), "meta.yml"))
 
     return issues
 
@@ -233,6 +328,28 @@ def _validate_artifact_spec(feature_dir: Path, meta: dict[str, Any], spec: Artif
             issues.append(_issue("error", "invalid_stage_status", f"invalid stage_status: {stage_status!r}", spec.path))
         if "evidence_complete" not in frontmatter:
             issues.append(_issue("warning", "missing_evidence_complete", "artifact frontmatter should include evidence_complete", spec.path))
+        blocking_gaps = frontmatter.get("blocking_gaps")
+        if stage_status == "ready" and isinstance(blocking_gaps, list) and blocking_gaps:
+            issues.append(_issue("error", "ready_with_blocking_gaps", "artifact ready cannot contain blocking_gaps", spec.path))
+        if spec.path == "design-brief.md":
+            if frontmatter.get("activation_mode") == "uiux_material_gate_insert" and (not frontmatter.get("uiux_gate_user_sign_off") or not frontmatter.get("uiux_gate_signed_at")):
+                issues.append(_issue("error", "missing_uiux_gate_sign_off", "inserted design-brief requires UIUX gate sign-off", spec.path))
+            if stage_status == "ready" and frontmatter.get("browser_verified") is not True:
+                issues.append(_issue("error", "design_brief_browser_not_verified", "ready design-brief requires browser_verified: true", spec.path))
+        if spec.path == "product-brief.md" and stage_status == "ready" and not frontmatter.get("user_direction_sign_off"):
+            level = "error" if frontmatter.get("discovery_mode") == "greenfield" and frontmatter.get("approach_selected") else "warning"
+            issues.append(_issue(level, "missing_product_direction_sign_off", "ready product-brief should record user_direction_sign_off", spec.path))
+        if spec.path == "verification.md" and stage_status in ("ready", "complete"):
+            produced_by = frontmatter.get("produced_by")
+            if not isinstance(produced_by, list) or "ship-verify" not in produced_by:
+                issues.append(_issue("error", "missing_verification_produced_by", "ready/complete verification.md requires produced_by including ship-verify", spec.path))
+            if not frontmatter.get("accepted_by") == "ship-handoff":
+                issues.append(_issue("error", "invalid_verification_accepted_by", "verification.md requires accepted_by: ship-handoff", spec.path))
+            phase = frontmatter.get("artifact_phase")
+            if stage_status == "ready" and phase not in {"testing", "acceptance"}:
+                issues.append(_issue("error", "invalid_verification_artifact_phase", "ready verification.md requires artifact_phase testing or acceptance", spec.path))
+            if stage_status == "complete" and not phase == "acceptance":
+                issues.append(_issue("error", "verification_complete_not_acceptance", "complete verification.md requires artifact_phase: acceptance", spec.path))
 
     stage_meta = _stage_meta(meta, spec.stage)
     meta_status = stage_meta.get("status")
@@ -249,8 +366,11 @@ def _validate_artifact_spec(feature_dir: Path, meta: dict[str, Any], spec: Artif
             expected = "ready" if meta_status == "ready" else "complete"
             if meta_status == "completed" and stage_status == "ready":
                 pass
-            elif stage_status != expected:
+            elif not stage_status == expected:
                 issues.append(_issue("error", "meta_artifact_status_conflict", f"meta status {meta_status!r} conflicts with stage_status {stage_status!r}", spec.path))
+        blocking_gaps = frontmatter.get("blocking_gaps")
+        if meta_status in ("ready", "completed") and isinstance(blocking_gaps, list) and blocking_gaps:
+            issues.append(_issue("error", "meta_ready_with_blocking_gaps", "meta ready/completed conflicts with artifact blocking_gaps", spec.path))
 
     return frontmatter, issues
 
@@ -321,6 +441,21 @@ def validate_feature(feature_dir: Path) -> dict[str, Any]:
 
         requirements_result = validate_requirements_file(requirements_path)
         issues.extend(requirements_result["issues"])
+        try:
+            requirements_fm, _requirements_body = read_frontmatter(requirements_path)
+            if is_raw_prd_inbox_frontmatter(requirements_fm):
+                current_stage = meta.get("current_stage")
+                if current_stage in CANONICAL_STAGE_ORDER and CANONICAL_STAGE_ORDER.index(str(current_stage)) > CANONICAL_STAGE_ORDER.index("ship-define"):
+                    issues.append(_issue("error", "raw_inbox_past_define", "raw requirements.md inbox cannot advance past ship-define", "requirements.md"))
+                if _stage_meta(meta, "ship-define").get("status") in ("ready", "completed"):
+                    issues.append(_issue("error", "raw_inbox_marked_structured", "raw requirements.md inbox cannot be marked as structured/ready", "requirements.md"))
+                review_path = feature_dir / "review-define.md"
+                if review_path.exists():
+                    review_fm, _review_body = read_frontmatter(review_path)
+                    if review_fm.get("review_status") == "approved":
+                        issues.append(_issue("error", "raw_inbox_approved_gate", "raw requirements.md inbox cannot have approved define review", "requirements.md"))
+        except ValueError as exc:
+            issues.append(_issue("error", "invalid_requirements_frontmatter", str(exc), "requirements.md"))
 
     if (feature_dir / "product-brief.md").exists():
         from validate_product_brief import validate_product_brief  # noqa: WPS433
@@ -394,6 +529,16 @@ def validate_feature(feature_dir: Path) -> dict[str, Any]:
 
         handoff_result = validate_handoff(feature_dir)
         issues.extend(handoff_result["issues"])
+
+    for entry in meta.get("skip_log", []) if isinstance(meta.get("skip_log"), list) else []:
+        if isinstance(entry, dict):
+            gate_type = str(entry.get("gate_type", "")).lower()
+            from_stage = str(entry.get("from_stage", ""))
+            reason = str(entry.get("reason", "")).lower()
+            if gate_type == "hard":
+                issues.append(_issue("error", "hard_gate_skip_not_allowed", "hard gates cannot be skipped via skip_log", "meta.yml"))
+            if gate_type == "soft" and (from_stage in SOFT_BLOCKING_STAGES or "soft_blocking" in reason):
+                issues.append(_issue("error", "soft_blocking_skip_not_allowed", "soft_blocking gates cannot be bypassed by skip_log", "meta.yml"))
 
     return {
         "feature_dir": str(feature_dir),

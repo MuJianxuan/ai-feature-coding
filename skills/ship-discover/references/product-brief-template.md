@@ -3,11 +3,15 @@ stage: ship-discover
 stage_status: draft
 discovery_mode: greenfield  # greenfield | evolve
 approach_selected: ""
+user_direction_sign_off: ""
+direction_confirmed_at: ""
 base_feature: ""
 discovery_rounds: 0
 fact_check_done: false
 updated_at: ""
 evidence_complete: false
+soft_gate_class: soft_optional
+blocking_gaps: []
 ---
 
 # 产品简报：[功能名称]
@@ -115,6 +119,12 @@ evidence_complete: false
 |------|-------------|
 | | |
 
+## 方向确认记录
+
+| 确认项 | 用户原话/证据 | 时间 |
+|---|---|---|
+| 产品方向选择 |  |  |
+
 ## 7. 影响分析 [evolve only]
 
 > 仅 evolve 分支填写。基于现状扫描，明确变更的边界。
@@ -135,6 +145,12 @@ evidence_complete: false
 ### 数据迁移需求
 
 >
+
+### 待技术验证项
+
+| 项 | 为什么需要验证 | 建议在 tech-discovery 检查的路径/方向 |
+|---|---|---|
+| | | |
 
 ## 8. Open Questions
 

@@ -21,6 +21,7 @@ from feature_meta_runtime import (
     GATE_CHECK_SUBAGENT,
     PARALLEL_SUBAGENT,
     append_workspace_project,
+    archive_technical_plan_excerpt,
     advance_stage,
     clear_delegation_warning_log,
     create_feature_meta,
@@ -619,13 +620,36 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
             scenario="technical_plan_provided",
             technical_selection_mode="pasted_excerpt",
             technical_selected_scopes=["POST /api/v1/orders/export"],
-            technical_pasted_excerpt_file="resource/technical-plan-excerpt.md",
+            technical_pasted_excerpt_text="POST /api/v1/orders/export uses async export jobs.",
         )
 
         saved = self.load_meta(feature_dir)
         self.assertEqual(saved["technical_plan_source"]["selection_mode"], "pasted_excerpt")
         self.assertEqual(saved["technical_plan_source"]["pasted_excerpt_file"], "resource/technical-plan-excerpt.md")
         self.assertEqual(saved["technical_plan_source"]["selected_scope"][0]["type"], "api")
+        self.assertEqual((feature_dir / "resource/technical-plan-excerpt.md").read_text(encoding="utf-8"), "POST /api/v1/orders/export uses async export jobs.")
+
+    def test_create_feature_meta_rejects_missing_technical_plan_pasted_excerpt_archive(self) -> None:
+        with self.assertRaisesRegex(ValueError, "pasted_excerpt_file to exist"):
+            create_feature_meta(
+                feature_dir=self.root / "technical-plan-missing-excerpt",
+                feature_name="Technical Plan Missing Excerpt",
+                feature_id="feature-technical-plan-missing-excerpt",
+                project_context="existing_project",
+                project_scope="fullstack",
+                scenario="technical_plan_provided",
+                technical_selection_mode="pasted_excerpt",
+                technical_selected_scopes=["POST /api/v1/orders/export"],
+                technical_pasted_excerpt_file="resource/technical-plan-excerpt.md",
+            )
+
+    def test_archive_technical_plan_excerpt_rejects_target_outside_feature_dir(self) -> None:
+        with self.assertRaisesRegex(ValueError, "inside feature_dir"):
+            archive_technical_plan_excerpt(
+                self.root / "technical-plan-outside-target",
+                "POST /api/v1/orders/export",
+                "/tmp/technical-plan-excerpt.md",
+            )
 
     def test_cli_init_supports_technical_plan_entry(self) -> None:
         workspace_root = self.root / "workspace-technical-plan"
@@ -670,6 +694,45 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
         self.assertEqual(saved["stages"]["ship-define"]["generation_mode"], "technical_plan")
         self.assertEqual(saved["technical_plan_source"]["selected_scope"][0]["label"], "3.2 Order export async task")
         self.assertFalse((meta_path.parent / "requirements.md").exists())
+
+    def test_cli_init_archives_technical_plan_pasted_excerpt_text(self) -> None:
+        workspace_root = self.root / "workspace-technical-plan-excerpt"
+        project_config = self.write_project_config(workspace_root)
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT_DIR / "feature_meta_runtime.py"),
+                "init",
+                "feature-technical-plan-excerpt-cli",
+                "--project-config",
+                str(project_config),
+                "--feature-name",
+                "Technical Plan Excerpt CLI",
+                "--feature-id",
+                "feature-technical-plan-excerpt-cli",
+                "--scenario",
+                "technical_plan_provided",
+                "--project-context",
+                "existing_project",
+                "--technical-selected-scope",
+                "POST /api/v1/orders/export",
+                "--technical-selection-mode",
+                "pasted_excerpt",
+                "--technical-pasted-excerpt-text",
+                "POST /api/v1/orders/export creates an async export job.",
+            ],
+            cwd=workspace_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        meta_path = Path(result.stdout.strip())
+        saved = yaml.safe_load(meta_path.read_text(encoding="utf-8"))
+        excerpt_path = meta_path.parent / saved["technical_plan_source"]["pasted_excerpt_file"]
+        self.assertTrue(excerpt_path.exists())
+        self.assertEqual(excerpt_path.read_text(encoding="utf-8"), "POST /api/v1/orders/export creates an async export job.")
 
     def test_mark_materials_ready_keeps_empty_template_blocked(self) -> None:
         feature_dir = self.root / "empty-materials"

@@ -46,13 +46,26 @@ description: "ShipKit stage. Performs project-reality-first technical discovery,
 
 当 `meta.yml.scenario: technical_plan_provided` 时，本阶段仍必须执行 Project Reality Scan，但扫描范围只围绕 `technical_plan_source.selected_scope`：
 
-- 本阶段开头先派生最小 `requirements.md` index，frontmatter 使用 `stage: ship-define`、`generation_mode: technical_plan`，但不单独执行 `ship-define` / `ship-define-review`。
+- 本阶段开头先派生最小 `requirements.md` index，frontmatter 使用 `stage: ship-define`、`generation_mode: technical_plan`，但不单独执行 `ship-define` / `ship-define-review`。示例：
+  ```yaml
+  stage: ship-define
+  stage_status: draft
+  artifact_role: requirements-index
+  scenario: technical_plan_provided
+  scope_mode: selected_scope_only
+  selected_scope_ac_confirmed: false
+  generation_mode: technical_plan
+  source_documents: []
+  selected_scope: []
+  soft_gate_class: soft_blocking
+  blocking_gaps: []
+  ```
 - derived `requirements.md` 只包含 selected scope 的 In Scope / Out of Scope、Domain ID、AC ID、NFR、待确认问题和 source index；不得把整份技术方案转成 PRD。
 - 优先按 selected scope 的章节名、接口、模块、标题、代码路径和关键词搜索仓库。
 - `Requirement-to-Reality Mapping` 只覆盖 derived `requirements.md` index 中 selected scope 对应的 Domain ID / AC ID。
 - 不扫描未选中章节对应的功能；未选中内容默认视为 out_of_scope。
 - 若未选中内容构成 selected scope 的前置依赖或冲突，只记录为 risk / open question，并询问是否扩大 selected scope，不自动纳入本期。
-- `repository_scan_status: ready` 只是 meta 索引；真正允许进入后续阶段的事实源仍是 `tech-research.md` 和 `tech-selection.md` 的 frontmatter 与内容校验。
+- `repository_scan_status` 是 meta 一致性索引，不是唯一事实源；scan blocked 必须反映为 `tech-research.md.stage_status=draft`、open questions 或 risks；当 tech-discovery 产物 ready 后，meta 索引也必须同步为 ready。
 
 ## Stage Contract
 
@@ -92,7 +105,7 @@ spec_warnings: []
 阶段退出条件：
 - `tech-research.md.stage_status = ready`
 - `tech-selection.md.stage_status = ready`
-- 若 `meta.yml.scenario: technical_plan_provided`：derived `requirements.md.stage_status = ready`，且 `generation_mode: technical_plan`、`source_documents` / `selected_scope` 来源索引齐全
+- 若 `meta.yml.scenario: technical_plan_provided`：derived `requirements.md.stage_status = ready`，且 `selected_scope_ac_confirmed=true`，`technical_plan_source.selected_scope_ac_confirmation.status=confirmed`，`generation_mode: technical_plan`、`source_documents` / `selected_scope` 来源索引齐全
 
 仅当上述退出条件都满足时，`ship-orchestrator` 才允许进入 `ship-contract`。
 
@@ -101,6 +114,8 @@ spec_warnings: []
 ```
 1. 读取 meta.yml + workspace 配置；若是 `technical_plan_provided`，先从 `technical_plan_source.selected_scope` 派生最小 `requirements.md` index，否则读取已通过 `ship-define-review` 的 requirements.md
    verify: project_context、project_scope、Domain ID、AC ID、workspace、feature `meta.yml.projects` 已确认；场景 E 的 derived `requirements.md` 已限制在 selected scope 内
+1.5 Selected Scope AC Confirmation
+   verify: 已向用户展示 selected scope、In/Out of Scope、AC ID、NFR、Open Questions；用户确认后写回 requirements.md.selected_scope_ac_confirmed=true 与 meta technical_plan_source.selected_scope_ac_confirmation
 2. 执行 Project Reality Scan
    verify: 已发现与需求相关的代码、表、API、页面、服务、worker、MQ、权限、日志/metrics、测试和既有 feature 文档
 3. 建立 Requirement-to-Reality Mapping
@@ -118,8 +133,10 @@ spec_warnings: []
 9. 交叉校验 research → selection
    verify: 每个关键决策都能回指 research 证据；不得覆盖 Project Reality Scan 中的 avoid/unknown 约束
 10. 标记两个产物为 ready
-   verify: 两份文档均无 TODO/待确认阻塞项；assumptions 已显式记录；场景 E 的 derived `requirements.md` 已 ready
+   verify: 两份文档均无 TODO/待确认阻塞项；assumptions 已显式记录；场景 E 的 derived `requirements.md` 已 ready，且 `selected_scope_ac_confirmed=true`，`selected_scope_ac_confirmation.status=confirmed`
 ```
+
+若存在 `blocking_gaps`，必须保持 `stage_status: draft` 或 meta blocked，不得进入下游。
 
 ## Delegation Boundary
 
@@ -133,7 +150,7 @@ spec_warnings: []
 
 ## Part 1: Research
 
-research 子段先做 Project Reality Scan，再做外部 Technical Research。对 `new_project`，Project Reality Scan 可以写“不适用：new_project，无既有代码基线”，但章节不能消失。
+research 子段先做 Project Reality Scan，再做外部 Technical Research。对 `new_project`，Project Reality Scan 可以写“不适用：new_project，无既有代码基线”，但章节不能消失。若读取到 evolve product-brief 的“待技术验证项”，只能作为影响线索，不得直接信任为事实，必须用代码/文档/命令/用户确认重新取证。
 
 ### Project Reality Scan / 项目现状发现
 
@@ -310,7 +327,7 @@ selection 子段遵循 ADR 决策纪律：
 ```markdown
 - [ ] tech-research.md frontmatter 已设置 `stage: ship-tech-discovery` 和 `artifact_role: research`
 - [ ] tech-selection.md frontmatter 已设置 `stage: ship-tech-discovery` 和 `artifact_role: selection`
-- [ ] technical_plan_provided 场景下，derived `requirements.md` 已设置 `generation_mode: technical_plan`、`source_documents` / `selected_scope` 来源索引和 `stage_status: ready`
+- [ ] technical_plan_provided 场景下，derived `requirements.md` 已设置 `generation_mode: technical_plan`、`source_documents` / `selected_scope` 来源索引、`selected_scope_ac_confirmed=true` 和 `stage_status: ready`，且 meta `selected_scope_ac_confirmation.status=confirmed`
 - [ ] tech-research.md 包含 Project Reality Scan / Requirement-to-Reality Mapping / Existing Surface Inventory / Evidence and Uncertainty / Research Alignment Check
 - [ ] existing_project 场景下 Project Reality Scan 有真实路径、接口、表、服务、组件、配置、测试或既有 feature 文档证据
 - [ ] new_project 场景下 Project Reality Scan 写明“不适用：new_project，无既有代码基线”

@@ -116,14 +116,36 @@ def validate_requirements_file(requirements_path: Path) -> dict[str, Any]:
         issues.append(_issue("error", "invalid_stage_status", f"invalid stage_status: {stage_status!r}"))
     if generation_mode in ("raw_prd_input", "raw_prd") and ready:
         issues.append(_issue("error", "raw_prd_marked_ready", "raw PRD inbox cannot be marked ready before normalize"))
-    if generation_mode == "technical_plan" and not _technical_plan_source_present(frontmatter, body):
-        issues.append(
-            _issue(
-                "error" if ready else "warning",
-                "technical_plan_missing_source_index",
-                "technical_plan requirements must reference selected scope source_documents or equivalent source index",
+    if generation_mode == "technical_plan":
+        if not _technical_plan_source_present(frontmatter, body):
+            issues.append(
+                _issue(
+                    "error" if ready else "warning",
+                    "technical_plan_missing_source_index",
+                    "technical_plan requirements must reference selected scope source_documents or equivalent source index",
+                )
             )
-        )
+        if ready and frontmatter.get("selected_scope_ac_confirmed") is not True:
+            issues.append(
+                _issue(
+                    "error",
+                    "technical_plan_ac_not_confirmed",
+                    "technical_plan requirements cannot be ready until selected_scope_ac_confirmed: true",
+                )
+            )
+        if ready:
+            source_documents = frontmatter.get("source_documents")
+            selected_scope = frontmatter.get("selected_scope")
+            has_source_documents = bool(source_documents) if isinstance(source_documents, (list, str)) else False
+            has_selected_scope = bool(selected_scope) if isinstance(selected_scope, (list, str)) else False
+            if not has_source_documents and not has_selected_scope:
+                issues.append(
+                    _issue(
+                        "error",
+                        "technical_plan_missing_scope_coverage",
+                        "ready technical_plan requirements require selected_scope or source_documents",
+                    )
+                )
 
     domain_ids = sorted(set(DOMAIN_RE.findall(body)))
     ac_ids = sorted(set(AC_RE.findall(body)))

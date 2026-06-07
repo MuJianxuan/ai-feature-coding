@@ -77,7 +77,7 @@ description: "ShipKit stage 1 (Define). Parses requirement materials (PRD, proto
 
 在 Process 开始前，检查 `meta.yml.scenario`：
 
-1. 若 `requirements.md` 是 raw PRD inbox → 先执行 [Raw Inbox Normalize](#raw-inbox-normalize)
+1. 若 `requirements.md` 是 raw PRD inbox → 先执行 [Raw Inbox Normalize](#raw-inbox-normalize)。任何恢复或手动调用只要发现 `generation_mode: raw_prd_input` 或 `input_kind: raw_prd`，必须先执行 Raw Inbox Normalize；不得仅凭文件名 `requirements.md` 进入 review 或下游阶段
 2. 若 `scenario: prd_direct` → 跳转到 [PRD Direct Mode](#prd-direct-mode) 执行
 3. 若 `generation_mode: technical_plan` 且当前 feature 已停在 `ship-define`，或用户显式要求手动整理技术方案 selected scope → 跳转到 [Technical Plan Mode](#technical-plan-mode) 执行；新建 `scenario: technical_plan_provided` 默认不进入本阶段
 4. 否则 → 走下方标准 interview 流程
@@ -435,7 +435,7 @@ D-ORD-001 (订单创建)
 4. 根据 `meta.yml.scenario` 决定后续生成方式：
    - `prd_direct`：按 PRD Direct Mode 零提问提取，缺口标记为 `[GAP]`。
    - `product_provided`：按 Interview Mode 解析资料，并对阻塞缺口发起结构化提问。
-5. 改写 `requirements.md` 为结构化 requirements contract，frontmatter 不再使用 `generation_mode: raw_prd_input`。
+5. 改写 `requirements.md` 为结构化 requirements contract，frontmatter 不再使用 `generation_mode: raw_prd_input`。raw inbox 可作为 `ship-define` 输入材料；不可作为 `ship-define` ready 产物；不可进入 `ship-define-review`；不可被 contract/design/delivery plan 当需求事实源。
 
 ### Normalize 后的约束
 
@@ -521,6 +521,7 @@ D-ORD-001 (订单创建)
 **Step 5: 标记缺口**
 - 扫描所有章节，对 PRD 中确实缺失的关键信息标记 `[GAP]`
 - 每个 `[GAP]` 标注：缺失内容描述、影响范围、是否阻塞（阻塞 = 影响 stage_status）
+- 若 PRD Direct 因阻塞 GAP 导致 `requirements.md.stage_status=draft`，保持 `scenario=prd_direct`，要求用户补充 PRD/source material 后重新执行 D 提取；不得在 D 模式下临时采访补业务规则。若用户同意通过采访补缺口，必须显式切换为 `scenario=product_provided` / interview，并在 meta 与 requirements 中记录场景变更原因。
 
 **Step 6: 产出与自检**
 - 执行 PRD Direct Verification Checklist（见下方）
@@ -545,6 +546,9 @@ source_documents:
 extraction_gaps: []  # [GAP] 项汇总列表
 updated_at: ""
 evidence_complete: true
+selected_scope_ac_confirmed: false
+soft_gate_class: soft_blocking
+blocking_gaps: []
 ---
 ```
 
@@ -630,3 +634,5 @@ evidence_complete: true
 - [ ] 每个 AC 都绑定 Domain ID，并能回指 selected scope 来源位置
 - [ ] 没有把未选中章节、接口或模块纳入 requirements 合同
 - [ ] 缺失 AC 或用户未确认的最小 AC 草案未被标记为 ready
+
+若存在 `blocking_gaps`，必须保持 `stage_status: draft` 或 meta blocked，不得进入下游。
