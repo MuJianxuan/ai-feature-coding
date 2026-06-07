@@ -290,9 +290,9 @@
     <section class="hero">
       <div class="hero-main">
         <p class="eyebrow">ShipKit Skills Workflow · 2026-06-07 Full Analysis</p>
-        <h1>先从一个入口启动，再按五个大阶段交付。</h1>
+        <h1>一个入口启动，按事实源维护。</h1>
         <p class="hero-copy">
-          默认只和 <strong>ship-orchestrator</strong> 交互。日常视图是 <strong>[Discover →] Define → Design → Build → Close</strong>；维护视图再展开 <strong>14 个 canonical stage + 1 个 utility</strong>、frontmatter 事实源、三道 hard gate、workspace <strong>ship-spec</strong>、delegation contract、reference templates、validators 和 regression tests。
+          默认只和 <strong>ship-orchestrator</strong> 交互。日常使用看 <strong>[Discover →] Define → Design → Build → Close</strong>；开发维护看 <strong>14 个 canonical stage + 1 个 utility + 1 个 assistive hook</strong>、frontmatter 事实源、三道 hard gate、workspace <strong>ship-spec</strong>、<strong>ship-grill-me</strong> 质询边界、delegation contract、reference templates、validators 和 regression tests。
         </p>
       </div>
       <aside class="hero-side">
@@ -310,6 +310,7 @@
           <div class="mini"><strong>可执行护栏</strong><span>doctor、artifact lint、stage transition、traceability 和阶段 validators 已落地。</span></div>
           <div class="mini"><strong>安装元数据</strong><span><code>skills/agents/openai.yaml</code> 声明入口、默认视图、维护命令和 validator 清单。</span></div>
           <div class="mini"><strong>规范边界</strong><span><code>ship-spec</code> 消费 workspace 的 <code>spec_root</code>；project_group 的 <code>projects</code> 是默认执行范围。</span></div>
+          <div class="mini"><strong>质询边界</strong><span><code>ship-grill-me</code> 只做 ready / sign-off 前逐题压力测试，不改 stage、meta 或最终签字。</span></div>
         </div>
       </aside>
     </section>
@@ -387,7 +388,7 @@ review-plan.md</pre></div>
     <section class="band">
       <div class="band-header">
         <h2>完整目录分析</h2>
-        <p><code>skills/</code> 不是一组松散 prompt，而是一套产物驱动的 workflow package：入口 skill、阶段 skill、utility、模板、runtime helper、validator、测试提示和安装元数据共同构成闭环。</p>
+        <p><code>skills/</code> 不是一组松散 prompt，而是一套产物驱动的 workflow package：入口 skill、阶段 skill、utility、assistive hook、模板、runtime helper、validator、测试提示和安装元数据共同构成闭环。</p>
       </div>
       <div class="artifact-grid">
         <div class="artifact"><strong>入口与路由</strong><span><code>ship-orchestrator/SKILL.md</code> 负责 NEW / CONTINUE / INSPECT、场景 A-E 判定、workspace 解析、stage routing、gate protocol、delegation 和 spec hook；不直接产出业务阶段正文。</span></div>
@@ -396,6 +397,7 @@ review-plan.md</pre></div>
         <div class="artifact"><strong>设计链路</strong><span><code>ship-tech-discovery</code> 先 Project Reality Scan 再 selection；<code>ship-contract</code> 固定为共享契约；前后端设计可并行但必须回到设计评审收口。</span></div>
         <div class="artifact"><strong>构建与验证</strong><span><code>ship-delivery-plan</code> 拆分 frontend / backend / sync 计划；<code>ship-build</code> 按 Contract-First 单 <code>DOING</code> 执行；<code>ship-verify</code> 汇总自动化与契约验证。</span></div>
         <div class="artifact"><strong>收尾与规范</strong><span><code>ship-handoff</code> 消费 <code>verification.md</code> 做 AC 映射、风险和总结；<code>ship-spec</code> 是 utility，通过 hook 消费 workspace <code>.docs/spec</code>，不是 canonical stage。</span></div>
+        <div class="artifact"><strong>辅助质询</strong><span><code>ship-grill-me</code> 是 assistive questioning hook，只能在允许节点做 pre-ready / pre-signoff 压力测试；禁止接入 <code>ship-contract</code>、<code>ship-tech-discovery.selection</code> 和 <code>ship-delivery-plan</code>。</span></div>
         <div class="artifact"><strong>模板资产</strong><span><code>_templates/</code> 保存共享协议、meta/review/project 模板；<code>references/</code> 保存 product brief、design brief、contract、frontend/backend design 等阶段写作引导。</span></div>
         <div class="artifact"><strong>运行时护栏</strong><span><code>scripts/</code> 覆盖 stage map、meta/spec runtime、stage transition、artifact validators、build preflight、workflow doctor、doc consistency 和 unittest。</span></div>
       </div>
@@ -423,6 +425,28 @@ review-plan.md</pre></div>
         <div class="artifact"><strong><code>ship-verify</code></strong><span>测试验证。后端 unit / integration / contract、前端 component / E2E 分轨执行，主上下文统一写回 <code>verification.md</code> 测试章节。</span></div>
         <div class="artifact"><strong><code>ship-handoff</code></strong><span>交付验收。补齐 AC evidence matrix、手工验证、残余风险、部署说明、follow-up 和 spec proposal；输出 <code>handoff.md</code>。</span></div>
         <div class="artifact"><strong><code>ship-spec</code></strong><span>规范 utility。管理 workspace <code>.docs/spec/INDEX.md</code> 与 spec frontmatter，通过 hook 让设计、构建、验收引用规范；proposal-first 写回。</span></div>
+        <div class="artifact"><strong><code>ship-grill-me</code></strong><span>辅助质询 hook。一次只问一个有影响的问题并给 recommended answer；能从仓库确认的先查证据，不能替代 validator、review gate 或用户签字。</span></div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="band-header">
+        <h2>开发维护流程</h2>
+        <p>修改 skills 套件时按事实源向外同步：先改共享协议和运行时事实，再改阶段说明、模板、验证器、测试和本指南。不要只改 HTML 或只改某个阶段 prompt。</p>
+      </div>
+      <div class="rules-grid">
+        <div class="rule" style="--accent: var(--blue)"><strong>1. 定位事实源</strong><span>涉及 stage id、macro stage、frontmatter、hard gate、delegation、spec hook 时，先改 <code>workflow-protocol.md</code> 和对应 runtime helper；阶段文档只能补充，不发明新协议。</span></div>
+        <div class="rule" style="--accent: var(--green)"><strong>2. 同步阶段 skill</strong><span>只修改受影响的 <code>ship-*/SKILL.md</code>、<code>references/</code> 或 templates。每个新增字段都要说明 owner、写入时机、ready 条件和下游消费方式。</span></div>
+        <div class="rule" style="--accent: var(--violet)"><strong>3. 同步运行时</strong><span>若变更路由、stage 顺序、delegation node、workspace spec、meta schema 或 task schema，必须同步 <code>workflow_stage_map.py</code>、<code>feature_meta_runtime.py</code>、<code>spec_runtime.py</code> 或 preflight。</span></div>
+        <div class="rule" style="--accent: var(--amber)"><strong>4. 补齐验证器</strong><span>自然语言约束应尽量落到 validators：artifact、requirements、contract、design alignment、delivery plan、traceability、verification、handoff 或 <code>validate_workflow_docs.py</code>。</span></div>
+        <div class="rule" style="--accent: var(--red)"><strong>5. 更新回归场景</strong><span>流程分支、跳过规则、scope 裁剪、selected scope、UIUX Gate、grill hook 或 handoff ownership 变化时，同步 <code>tests/regression-prompts.md</code> 和脚本单测。</span></div>
+        <div class="rule" style="--accent: var(--blue)"><strong>6. 更新展示元数据</strong><span>默认入口、五阶段视图、维护命令或 validator 清单变化时，同步 <code>skills/README.md</code>、<code>skills/agents/openai.yaml</code> 和本 HTML。</span></div>
+      </div>
+      <div class="artifact-grid" style="margin-top: 14px;">
+        <div class="artifact"><strong>新增 canonical stage</strong><span>需要同时更新协议、stage map、meta template、orchestrator routing、stage skill、transition check、artifact validator、README、安装元数据和本页；不能只新增目录。</span></div>
+        <div class="artifact"><strong>新增 utility / hook</strong><span>必须明确“不进入 <code>current_stage</code>”的边界、接入点、写权限、记录位置和禁止节点；参考 <code>ship-spec</code> 与 <code>ship-grill-me</code>。</span></div>
+        <div class="artifact"><strong>新增 frontmatter 字段</strong><span>要同步 schema 解释、写入 owner、默认值、状态映射、validator 和冲突处理规则；<code>meta.yml</code> 不得变成第二套事实源。</span></div>
+        <div class="artifact"><strong>更新文档页</strong><span>本页只做可视化汇总。每次更新都应在复查清单中说明已对齐 README、共享协议、runtime、validators、tests 和安装元数据。</span></div>
       </div>
     </section>
 
@@ -490,6 +514,7 @@ review-plan.md</pre></div>
         <div class="artifact"><strong>Canonical Node</strong><span>build 辅助节点包含 <code>ship-build.read-next-task</code>、<code>ship-build.spec-scan</code>、<code>ship-build.env-precheck</code>、<code>ship-build.evidence-pack</code>。</span></div>
         <div class="artifact"><strong>Verify 轨道</strong><span><code>ship-verify.backend-unit</code>、integration、contract、frontend-component、frontend-e2e 可辅助分轨，主上下文更新 <code>verification.md</code>。</span></div>
         <div class="artifact"><strong>Warning Log</strong><span>委派解析告警写入 <code>meta.yml.delegation.warnings</code>，不得复用 <code>spec_context.warnings</code>。</span></div>
+        <div class="artifact"><strong>Grill Hook</strong><span><code>ship-grill-me</code> 不是 delegation mode，也不是 <code>node_overrides</code> 值。它只把 unresolved blocking question 写回当前产物的 Open Questions / Risk / Grill Notes。</span></div>
       </div>
     </section>
 
@@ -548,15 +573,16 @@ python3 skills/ship-orchestrator/scripts/validate_workflow_docs.py</pre>
 
     <section class="evidence">
       <h2>复查清单</h2>
-      <p>最近复查日期：2026-06-07。已完整复查 README、orchestrator、共享协议、阶段 SKILL、stage map、meta/spec runtime、templates、validators、tests、安装元数据与本页一致性；本页保持“首屏使用指南 + 后半维护细节”的信息结构，并新增目录级分析与逐 skill 职责矩阵。</p>
+      <p>最近复查日期：2026-06-07。已完整复查 README、orchestrator、共享协议、阶段 SKILL、stage map、meta/spec runtime、templates、validators、tests、安装元数据与本页一致性；本页保持“首屏使用指南 + 后半维护细节”的信息结构，并新增目录级分析、逐 skill 职责矩阵和开发维护流程。</p>
       <ul>
         <li>已把使用者入口前置：新建、继续、状态检查、PRD 直通、技术方案选区、硬门禁和维护验证。</li>
         <li>已覆盖五种入口场景：A 零到一、B 产品提供、C 迭代增强、D PRD 直通、E 技术方案选区。</li>
-        <li>已覆盖五个 macro stage、14 个 canonical stage、1 个 utility（<code>ship-spec</code>）、三道 hard gate、standard / fast-track、project_scope 裁剪和单侧 plan 规则。</li>
-        <li>已覆盖 frontmatter 事实源、<code>meta.yml</code> 索引层、delegation contract、workspace spec boundary、恢复和查询协议。</li>
+        <li>已覆盖五个 macro stage、14 个 canonical stage、1 个 utility（<code>ship-spec</code>）、1 个 assistive hook（<code>ship-grill-me</code>）、三道 hard gate、standard / fast-track、project_scope 裁剪和单侧 plan 规则。</li>
+        <li>已覆盖 frontmatter 事实源、<code>meta.yml</code> 索引层、delegation contract、workspace spec boundary、grill hook 边界、恢复和查询协议。</li>
         <li>已覆盖 doctor、artifact lint、stage transition、requirements、traceability、contract、design alignment、delivery plan、build preflight、verification、handoff 等 validators。</li>
         <li>已覆盖 <code>skills/agents/openai.yaml</code> 安装展示元数据、<code>_templates/</code>、<code>references/</code>、<code>ship-orchestrator/tests/README.md</code> 和 regression prompts。</li>
-        <li>已新增 <code>skills/</code> 目录组成分析和逐 skill 职责矩阵，明确入口、前置、需求、设计、构建、验证、收尾、utility、模板和运行时护栏边界。</li>
+        <li>已新增 <code>skills/</code> 目录组成分析和逐 skill 职责矩阵，明确入口、前置、需求、设计、构建、验证、收尾、utility、assistive hook、模板和运行时护栏边界。</li>
+        <li>已新增 skills 套件开发维护流程，明确协议、阶段 skill、runtime、validator、regression、安装元数据和本页的同步顺序。</li>
         <li>维护时请同步检查 <code>workflow-protocol.md</code>、<code>workflow_stage_map.py</code>、validators、<code>agents/openai.yaml</code> 与本页是否仍一致。</li>
       </ul>
     </section>
