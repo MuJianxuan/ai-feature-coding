@@ -68,6 +68,9 @@ description: "ShipKit pre-Define stage. Transforms vague ideas or change request
 │  7. 编写 product-brief.md                                    │
 │       │                                                     │
 │       ▼                                                     │
+│  7.5 Optional Grill Check                                    │
+│       │                                                     │
+│       ▼                                                     │
 │  8. 规格自检 (Self-Review)                                   │
 │       │                                                     │
 │       ▼                                                     │
@@ -167,6 +170,36 @@ description: "ShipKit pre-Define stage. Transforms vague ideas or change request
 - 受影响的数据模型/表结构
 - 受影响的已有 AC（如果有 requirements.md）
 - 不受影响的部分（明确标注"保持不动"）
+
+### Optional Grill Check (Step 7.5)
+
+`ship-grill-me` 可作为 `ship-discover.pre-ready` 辅助质询 hook 使用，但只在方案选择和 `product-brief.md.stage_status: ready` 前触发。它不是新 stage，不改 `meta.yml`，不替代下游 `ship-define-review`。
+
+触发条件：
+
+- greenfield：方案探索完成，用户已倾向某一方案，但目标用户、成功标准、MVP 不做项或关键替代方案仍有明显业务分支。
+- evolve：现状摘要和影响分析完成，但旧功能影响范围、消费者、兼容性或迁移风险仍不确定。
+- 用户明确要求在 product brief ready 前 "grill 一下"。
+
+执行规则：
+
+- 基于已形成的产品方向或 `product-brief.md` 草稿发问，不替代正常探索过程。
+- 代码路径、已有 feature、API、页面、DB、权限、测试命令等项目事实先查仓库，不问用户。
+- 一次只问一个问题，并给出 recommended answer。
+- blocking grill question 未解决时，`product-brief.md` 保持 draft；non-blocking question 可写入 Open Questions，并标注 `source: ship-grill-me` 与影响范围。
+
+建议记录：
+
+```markdown
+## Grill Decisions
+- GD-001:
+  - Question:
+  - Recommended answer:
+  - User decision:
+  - Evidence checked:
+  - Impact:
+  - Status: blocking | non_blocking | resolved
+```
 
 ### 规格自检 (Step 8)
 
@@ -351,6 +384,7 @@ evidence_complete: false
 #### 8. Open Questions
 - 非阻塞性问题（向下游传递，不阻止 stage_status: ready）
 - 每个问题标注影响范围和建议默认值
+- 来自 `ship-grill-me` 的非阻塞问题必须标注 `source: ship-grill-me`
 
 ## Exit Condition
 

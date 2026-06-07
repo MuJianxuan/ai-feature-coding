@@ -112,6 +112,9 @@ description: "ShipKit stage 1 (Define). Parses requirement materials (PRD, proto
 │               8. 编写 requirements.md                    │
 │                        │                                │
 │                        ▼                                │
+│               8.5 Pre-Ready Grill                       │
+│                        │                                │
+│                        ▼                                │
 │               9. 自检 (Verification Checklist)           │
 │                        │                                │
 │                        ▼                                │
@@ -317,7 +320,18 @@ evidence_complete: false  # 所有资料是否已收集完整
 - 格式：`[ ] Q-{序号}: [问题] | 影响: [High/Medium/Low] | 阻塞: [是/否]`
 - `stage_status` 只有在所有阻塞问题清零后才能设为 `ready`
 
-#### 9. 需求资料索引
+#### 9. Grill Confirmation Log（可选）
+
+当启用 `ship-grill-me` 时记录：
+
+| ID | Question | Recommended Answer | User Decision | Impact | Status |
+|---|---|---|---|---|---|
+
+- Status 只允许 `blocking` / `non_blocking` / `resolved`
+- blocking grill questions 必须 resolved 后才能 `stage_status: ready`
+- non_blocking grill questions 必须同步进入待确认问题、约束与假设或风险章节，并标注影响范围
+
+#### 10. 需求资料索引
 - `resource/` 目录下的文件清单
 - 外部链接（Figma / 墨刀 / Notion 等）
 - 每项标注类型与状态（已解析 / 待解析）
@@ -394,6 +408,7 @@ D-ORD-001 (订单创建)
 - [ ] MoSCoW 优先级已标注
 - [ ] 隐含需求已识别并记录（至少审视过以下维度：权限、并发、异常、数据一致性）
 - [ ] 待确认问题清单中无阻塞项（或已标注为 draft 状态）
+- [ ] blocking grill questions 已 resolved；non-blocking grill questions 已标注影响范围
 - [ ] 非功能需求已覆盖（性能/安全/可用性至少各一条）
 - [ ] 需求资料索引完整，所有引用资料可访问
 - [ ] Must 范围内无未确认的扩展功能或"以后可能需要"功能
@@ -401,6 +416,28 @@ D-ORD-001 (订单创建)
 - [ ] requirements.md 已通过自检（完整性、一致性、清晰度、范围、YAGNI）
 - [ ] Frontmatter 字段已正确填写
 ```
+
+### Pre-Ready Grill
+
+`ship-grill-me` 可作为 `ship-define.pre-ready` 辅助质询 hook 使用。触发点是 `requirements.md` 已基本成稿、`stage_status` 仍为 draft、准备置为 ready 前。它不替代 `ship-define-review`，不改 `meta.yml`，不直接写 hard gate 结论。
+
+质询重点：
+
+- In Scope / Out of Scope 是否真正排除了未来功能。
+- 每条 AC 是否可测试，而不是愿望描述。
+- NFR 是否量化。
+- 权限、角色、租户、数据可见性是否明确。
+- 异常流程是否覆盖。
+- Domain ID 是否能承接后续 contract / design。
+- 用户是否接受所有 assumptions。
+
+执行规则：
+
+- 一次只问一个问题，并给出 recommended answer。
+- 项目事实、现有 API / DB / 页面 / 权限 / 测试命令必须先从仓库或资料中确认。
+- blocking grill questions 必须 resolved；否则 `requirements.md.stage_status` 保持 draft。
+- non-blocking grill questions 必须进入 `Open Questions` / 待确认问题 / 假设章节，并标注影响范围。
+- `prd_direct` 模式下，grill 只追问 PRD 源材料无法判断但会影响 AC 或 scope 的点，不把 grill 变成需求录入。
 
 ### Requirements Self-Review
 
@@ -419,6 +456,7 @@ D-ORD-001 (订单创建)
 | 条件 | status |
 |------|--------|
 | 存在阻塞性待确认问题 | `draft` |
+| 存在 unresolved blocking grill question | `draft` |
 | 所有阻塞问题已解决，非阻塞问题已标注假设 | `ready` |
 | 资料未收集完整 | `draft` + `evidence_complete: false` |
 

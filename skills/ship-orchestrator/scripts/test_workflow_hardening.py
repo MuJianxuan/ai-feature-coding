@@ -26,6 +26,8 @@ from validate_tech_discovery import validate_tech_discovery
 from validate_design_alignment import validate_design_alignment
 from validate_frontend_design import validate_frontend_design
 from validate_backend_design import validate_backend_design
+from validate_workflow_docs import validate_grill_hook_docs
+from workflow_stage_map import CANONICAL_STAGE_ORDER
 from workflow_doctor import diagnose_feature
 from feature_meta_runtime import freeze_project_scope_after_design_review, sync_meta_from_artifacts, validate_scope_change_allowed
 
@@ -243,6 +245,122 @@ resource/wireframes
         result = check_transition(self.feature_dir, "ship-define-review")
 
         self.assertTrue(result["allowed"], result["issues"])
+
+    def test_ship_grill_me_is_not_canonical_stage(self) -> None:
+        self.assertNotIn("ship-grill-me", CANONICAL_STAGE_ORDER)
+        self.assertNotIn("grill-me", CANONICAL_STAGE_ORDER)
+        validate_grill_hook_docs()
+
+    def test_requirements_ready_blocks_unresolved_grill_question(self) -> None:
+        self.write_meta(current_stage="ship-define-review", define_status="ready")
+        self.write_text(
+            "requirements.md",
+            """---
+stage: ship-define
+stage_status: ready
+generation_mode: interview
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# Requirements
+
+## 3. 功能范围
+In Scope: 用户登录。
+Out of Scope: 用户注册。
+
+## 4. 业务域建模
+- D-AUTH-001 用户认证
+
+## 5. 验收标准
+- AC-AUTH-001 | D-AUTH-001 | Given 用户在登录页, When 提交正确凭证, Then 进入首页
+
+## 6. 非功能需求
+性能：登录 API P95 < 500ms。
+安全：登录接口需要认证、授权和审计。
+可用性：认证服务异常时返回明确错误。
+可访问性：表单支持键盘导航。
+
+## 8. 待确认问题清单
+- 无阻塞问题。
+
+## Grill Confirmation Log
+| ID | Question | Recommended Answer | User Decision | Impact | Status |
+|---|---|---|---|---|---|
+| GQ-001 | OAuth provider 是否固定？ | 先固定企业 SSO。 | 未确认 | 影响 AC-AUTH-001 | blocking |
+
+## 9. 需求资料索引
+- resource/prd.md 已解析
+""",
+        )
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "ready_with_blocking_grill_question" for issue in result["issues"]))
+
+    def test_design_ready_blocks_unresolved_grill_question(self) -> None:
+        self.write_meta(current_stage="ship-design-review")
+        for relative_path, stage in (
+            ("frontend-design.md", "ship-frontend-design"),
+            ("backend-design.md", "ship-backend-design"),
+        ):
+            self.write_text(
+                relative_path,
+                f"""---
+stage: {stage}
+stage_status: ready
+updated_at: "2026-05-31T10:00:00+08:00"
+evidence_complete: true
+---
+
+# Design
+
+## Design Grill Notes
+| ID | Risk / Question | Evidence | Decision | Follow-up |
+|---|---|---|---|---|
+| DG-001 | State ownership unresolved | contract checked | pending | blocking |
+""",
+            )
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        paths = {issue.get("path") for issue in result["issues"] if issue["code"] == "ready_with_blocking_grill_question"}
+        self.assertIn("frontend-design.md", paths)
+        self.assertIn("backend-design.md", paths)
+
+    def test_pre_signoff_grill_cannot_auto_approve_design_review(self) -> None:
+        self.write_meta(current_stage="ship-design-review")
+        self.write_text(
+            "review-design.md",
+            """---
+stage: ship-design-review
+gate_type: hard
+review_status: approved
+reviewer: ""
+reviewed_at: ""
+reviewed_documents: ["api-contract.md", "frontend-design.md", "backend-design.md"]
+revision_count: 0
+user_sign_off: ship-grill-me
+signed_at: "2026-05-31T10:00:00+08:00"
+conditions: []
+---
+
+# Review
+
+## Pre-Signoff Grill
+- Question: 是否接受剩余风险？
+- Recommended decision: 不批准。
+- User decision: approved_by_grill
+- Condition added:
+""",
+        )
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "grill_cannot_approve_or_sign" for issue in result["issues"]))
 
     def test_product_provided_inserted_shape_blocks_define_until_ready(self) -> None:
         self.write_meta(current_stage="ship-shape", scenario="product_provided", define_status="pending")

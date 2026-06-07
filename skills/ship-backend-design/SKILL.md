@@ -104,6 +104,8 @@ Bounded Context → 业务域（与 requirements.md 的 Domain ID 对齐）
    verify: 含初始化脚本、升级脚本规范、上线和回滚结论
 14. 制定后端非功能方案与 ready checklist
    verify: 缓存/限流/监控/observability/capacity/alerting/dependencies/Q&A 各有结论
+14.5 Pre-Ready Design Grill
+   verify: 若启用 `ship-grill-me`，service boundary、数据模型、事务一致性、权限审计和 migration / rollback risk 已逐题确认；blocking question 已 resolved
 ```
 
 ## Delegation Boundary
@@ -499,10 +501,36 @@ Test Focus 应能直接输入后续 delivery plan 和 verification 阶段，按 
 - Q&A
 - 接口映射、数据模型、事务一致性、安全、部署迁移、observability 的 ready checklist
 
+#### 14.5 Design Grill Notes（可选）
+
+`ship-grill-me` 可作为 `ship-backend-design.pre-ready` 辅助质询 hook 使用。触发点是 `backend-design.md` 基本成稿、准备 `stage_status: ready` 前。
+
+质询重点：
+
+- Service boundary 是否和 Domain ID 对齐。
+- 数据模型是否支撑 contract 字段。
+- 事务、一致性、幂等、重试、补偿是否明确。
+- 权限、审计、日志、metrics 是否落到具体实现点。
+- migration / rollback / deployment risk 是否明确。
+
+parallel ownership 约束：
+
+- 本阶段是 `parallel_owned_outputs`，`assistive_subagent` 在本阶段无效。
+- grill 由当前拥有 `backend-design.md` 的上下文执行；若本阶段由 `parallel_subagent` 产出，该子代理只在自己产物 ready 前执行内部 grill。
+- 不允许另一个 grill 子代理同时修改 `backend-design.md`，也不得修改 `frontend-design.md`。
+
+建议记录：
+
+| ID | Risk / Question | Evidence | Decision | Follow-up |
+|---|---|---|---|---|
+
+- blocking design grill question 未 resolved 时保持 draft。
+- non-blocking question 必须进入 Open Questions 或 Risk section，并写明影响范围。
+
 ### stage_status 流转规则
 
 - `draft`：业务域映射、数据模型或接口映射不完整
-- `ready`：所有 Domain 有对应模块，所有接口有实现路径，可进入设计评审
+- `ready`：所有 Domain 有对应模块，所有接口有实现路径，blocking design grill question 已 resolved，可进入设计评审
 
 ### evidence_complete 判定标准
 
@@ -564,6 +592,7 @@ Test Focus 应能直接输入后续 delivery plan 和 verification 阶段，按 
 □ deployment / rollout / rollback 是否有明确结论，或写明沿用现有部署拓扑的原因？
 □ Security Design 是否覆盖 AuthN、AuthZ、Tenant isolation、PII、Audit、Abuse prevention 和 Dependency security？
 □ 后端实现路径是否能反向追溯到 Domain ID、AC ID、Contract 和 Test Focus？
+□ 若启用 `ship-grill-me`，blocking design grill question 是否已 resolved，non-blocking question 是否已进入 Open Questions / Risk section？
 ```
 
 全部通过后，将 `stage_status` 设为 `ready`，`evidence_complete` 设为 `true`。

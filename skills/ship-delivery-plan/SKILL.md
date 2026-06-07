@@ -94,6 +94,7 @@ task_count: 0
 - 阶段内固定顺序保持 `fullstack: frontend -> backend -> sync`；`backend_only` 只执行 backend；`frontend_only` 只执行 frontend
 - 可在当前上下文中参考前一份计划来完善后一份计划，不得拆出任何子代理去起草、审计或收集阶段内材料
 - `sync` 子段是本阶段的核心收敛动作，必须由主上下文统一完成
+- `ship-grill-me` 不允许作为本阶段 hook 或子代理启动；计划疑问必须在当前主上下文内解决，或回退到上游允许的 grill hook 节点
 - 只有主上下文可以写回 task_count、`stage_status` 和阶段摘要
 
 ## Scope Adaptation

@@ -37,6 +37,21 @@ REVIEW_STAGES = frozenset({"ship-define-review", "ship-design-review", "ship-pla
 TECHNICAL_PLAN_SCAN_STATUSES = frozenset({"pending", "in_progress", "ready", "blocked"})
 AC_RE = re.compile(r"\bAC-[A-Z0-9]+-\d{3}\b")
 SOFT_BLOCKING_STAGES = frozenset({"ship-define", "ship-tech-discovery", "ship-contract", "ship-frontend-design", "ship-backend-design", "ship-delivery-plan", "ship-verify", "ship-handoff"})
+GRILL_SECTION_MARKERS = (
+    "Grill Confirmation Log",
+    "Design Grill Notes",
+    "Direction Grill Notes",
+    "Grill Decisions",
+    "Grill Alignment Notes",
+    "Pre-Signoff Grill",
+)
+GRILL_APPROVAL_MARKERS = (
+    "approved_by_grill",
+    "grill_approved",
+    "signed_by_grill",
+    "approved_by: ship-grill-me",
+    "user_sign_off: ship-grill-me",
+)
 
 
 @dataclass(frozen=True)
@@ -91,6 +106,86 @@ def read_frontmatter(path: Path) -> tuple[dict[str, Any], str]:
     if not isinstance(data, dict):
         raise ValueError("frontmatter must be a YAML mapping")
     return data, text[end + 4 :]
+
+
+def _contains_grill_section(body: str) -> bool:
+    return any(marker in body for marker in GRILL_SECTION_MARKERS)
+
+
+def _contains_unresolved_blocking_grill(body: str) -> bool:
+    if not _contains_grill_section(body):
+        return False
+    for line in body.splitlines():
+        normalized = line.strip().lower()
+        if "non_blocking" in normalized:
+            continue
+        if re.search(r"\|\s*resolved\s*\|", normalized):
+            continue
+        if re.search(r"\bstatus\s*:\s*resolved\b", normalized):
+            continue
+        if re.search(r"\|\s*blocking\s*\|", normalized):
+            return True
+        if re.search(r"\bstatus\s*:\s*blocking\b", normalized):
+            return True
+        if re.search(r"\bblocking status\s*:\s*blocking\b", normalized):
+            return True
+    return False
+
+
+def _validate_grill_records(path: str, frontmatter: dict[str, Any], body: str, kind: str) -> list[dict[str, str]]:
+    issues: list[dict[str, str]] = []
+    if not _contains_grill_section(body):
+        return issues
+
+    lowered_material = (
+        yaml.safe_dump(frontmatter, allow_unicode=True, sort_keys=False) + "\n" + body
+    ).lower()
+    for marker in GRILL_APPROVAL_MARKERS:
+        if marker in lowered_material:
+            issues.append(
+                _issue(
+                    "error",
+                    "grill_cannot_approve_or_sign",
+                    "ship-grill-me output cannot approve gates or replace user sign-off",
+                    path,
+                )
+            )
+            break
+
+    if _contains_unresolved_blocking_grill(body):
+        if kind == "review":
+            if frontmatter.get("review_status") == "approved":
+                issues.append(
+                    _issue(
+                        "error",
+                        "approved_with_blocking_grill_question",
+                        "review gate cannot be approved with unresolved blocking grill question",
+                        path,
+                    )
+                )
+        elif frontmatter.get("stage_status") == "ready":
+            issues.append(
+                _issue(
+                    "error",
+                    "ready_with_blocking_grill_question",
+                    "artifact ready cannot contain unresolved blocking grill question",
+                    path,
+                )
+            )
+
+    if path == "review-design.md" and "Pre-Signoff Grill" in body:
+        if frontmatter.get("review_status") == "approved" and (
+            not frontmatter.get("user_sign_off") or not frontmatter.get("signed_at")
+        ):
+            issues.append(
+                _issue(
+                    "error",
+                    "pre_signoff_grill_missing_user_signoff",
+                    "Pre-Signoff Grill cannot replace user_sign_off or signed_at",
+                    path,
+                )
+            )
+    return issues
 
 
 def _stage_is_active_enough(meta: dict[str, Any], stage: str) -> bool:
@@ -348,7 +443,7 @@ def _validate_artifact_spec(feature_dir: Path, meta: dict[str, Any], spec: Artif
         return None, issues
 
     try:
-        frontmatter, _body = read_frontmatter(path)
+        frontmatter, body = read_frontmatter(path)
     except ValueError as exc:
         return None, [_issue("error", "invalid_frontmatter", str(exc), spec.path)]
 
@@ -396,6 +491,8 @@ def _validate_artifact_spec(feature_dir: Path, meta: dict[str, Any], spec: Artif
             if stage_status == "complete" and not phase == "acceptance":
                 issues.append(_issue("error", "verification_complete_not_acceptance", "complete verification.md requires artifact_phase: acceptance", spec.path))
 
+    issues.extend(_validate_grill_records(spec.path, frontmatter, body, spec.kind))
+
     stage_meta = _stage_meta(meta, spec.stage)
     meta_status = stage_meta.get("status")
     if spec.kind == "review":
@@ -416,6 +513,8 @@ def _validate_artifact_spec(feature_dir: Path, meta: dict[str, Any], spec: Artif
         blocking_gaps = frontmatter.get("blocking_gaps")
         if meta_status in ("ready", "completed") and isinstance(blocking_gaps, list) and blocking_gaps:
             issues.append(_issue("error", "meta_ready_with_blocking_gaps", "meta ready/completed conflicts with artifact blocking_gaps", spec.path))
+        if meta_status in ("ready", "completed") and _contains_unresolved_blocking_grill(body):
+            issues.append(_issue("error", "meta_ready_with_blocking_grill_question", "meta ready/completed conflicts with unresolved blocking grill question", spec.path))
 
     return frontmatter, issues
 

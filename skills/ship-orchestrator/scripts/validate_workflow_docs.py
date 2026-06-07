@@ -86,6 +86,7 @@ def validate_protocol_doc() -> None:
     text = read_text(path)
     require("## 2. Macro Stage View" in text, f"{path}: missing macro stage section")
     require("## 7. Delegation Contract" in text, f"{path}: missing delegation section")
+    require("Assistive Questioning Hook" in text, f"{path}: missing assistive questioning hook section")
     require("## 8. Spec Hook Contract" in text, f"{path}: missing spec hook section")
     require(
         "macro_stage.next_user_decision" in text,
@@ -175,6 +176,120 @@ def validate_protocol_doc() -> None:
     require("强制跳过门禁" not in text, f"{path}: contains legacy hard-gate skip wording")
     for forbidden in ("自动推断", "自动下结论", "自动推出", "空字段自动"):
         require(forbidden not in text, f"{path}: contains forbidden legacy wording `{forbidden}`")
+
+
+def validate_grill_hook_docs() -> None:
+    protocol_path = ROOT / "skills/ship-orchestrator/_templates/protocol/workflow-protocol.md"
+    protocol_text = read_text(protocol_path)
+    canonical_section = protocol_text.split("## 2. Macro Stage View", 1)[0]
+    require("ship-grill-me" not in CANONICAL_STAGE_ORDER, "workflow_stage_map.py: ship-grill-me must not be canonical")
+    require("grill-me" not in CANONICAL_STAGE_ORDER, "workflow_stage_map.py: grill-me must not be canonical")
+    require("ship-grill-me" not in canonical_section, f"{protocol_path}: ship-grill-me must not appear in canonical stage list")
+    require("grill-me" not in canonical_section, f"{protocol_path}: grill-me must not appear in canonical stage list")
+
+    allowed_section = protocol_text.split("允许的 grill hook 节点：", 1)[1].split("禁止的 grill hook 节点：", 1)[0]
+    for snippet in (
+        "`pre_ready_grill`",
+        "`pre_signoff_grill`",
+        "`ship-discover.pre-ready`",
+        "`ship-shape.pre-selection`",
+        "`ship-define.pre-ready`",
+        "`ship-tech-discovery.selected-scope-ac-confirmation`",
+        "`ship-tech-discovery.research-alignment`",
+        "`ship-frontend-design.pre-ready`",
+        "`ship-backend-design.pre-ready`",
+        "`ship-design-review.pre-signoff`",
+        "6 类推荐接入点",
+    ):
+        require(snippet in protocol_text, f"{protocol_path}: missing grill hook contract `{snippet}`")
+    for forbidden in ("`ship-contract`", "`ship-tech-discovery.selection`", "`ship-delivery-plan`"):
+        require(forbidden not in allowed_section, f"{protocol_path}: forbidden grill node listed as allowed: {forbidden}")
+        require(forbidden in protocol_text.split("禁止的 grill hook 节点：", 1)[1], f"{protocol_path}: missing forbidden grill node {forbidden}")
+    for snippet in (
+        "不写 `review_status: approved`",
+        "`user_sign_off` 和 `signed_at` 必须由主上下文",
+        "unresolved blocking grill question",
+        "`assistive_subagent` 在这两个阶段无效",
+    ):
+        require(snippet in protocol_text, f"{protocol_path}: missing grill boundary `{snippet}`")
+
+    grill_skill = read_text(ROOT / "skills/ship-grill-me/SKILL.md")
+    for snippet in (
+        "name: ship-grill-me",
+        "不是 canonical stage",
+        "## Workflow Boundaries",
+        "## Grill Output",
+        "## Question Discipline",
+        "不修改 `meta.yml`",
+        "Blocking status: blocking | non_blocking | resolved",
+    ):
+        require(snippet in grill_skill, f"ship-grill-me/SKILL.md: missing `{snippet}`")
+
+    orchestrator_text = read_text(ROOT / "skills/ship-orchestrator/SKILL.md")
+    for snippet in (
+        "### Assistive Questioning",
+        "不是 delegation mode 的新取值",
+        "`ship-contract`",
+        "`ship-delivery-plan`",
+        "`ship-design-review.pre-signoff`",
+        "不得写 `review_status: approved`",
+    ):
+        require(snippet in orchestrator_text, f"ship-orchestrator/SKILL.md: missing grill wording `{snippet}`")
+
+    readme_text = read_text(ROOT / "skills/README.md")
+    require("`ship-grill-me` 是阶段内辅助质询 hook" in readme_text, "skills/README.md: missing ship-grill-me non-stage note")
+
+    stage_expectations = {
+        ROOT / "skills/ship-discover/SKILL.md": (
+            "`ship-discover.pre-ready`",
+            "## Grill Decisions",
+            "source: ship-grill-me",
+        ),
+        ROOT / "skills/ship-shape/SKILL.md": (
+            "`ship-shape.pre-selection`",
+            "## Direction Grill Notes",
+            "blocking UX state gap",
+        ),
+        ROOT / "skills/ship-define/SKILL.md": (
+            "`ship-define.pre-ready`",
+            "Grill Confirmation Log",
+            "blocking grill questions 必须 resolved",
+        ),
+        ROOT / "skills/ship-tech-discovery/SKILL.md": (
+            "`ship-tech-discovery.selected-scope-ac-confirmation`",
+            "`ship-tech-discovery.research-alignment`",
+            "selected scope grill question",
+            "Research Alignment Grill",
+        ),
+        ROOT / "skills/ship-frontend-design/SKILL.md": (
+            "`ship-frontend-design.pre-ready`",
+            "Design Grill Notes",
+            "`assistive_subagent` 在本阶段无效",
+            "不允许另一个 grill 子代理同时修改 `frontend-design.md`",
+        ),
+        ROOT / "skills/ship-backend-design/SKILL.md": (
+            "`ship-backend-design.pre-ready`",
+            "Design Grill Notes",
+            "`assistive_subagent` 在本阶段无效",
+            "不允许另一个 grill 子代理同时修改 `backend-design.md`",
+        ),
+        ROOT / "skills/ship-design-review/SKILL.md": (
+            "`ship-design-review.pre-signoff`",
+            "## Pre-Signoff Grill",
+            "不直接写 `review_status: approved`",
+            "`user_sign_off`、`signed_at`",
+        ),
+        ROOT / "skills/ship-contract/SKILL.md": (
+            "`ship-grill-me` 不允许作为本阶段 hook",
+        ),
+        ROOT / "skills/ship-delivery-plan/SKILL.md": (
+            "`ship-grill-me` 不允许作为本阶段 hook",
+        ),
+    }
+    for path, snippets in stage_expectations.items():
+        text = read_text(path)
+        for snippet in snippets:
+            require(snippet in text, f"{path}: missing grill wording `{snippet}`")
 
 
 def validate_readmes() -> None:
@@ -741,6 +856,7 @@ def main() -> int:
         validate_stage_map_script,
         validate_meta_template,
         validate_protocol_doc,
+        validate_grill_hook_docs,
         validate_readmes,
         validate_stage_reference_templates,
         validate_stage_delegation_boundaries,

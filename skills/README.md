@@ -201,6 +201,7 @@
 - 默认流程不新增 stage，也不改变 14 个 canonical stages
 - 只有 `ship-frontend-design` 与 `ship-backend-design` 是显式并行阶段
 - research 取证、计划审计、测试分轨、证据整理等可以作为辅助委派
+- `ship-grill-me` 是阶段内辅助质询 hook，用于 ready / sign-off 前逐题压力测试；它不改变 5 阶段视图，不新增 canonical stage，也不替代 review gate
 - hard gate 可由子代理起草正式 `review-*.md` 草案，但最终 `review_status`、`user_sign_off`、`signed_at` 仍由主上下文与用户完成
 - `ship-build` 正式任务推进与最终 close 决策仍由主上下文与用户完成
 

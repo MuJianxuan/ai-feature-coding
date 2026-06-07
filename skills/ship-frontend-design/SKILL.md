@@ -98,6 +98,8 @@ description: "ShipKit stage. Designs frontend architecture based on UI/UX protot
    verify: 与 requirements.md 权限模型一致
 10. 制定前端非功能方案
    verify: 性能/SEO/无障碍各至少一条
+10.5 Pre-Ready Design Grill
+   verify: 若启用 `ship-grill-me`，页面动作、UI State Matrix、API client / cache / store owner 和低证据风险已逐题确认；blocking question 已 resolved
 ```
 
 ### 步骤详解
@@ -406,10 +408,36 @@ Test Focus 应能直接输入后续 delivery plan 和 verification 阶段，按 
 - Performance budget：首屏、交互延迟、列表渲染规模、bundle 分包
 - Accessibility tests：键盘路径、focus trap、screen reader label、contrast
 
+#### 10.5 Design Grill Notes（可选）
+
+`ship-grill-me` 可作为 `ship-frontend-design.pre-ready` 辅助质询 hook 使用。触发点是 `frontend-design.md` 基本成稿、准备 `stage_status: ready` 前。
+
+质询重点：
+
+- 每个页面动作是否映射到 contract。
+- UI State Matrix 是否覆盖 loading / empty / error / permission / optimistic update。
+- 组件拆分是否服务真实复用，而非过度抽象。
+- API client / cache / store owner 是否明确。
+- 无设计稿或 generated wireframe 的风险是否被承认。
+
+parallel ownership 约束：
+
+- 本阶段是 `parallel_owned_outputs`，`assistive_subagent` 在本阶段无效。
+- grill 由当前拥有 `frontend-design.md` 的上下文执行；若本阶段由 `parallel_subagent` 产出，该子代理只在自己产物 ready 前执行内部 grill。
+- 不允许另一个 grill 子代理同时修改 `frontend-design.md`，也不得修改 `backend-design.md`。
+
+建议记录：
+
+| ID | Risk / Question | Evidence | Decision | Follow-up |
+|---|---|---|---|---|
+
+- blocking design grill question 未 resolved 时保持 draft。
+- non-blocking question 必须进入 Open Questions 或 Risk section，并写明影响范围。
+
 ### stage_status 流转规则
 
 - `draft`：页面树或映射表不完整，存在未对齐的设计资料
-- `ready`：页面树覆盖所有用户路径，映射表覆盖所有用户操作，可进入设计评审
+- `ready`：页面树覆盖所有用户路径，映射表覆盖所有用户操作，blocking design grill question 已 resolved，可进入设计评审
 
 ### evidence_complete 判定标准
 
@@ -465,6 +493,7 @@ Test Focus 应能直接输入后续 delivery plan 和 verification 阶段，按 
 □ api-contract.md 中面向前端的接口是否至少有一个页面操作消费，或说明是非前端 consumer？
 □ 401 / 403 / 404 / 409 等关键错误码是否有对应 UX 处理？
 □ 前端设计是否能追溯到 Domain ID、AC ID、Contract、Page Action 和 Test Focus？
+□ 若启用 `ship-grill-me`，blocking design grill question 是否已 resolved，non-blocking question 是否已进入 Open Questions / Risk section？
 ```
 
 全部通过后，将 `stage_status` 设为 `ready`，`evidence_complete` 设为 `true`。

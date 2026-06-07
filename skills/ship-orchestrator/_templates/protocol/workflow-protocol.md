@@ -277,6 +277,56 @@ conditions: []
 | `ship-handoff.deploy-materials` | `assistive_only` | 部署事项原材料整理 |
 | `ship-handoff.spec-proposals` | `assistive_only` | spec proposal 候选梳理 |
 
+### 7.4.1 Assistive Questioning Hook
+
+`ship-grill-me` 是阶段内辅助质询 hook，不是 canonical stage，不进入 Canonical Stage IDs、Macro Stage View、transition order、`current_stage`、`meta.yml.stages.*` 或 `node_overrides` 的 delegation mode 取值。它用于在阶段产物标记 ready 前或 hard gate 用户签字前暴露模糊分支、错误假设、未确认取舍和风险承诺。
+
+hook 类型：
+
+- `pre_ready_grill`：非 hard gate 阶段 ready 前的逐题质询。
+- `pre_signoff_grill`：hard gate 用户签字前的风险接受质询。
+
+允许的 grill hook 节点：
+
+| Hook Node | Hook Type | 触发时机 | 输出归宿 |
+|-----------|-----------|----------|----------|
+| `ship-discover.pre-ready` | `pre_ready_grill` | 方案选择后、`product-brief.md.stage_status: ready` 前 | `product-brief.md` 的 Open Questions / Grill Decisions |
+| `ship-shape.pre-selection` | `pre_ready_grill` | 3+ wireframe / design variants 产出并浏览器验证后、用户选定方向前 | `design-brief.md` 的 Direction Grill Notes |
+| `ship-define.pre-ready` | `pre_ready_grill` | `requirements.md` 成稿后、`stage_status: ready` 前 | `requirements.md` 的 Grill Confirmation Log / Open Questions |
+| `ship-tech-discovery.selected-scope-ac-confirmation` | `pre_ready_grill` | 场景 E selected scope AC 用户确认前 | `requirements.md.selected_scope_ac_confirmed` 与 `technical_plan_source.selected_scope_ac_confirmation` 的确认材料 |
+| `ship-tech-discovery.research-alignment` | `pre_ready_grill` | Research Alignment Check 发现影响 contract / design 的 unknown 时 | `tech-research.md` 的 Evidence and Uncertainty / Research Alignment Check |
+| `ship-frontend-design.pre-ready` | `pre_ready_grill` | `frontend-design.md.stage_status: ready` 前 | `frontend-design.md` 的 Design Grill Notes / Open Questions |
+| `ship-backend-design.pre-ready` | `pre_ready_grill` | `backend-design.md.stage_status: ready` 前 | `backend-design.md` 的 Design Grill Notes / Open Questions |
+| `ship-design-review.pre-signoff` | `pre_signoff_grill` | `review-design.md` 草案完成后、用户 approved 前 | `review-design.md` 的 sign-off questions / risk acceptance candidates / conditions candidates |
+
+6 类推荐接入点是：`ship-discover`、`ship-shape`、`ship-define`、`ship-tech-discovery`、`ship-frontend-design` / `ship-backend-design`、`ship-design-review`。其中 `ship-tech-discovery` 含 selected scope AC confirmation 与 research alignment 两个对齐点，frontend/backend design 分别在各自产物 owner 内执行。
+
+禁止的 grill hook 节点：
+
+- `ship-contract`
+- `ship-tech-discovery.selection`
+- `ship-delivery-plan`
+- 任何正式状态推进动作，包括写 `stage_status: ready`、写 `review_status: approved`、写 `user_sign_off` / `signed_at`、修改 `meta.yml.current_stage`
+
+hard gate 约束：
+
+- grill 输出只能作为 `review-*.md` 正文里的 open questions、sign-off questions、risk acceptance candidates 或 conditions candidates。
+- `ship-grill-me` 不替代 `review-*.md` checklist，不写 `review_status: approved`。
+- `user_sign_off` 和 `signed_at` 必须由主上下文在用户明确批准后一次性写入。
+
+parallel ownership 约束：
+
+- `ship-frontend-design` / `ship-backend-design` 是 `parallel_owned_outputs`，`assistive_subagent` 在这两个阶段无效。
+- 设计 grill 由当前拥有该设计产物的上下文执行；若该阶段本身由 `parallel_subagent` 产出，子代理只能在自己拥有的设计文档 ready 前执行内部 grill。
+- 不允许另一个 grill 子代理同时修改同一正式设计文档，也不允许互改前后端产物。
+
+记录规则：
+
+- 自动模式只生成下一问和 recommended answer，不一次性向用户抛出多题。
+- 能从仓库确认的事实必须先探索仓库，不能问用户。
+- 若存在 unresolved blocking grill question，对应 artifact 不得 `stage_status: ready`，orchestrator 不得推进下一阶段。
+- non-blocking grill question 可作为 Open Questions / Risk 传递，但必须写明影响范围和推荐默认值。
+
 ### 7.5 Delegation Warning Log
 
 delegation 解析产生的 warning 必须写入 `meta.yml.delegation.warnings`，对象结构固定为：

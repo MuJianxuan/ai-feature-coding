@@ -120,13 +120,13 @@ spec_warnings: []
 1. 读取 meta.yml + workspace 配置；若是 `technical_plan_provided`，先从 `technical_plan_source.selected_scope` 派生最小 `requirements.md` index，否则读取已通过 `ship-define-review` 的 requirements.md
    verify: project_context、project_scope、Domain ID、AC ID、workspace、feature `meta.yml.projects` 已确认；场景 E 的 derived `requirements.md` 已限制在 selected scope 内
 1.5 Selected Scope AC Confirmation
-   verify: 已向用户展示 selected scope、In/Out of Scope、AC ID、NFR、Open Questions；用户确认后写回 requirements.md.selected_scope_ac_confirmed=true 与 meta technical_plan_source.selected_scope_ac_confirmation
+   verify: 已向用户展示 selected scope、In/Out of Scope、AC ID、NFR、Open Questions；必要时用 `ship-grill-me` 逐题确认 selected scope；用户确认后写回 requirements.md.selected_scope_ac_confirmed=true 与 meta technical_plan_source.selected_scope_ac_confirmation
 2. 执行 Project Reality Scan
    verify: 已发现与需求相关的代码、表、API、页面、服务、worker、MQ、权限、日志/metrics、测试和既有 feature 文档
 3. 建立 Requirement-to-Reality Mapping
    verify: 每个关键 Domain ID / AC ID 都有 reuse / extend / replace / new / avoid / unknown 判断和证据
 4. 执行 Research Alignment Check
-   verify: 已向用户总结项目发现、准备复用/扩展的内容、不确定项和继续假设；若用户纠正，已回到代码路径重新探索
+   verify: 已向用户总结项目发现、准备复用/扩展的内容、不确定项和继续假设；若存在影响 contract 或 design 的 unknown，已用 `ship-grill-me` 逐题确认或降级；若用户纠正，已回到代码路径重新探索
 5. 执行 Technical Research
    verify: 形成 source-backed 的外部技术调研、版本核查或方案对比；无外部技术调研需求时说明不适用
 6. 写出 tech-research.md
@@ -142,6 +142,43 @@ spec_warnings: []
 ```
 
 若存在 `blocking_gaps`，必须保持 `stage_status: draft` 或 meta blocked，不得进入下游。
+
+### Selected Scope AC Grill（场景 E）
+
+`ship-grill-me` 可作为 `ship-tech-discovery.selected-scope-ac-confirmation` 辅助质询 hook 使用。仅适用于 `meta.yml.scenario: technical_plan_provided`，触发点是 selected scope 已派生最小 requirements index、进入 `ship-contract` 前。
+
+质询重点：
+
+- selected scope 是否只覆盖用户指定章节 / 接口 / 模块。
+- 未选中内容是否明确 `out_of_scope`。
+- 派生 AC 是否足以支撑后续 contract / design / delivery plan。
+- NFR 是否来自 selected scope，还是 agent 自行扩张。
+- 用户是否明确确认 selected scope AC。
+
+执行规则：
+
+- 一次只问一个 selected scope 决策，并给出 recommended answer。
+- 不把未选中技术方案内容带入 In Scope。
+- 用户确认后只写回既有字段：`requirements.md.selected_scope_ac_confirmed=true` 与 `meta.technical_plan_source.selected_scope_ac_confirmation.status=confirmed`。
+- blocking selected scope grill question 未 resolved 时，derived `requirements.md` 保持 draft，`tech-research.md` / `tech-selection.md` 不得 ready。
+
+### Research Alignment Grill
+
+`ship-grill-me` 可作为 `ship-tech-discovery.research-alignment` 辅助质询 hook 使用。触发点是 Research Alignment Check 后，尤其 existing project 中存在会影响 contract 或 design 的 `unknown`、reuse / extend / replace / new / avoid 判断与用户预期不一致，或项目现实可能推翻技术调研结论时。
+
+质询重点：
+
+- reuse / extend / replace / new / avoid 判断是否与用户预期一致。
+- `unknown` 是否应阻塞，还是按假设继续。
+- 现有 API / DB / page / service 是否有遗漏。
+- 技术调研是否被项目现实约束推翻。
+- 进入 selection 前，关键事实是否都有证据。
+
+执行规则：
+
+- 若 `unknown` 影响 contract 或 design，必须 grill；blocking 未 resolved 时 `tech-research.md` 保持 draft。
+- 若只有 low-risk unknown，可记录为 non-blocking assumption。
+- grill 结果并入 `tech-research.md` 的 `Evidence and Uncertainty` 或 `Research Alignment Check`，并写清影响范围。
 
 ## Delegation Boundary
 
@@ -250,11 +287,20 @@ Surface 类型建议包括：`DB`、`API`、`Frontend`、`Backend Service`、`Re
 ### Final Research Baseline
 - 本 research 产物基于哪些已确认事实：
 - 哪些仍是 assumptions：
+
+### Grill Alignment Notes（可选）
+- Question:
+- Recommended answer:
+- Evidence checked:
+- User decision:
+- Impact on contract/design:
+- Blocking status: blocking | non_blocking | resolved
 ```
 
 要求：
 - 若用户纠正，必须有 `Follow-up Exploration`，并回到相关代码路径重新探索
 - 若用户未明确确认但允许继续，必须记录 assumptions、风险和影响范围
+- 若启用 `ship-grill-me`，blocking grill questions 必须 resolved；non-blocking questions 必须记录影响范围
 - `tech-research.md.stage_status: ready` 不要求签字，但要求对齐记录存在
 - 不得把假设伪装成已确认事实
 
@@ -338,6 +384,7 @@ selection 子段遵循 ADR 决策纪律：
 - [ ] existing_project 场景下 Project Reality Scan 有真实路径、接口、表、服务、组件、配置、测试或既有 feature 文档证据
 - [ ] new_project 场景下 Project Reality Scan 写明“不适用：new_project，无既有代码基线”
 - [ ] Research Alignment Check 已记录用户确认、纠正或按假设继续的事实
+- [ ] 若启用 `ship-grill-me`，selected scope / research alignment 的 blocking question 已 resolved，non-blocking question 已进入 Evidence and Uncertainty 或 Research Alignment Check
 - [ ] 所有 P0/P1 调研点已完成，或明确不适用
 - [ ] 所有关键决策都有 ADR
 - [ ] 已完成 ship-spec compatibility check，并记录 `referenced_spec_ids` 或“无匹配规范”

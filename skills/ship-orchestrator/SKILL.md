@@ -304,6 +304,7 @@ Macro stage 映射：
 - 若发现 `meta.yml` 与产物 frontmatter 不一致，优先修正 `meta.yml`
 - 若进入 `ship-tech-discovery / ship-frontend-design / ship-backend-design / ship-build / ship-handoff`，先刷新 `meta.yml.spec_context` 再传递上下文
 - 若命中配置驱动节点或子代理决策节点，先读取 `meta.yml.delegation` 判定是自动解析执行方式还是询问用户
+- 若当前阶段存在 unresolved blocking `ship-grill-me` question，不得推进下一阶段；若只剩 non-blocking grill question，必须作为 Open Questions / Risk 传递并写清影响范围
 
 ### Delegation Model
 
@@ -372,6 +373,33 @@ hard gate 的运行时模型：
 - 子代理起草正式 gate 文档时，必须保持 `review_status: pending`，且 `user_sign_off`、`signed_at` 为空
 - `assistive_only` 子代理不得直接改正式产物的正文、`stage_status` / `review_status`
 - 只有主上下文可以合并子代理结果并推进 `current_stage`
+
+### Assistive Questioning
+
+`ship-grill-me` 是辅助质询 hook，不是 delegation mode 的新取值，不写入 `node_overrides`，也不改变 5 个 macro stages 或 14 个 canonical stages。orchestrator 在进入允许节点时，可根据用户请求、阶段风险或未关闭的 blocking gap 使用它做逐题压力测试。
+
+推荐接入点：
+
+1. `ship-discover.pre-ready`：方案选择后、`product-brief.md` ready 前。
+2. `ship-shape.pre-selection`：3+ wireframe / design variants 产出并浏览器验证后、用户选定方向前。
+3. `ship-define.pre-ready`：`requirements.md` 成稿后、ready 前。
+4. `ship-tech-discovery.selected-scope-ac-confirmation` 与 `ship-tech-discovery.research-alignment`：selected scope AC 确认前，或 Research Alignment Check 发现影响 contract / design 的 unknown 时。
+5. `ship-frontend-design.pre-ready` / `ship-backend-design.pre-ready`：各自设计文档 ready 前；因这两个阶段是 `parallel_owned_outputs`，grill 由当前产物 owner 内部执行，不能另启 `assistive_subagent` 修改同一正式文档。
+6. `ship-design-review.pre-signoff`：`review-design.md` 草案完成后、用户 approved 前。
+
+禁止接入点：
+
+- `ship-contract`
+- `ship-tech-discovery.selection`
+- `ship-delivery-plan`
+- 任何正式状态推进动作
+
+执行规则：
+
+- 一次只问一个问题，并给出 recommended answer。
+- 能从仓库、已有 feature 文档、API、DB、页面、权限或测试命令确认的问题，先探索证据，不问用户。
+- grill 输出只能进入当前产物正文的 Grill Notes / Open Questions / Risk section，或 hard gate 正文中的 sign-off questions / risk acceptance candidates / conditions candidates。
+- `ship-grill-me` 不替代 `review-*.md`，不得写 `review_status: approved`；`user_sign_off` 和 `signed_at` 仍必须由主上下文在用户明确批准后写入。
 
 ### Spec Hook Model
 

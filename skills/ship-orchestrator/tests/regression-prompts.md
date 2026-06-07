@@ -327,3 +327,81 @@ technical_plan_provided 的 requirements.md ready，但 AC 行没有 source loca
 - `validate_requirements.py` 报告 `technical_plan_ac_missing_source_locator` 或 `technical_plan_ac_missing_scope_boundary`
 - delivery-plan 任务不得引用未确认 AC ID
 - validator 报告 `evolve_source_missing`
+
+## 29. Discover Pre-Ready Grill
+
+```text
+启动 ship-orchestrator，我只有一句话想法，帮我在 product brief ready 前 grill 一下方案选择。
+```
+
+期望：
+
+- 识别为场景 A，`ship-grill-me` 只作为 `ship-discover.pre-ready` 辅助质询 hook
+- 不把 `ship-grill-me` 写入 canonical stage order、`current_stage` 或 `meta.yml.stages`
+- 只在产品方向草稿形成后逐题提问，并给出 recommended answer
+- blocking grill question 未 resolved 时 `product-brief.md.stage_status` 保持 draft
+
+## 30. Shape Direction Grill
+
+```text
+已有 3 个 UI 线框方案，使用 ship-grill-me 帮我选方向，但不要进入 define。
+```
+
+期望：
+
+- 使用 `ship-shape.pre-selection`，不推进到 `ship-define`
+- 浏览器验证缺失时不得用 grill 风险接受掩盖
+- 选择理由写入 `Direction Grill Notes`
+- blocking UX state gap 未 resolved 时 `design-brief.md` 不得 ready
+
+## 31. Define Pre-Ready Grill
+
+```text
+requirements.md 已成稿，ready 前用 ship-grill-me 逐题确认 scope 和 AC。
+```
+
+期望：
+
+- 使用 `ship-define.pre-ready`
+- `Grill Confirmation Log` 记录 Question、Recommended Answer、User Decision、Impact、Status
+- `validate_feature_artifacts.py` 对 unresolved blocking grill question 报告 `ready_with_blocking_grill_question`
+- non-blocking question 必须进入 Open Questions / 假设并标注影响范围
+
+## 32. Technical Plan Selected Scope Grill
+
+```text
+技术方案选区已提供，进入 contract 前用 ship-grill-me 确认 selected scope AC。
+```
+
+期望：
+
+- 使用 `ship-tech-discovery.selected-scope-ac-confirmation`
+- 只确认 selected scope，不把未选中章节、接口或模块纳入 In Scope
+- 确认后写回 `requirements.md.selected_scope_ac_confirmed=true`
+- 确认后写回 `technical_plan_source.selected_scope_ac_confirmation.status=confirmed`
+
+## 33. Parallel Design Pre-Ready Grill
+
+```text
+frontend-design.md / backend-design.md ready 前分别做设计质询，不能互改产物。
+```
+
+期望：
+
+- 分别使用 `ship-frontend-design.pre-ready` 与 `ship-backend-design.pre-ready`
+- `assistive_subagent` 在 `parallel_owned_outputs` 阶段无效
+- 当前产物 owner 只写自己的 `Design Grill Notes`
+- unresolved blocking design grill question 使对应 design artifact 保持 draft
+
+## 34. Design Review Pre-Signoff Grill
+
+```text
+review-design.md 已起草，签字前 grill 风险，但不要自动 approved。
+```
+
+期望：
+
+- 使用 `ship-design-review.pre-signoff`
+- grill 只生成 sign-off questions、risk acceptance candidates、conditions candidates
+- 不直接写 `review_status: approved`
+- approved 仍必须由主上下文在用户明确批准后一次性写入 `review_status`、`user_sign_off`、`signed_at`

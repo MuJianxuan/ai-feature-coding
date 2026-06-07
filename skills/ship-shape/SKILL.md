@@ -54,6 +54,9 @@ UIUX 原型设计是开发工作流的条件性前置阶段，在无外部设计
 │  6. 浏览器验证                                               │
 │       │                                                     │
 │       ▼                                                     │
+│  6.5 Design Direction Grill                                 │
+│       │                                                     │
+│       ▼                                                     │
 │  7. 用户选定方向 → 编写 design-brief.md                       │
 │       │                                                     │
 │       ▼                                                     │
@@ -86,6 +89,36 @@ UIUX 原型设计是开发工作流的条件性前置阶段，在无外部设计
 - 对本项目意味着什么（一句话）
 
 用户选定方向后（或混合多个方向），进入下一步。
+
+### Step 6.5: Design Direction Grill
+
+`ship-grill-me` 可作为 `ship-shape.pre-selection` 辅助质询 hook 使用。触发点是 3+ HTML wireframe / design variants 已产出并完成浏览器验证之后、用户选定方向之前。
+
+质询重点：
+
+- 选中视觉方向是否匹配目标用户和业务语境。
+- 主流程、异常态、空态、loading、权限态是否在 wireframe 中可见。
+- 移动端和桌面端是否都成立。
+- UI token 是否能被 `ship-frontend-design` 消费。
+- 用户选择是否只有主观偏好，而没有业务理由。
+
+执行规则：
+
+- 一次只问一个问题，并给出 recommended answer。
+- 不问可从 product brief、wireframe、browser verification 或项目材料确认的问题。
+- 若存在 blocking UX state gap，`design-brief.md` 不得 ready。
+- 若用户明确接受风险，可记录为 non-blocking concern，但不能掩盖缺失的 browser verification。
+
+建议记录：
+
+```markdown
+## Direction Grill Notes
+- Selected variant:
+- Rejected variants:
+- Key tradeoff accepted:
+- UX states confirmed:
+- Remaining non-blocking concerns:
+```
 
 ### Step 3: Visual System Declaration
 
@@ -295,6 +328,7 @@ resource/wireframes/
 - `design-brief.md.stage_status: ready`
 - 至少 3 个 HTML 变体在浏览器中验证通过（控制台干净、布局不崩）
 - 用户在变体中选定了主方案（写入 `design_direction`）
+- 选定方向的业务理由已写入 `Direction Grill Notes` 或等价章节；若存在 blocking UX state gap，保持 draft
 - Anti-Slop Self-Check 已完成
 
 ## Transition Rules
