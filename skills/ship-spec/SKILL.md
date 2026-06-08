@@ -51,16 +51,26 @@ workspace/
 ├── .docs/
 │   ├── ship/project.yml
 │   └── spec/
-│       ├── INDEX.md
-│       └── shared/<topic>.md
+│       ├── INDEX.md              # 顶层导航，不作为具体规范全集
+│       ├── _shared/
+│       │   ├── INDEX.md
+│       │   └── <topic>.md
+│       ├── web/
+│       │   ├── INDEX.md
+│       │   └── frontend/<topic>.md
+│       └── api/
+│           ├── INDEX.md
+│           └── backend/<topic>.md
 ├── web/
 └── api/
 ```
 
 约束：
 
-- `.docs/spec/INDEX.md` 是唯一人工路由入口；agent 在当前需求和阶段下必须先读 `INDEX.md`，再决定读取哪些 spec 文件
-- `INDEX.md` 表格只使用 `frontend / backend / shared` 三类；`shared` 仅用于 error code、date/time、trace id 等真正跨前后端规范
+- `single_project` 下 `.docs/spec/INDEX.md` 是人工路由入口
+- `project_group` 下 `.docs/spec/INDEX.md` 只做顶层导航；具体规范入口是 `.docs/spec/_shared/INDEX.md` 和 `.docs/spec/<project>/INDEX.md`
+- `project_group` 下 `<project>` 必须来自 `.docs/ship/project.yml.projects`
+- `INDEX.md` 表格只使用 `frontend / backend / shared` 三类；`_shared` 仅用于 error code、date/time、trace id 等真正跨项目规范
 - 运行时 helper 仍可读取每个规范文件的 frontmatter 做 scan / resolve / 校验；frontmatter 不新增 `spec_type` 或 `discipline`
 - `INDEX.md` 与 spec 文件 frontmatter 必须保持一致；不一致时记录 warning，默认 Warn Then Continue
 - 缺少 `INDEX.md` 时默认告警但不中断流程
@@ -84,9 +94,10 @@ workspace/
 
 规则：
 
-- 只保留 `.docs/spec/INDEX.md` 一个总索引，不新增 `.docs/spec/frontend/INDEX.md` 或 `.docs/spec/backend/INDEX.md`
+- `single_project` 只保留 `.docs/spec/INDEX.md` 一个规范索引
+- `project_group` 保留 `.docs/spec/INDEX.md` 作为导航，并为 `_shared` 和每个项目维护自己的 `INDEX.md`
 - `分类` 只允许 `frontend / backend / shared`
-- `文件路径` 使用相对 `.docs/spec/` 的路径
+- `文件路径` 使用相对当前 `INDEX.md` 所在 spec root 的路径
 - 表格是人工路由入口，不替代 spec 文件 frontmatter
 
 ## Workspace Config
@@ -109,6 +120,7 @@ projects:
 - `feature_root` 按 workspace root relative 表示
 - `project_group` 下 `projects` 必须是 workspace 下一级目录名
 - feature `projects` 是默认执行范围，不是硬安全边界
+- project_group 下 spec resolve 只能使用 `projects` 中已声明的项目名
 - 缺少 workspace 配置时，不允许 silent guess
 - workspace 无法确定时阻塞；workspace 已确定但 spec 缺失时只 warning
 
@@ -153,11 +165,11 @@ last_updated: "2026-05-23T10:00:00+08:00"
 
 | Hook 点 | 用途 | 运行时行为 |
 |--------|------|-----------|
-| `ship-tech-discovery` | 检查选型与规范兼容性 | 先读 `.docs/spec/INDEX.md`，再在 workspace `spec_root` 下按 `stage_hooks + stack_tags` 匹配 |
-| `ship-frontend-design` | 加载前端设计约束 | 先读 `INDEX.md` 中 `frontend/shared` 候选，再按 `stage_hooks + stack_tags + domains` 匹配 |
-| `ship-backend-design` | 加载后端设计约束 | 先读 `INDEX.md` 中 `backend/shared` 候选，再按 `stage_hooks + stack_tags + domains` 匹配 |
-| `ship-build` | 约束任务级实现 | 在 workspace `spec_root` 下按 `stage_hooks + applies_to` 匹配，并记录 `spec_id` |
-| `ship-handoff` | 生成待沉淀规范提案 | 汇总 `meta.yml.spec_context.referenced_spec_ids`，proposal 默认指向 workspace `spec_root` |
+| `ship-tech-discovery` | 检查选型与规范兼容性 | single 读 `.docs/spec/INDEX.md`；project_group 读 `_shared`，并按已确认目标项目读 `<project>/INDEX.md` |
+| `ship-frontend-design` | 加载前端设计约束 | 先读 `_shared`，再按 Project Reality First 确认的 UI 项目读取 `<project>/INDEX.md` 中 `frontend/shared` 候选 |
+| `ship-backend-design` | 加载后端设计约束 | 先读 `_shared`，再按 Project Reality First 确认的 API/service 项目读取 `<project>/INDEX.md` 中 `backend/shared` 候选 |
+| `ship-build` | 约束任务级实现 | project_group 必须使用任务 `project:` 定位 `<project>/INDEX.md`；再按 `stage_hooks + applies_to` 匹配 |
+| `ship-handoff` | 生成待沉淀规范提案 | 汇总 `meta.yml.spec_context.referenced_spec_ids`，proposal 指向 `_shared` 或具体 `<project>` spec root |
 
 默认策略是 **Warn Then Continue**：
 
@@ -171,20 +183,21 @@ last_updated: "2026-05-23T10:00:00+08:00"
 
 每个需要 spec 的阶段必须：
 
-1. 先读 `.docs/spec/INDEX.md`
-2. 根据当前阶段、需求 domain、project_scope、tech_stack 和涉及文件，从 `frontend / backend / shared` 分类中挑选候选 spec
-3. 再读取候选 spec 文件
-4. 把实际使用的 `spec_id` 写入对应产物的 `referenced_spec_ids` 或任务 `spec_refs`
-5. 若 INDEX 和 frontmatter 不一致，记录 warning
-6. 若找不到匹配 spec，Warn Then Continue
+1. 先根据 `.docs/ship/project.yml.workspace_mode` 判断 spec 路由
+2. `single_project` 读取 `.docs/spec/INDEX.md`；`project_group` 读取 `.docs/spec/_shared/INDEX.md`，并按当前目标项目读取 `.docs/spec/<project>/INDEX.md`
+3. 根据当前阶段、需求 domain、project_scope、tech_stack 和涉及文件，从 `frontend / backend / shared` 分类中挑选候选 spec
+4. 再读取候选 spec 文件
+5. 把实际使用的 `spec_id` 写入对应产物的 `referenced_spec_ids` 或任务 `spec_refs`
+6. 若 INDEX 和 frontmatter 不一致，记录 warning
+7. 若找不到匹配 spec，Warn Then Continue
 
 ## Runtime Helpers
 
 推荐 helper：
 
 - `python3 skills/ship-orchestrator/scripts/spec_runtime.py scan --project-config <workspace>/.docs/ship/project.yml`
-- `python3 skills/ship-orchestrator/scripts/spec_runtime.py resolve ship-build --project-config <workspace>/.docs/ship/project.yml --file web/src/app.ts`
-- `python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec <workspace>/.docs/feature-YYYYMMDD-demo/meta.yml --project-config <workspace>/.docs/ship/project.yml --stage ship-build --file web/src/app.ts`
+- `python3 skills/ship-orchestrator/scripts/spec_runtime.py resolve ship-build --project-config <workspace>/.docs/ship/project.yml --project web --file web/src/app.ts`
+- `python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec <workspace>/.docs/feature-YYYYMMDD-demo/meta.yml --project-config <workspace>/.docs/ship/project.yml --stage ship-build --project web --file web/src/app.ts`
 - `python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py record-spec-proposal <workspace>/.docs/feature-YYYYMMDD-demo/meta.yml --proposal-id proposal-001 --title "抽取统一错误处理规范" --source-stage ship-handoff --target-spec-id error-handling --summary "来自本次交付的重复错误处理模式"`
 
 约束：
@@ -193,6 +206,7 @@ last_updated: "2026-05-23T10:00:00+08:00"
 - `feature_meta_runtime.py sync-spec` 负责把最近一次解析结果同步到 `meta.yml.spec_context`
 - 阶段 skill 必须自行把 `spec_checked_at`、`referenced_spec_ids`、`spec_warnings` 写入产物或任务证据
 - 多项目父目录下必须先显式初始化 workspace config，并在 feature meta 中记录默认关联 projects
+- project_group 下 `ship-build` 必须由任务 `project:` 显式提供目标项目；不得从 `allowed_files` 路径反推
 - 本轮 runtime helper 不把 `INDEX.md` 变成唯一机器事实源；若后续增强 INDEX 表格校验，只能产生 warning，不阻塞流程
 
 ## Proposal-First Writeback

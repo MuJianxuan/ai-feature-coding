@@ -17,11 +17,13 @@ npx skills add MuJianxuan/ai-feature-coding
 
 这 5 个大阶段是默认对外视图，其中 `ship-discover` 只在场景 A（零到一）和场景 C（迭代增强）出现；`ship-shape` 默认随 A/C 激活，场景 B/D 在 UIUX Material Gate 中经用户显式授权生成 wireframe 时可临时插入。内部仍然保留细阶段、硬门禁、文档产物和恢复协议，用于精确推进与诊断。
 
-`ship-spec` 以 workflow utility 形态接入，不占用 stage map；它会在 `ship-tech-discovery`、`ship-frontend-design`、`ship-backend-design`、`ship-build`、`ship-handoff` 被自动消费并通过 `meta.yml.spec_context` 留痕。规范边界始终是 workspace，project_group 下的 `projects` 是默认执行范围，不是硬边界。
+`ship-spec` 以 workflow utility 形态接入，不占用 stage map；它会在 `ship-tech-discovery`、`ship-frontend-design`、`ship-backend-design`、`ship-build`、`ship-handoff` 被自动消费并通过 `meta.yml.spec_context` 留痕。规范边界始终是 workspace；single_project 读 `.docs/spec/INDEX.md`，project_group 读 `.docs/spec/_shared/INDEX.md`，并按当前目标项目读取 `.docs/spec/<project>/INDEX.md`。
 
-Design 大阶段现在采用 Project Reality First：已有项目上的需求必须先通过 `ship-tech-discovery` 发现真实功能、表、API、页面、服务、权限、worker/MQ、日志/metrics 和既有 feature 文档，再进入技术调研、选型、contract、frontend/backend design。规范路由从单一 `.docs/spec/INDEX.md` 开始，INDEX 只使用 `frontend / backend / shared` 分类，frontmatter schema 不新增 `spec_type`。
+Design 大阶段现在采用 Project Reality First：已有项目上的需求必须先通过 `ship-tech-discovery` 发现真实功能、表、API、页面、服务、权限、worker/MQ、日志/metrics 和既有 feature 文档，再进入技术调研、选型、contract、frontend/backend design。规范索引仍只使用 `frontend / backend / shared` 分类，frontmatter schema 不新增 `spec_type`。
 
 `technical_plan_provided`（技术方案选区）入口适用于已有项目迭代：用户提供技术方案文件或粘贴片段，并指定章节、接口、模块等 selected scope。该入口要求 `existing_project`，跳过 `ship-define` 执行阶段与 `ship-define-review` hard gate；但 `ship-tech-discovery` 会为 selected scope 派生最小 `requirements.md` index，frontmatter 仍使用 `stage: ship-define`、`generation_mode: technical_plan`，仅用于 AC traceability。不会把整份技术方案纳入计划，未选中内容默认 `out_of_scope`，进入 `ship-delivery-plan` 前仍必须通过 `ship-design-review`。
+
+源码修改屏障：除 workspace `feature_root` 下的 `feature-*` 工作流产物（默认 `.docs/feature-*`）外，任何业务源码、测试、配置、迁移、脚本或构建文件修改都必须等到 `current_stage: ship-build`，且 `review-plan.md` 已 `approved + user_sign_off + signed_at`，并通过 `stage_transition_check.py --target-stage ship-build` 与 `build_task_preflight.py`。技术方案选区入口即使从 `ship-tech-discovery` 开始，也不得在 Design / Plan / Review 阶段直接编码。
 
 Build 阶段的任务源（`frontend-plan.md`、`backend-plan.md`）都使用同一任务项合同：机器字段保留 `allowed_files`、AC refs、verification command，同时每个任务必须包含 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报。
 
@@ -73,8 +75,9 @@ Build 阶段的任务源（`frontend-plan.md`、`backend-plan.md`）都使用同
 - `skills/agents/openai.yaml`：安装后默认入口与维护命令元数据
 - `skills/ship-orchestrator/tests/regression-prompts.md`：workflow 回归场景
 - `skills/ship-*/references/`：阶段内参考模板，不属于共享协议
-- `.docs/ship/project.yml`：workspace 级显式配置，声明 `workspace_mode / workspace_name / feature_root / projects`
-- `.docs/spec/INDEX.md`：唯一人工 spec 路由入口，按 `frontend / backend / shared` 分类列出候选规范
+- `.docs/ship/project.yml`：workspace 级显式配置，声明 `workspace_mode / workspace_name / feature_root / spec_root / projects`
+- `.docs/spec/INDEX.md`：single_project 下的人工 spec 路由入口；project_group 下作为顶层导航
+- `.docs/spec/_shared/INDEX.md` 与 `.docs/spec/<project>/INDEX.md`：project_group 下的具体 spec 路由入口
 - workspace 下的 `.docs/`：默认 feature 运行时产物和规范沉淀位置
 
 ## 维护
@@ -115,7 +118,7 @@ python3 skills/ship-orchestrator/scripts/spec_runtime.py scan --project-config <
 python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py init-workspace <workspace> --workspace-mode project_group --workspace-name demo-workspace --project web --project api
 python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py init feature-YYYYMMDD-demo --project-config <workspace>/.docs/ship/project.yml --project web --project api --feature-name "Demo Feature" --feature-id "feature-YYYYMMDD-demo" --scenario product_provided
 python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py refresh <workspace>/.docs/feature-YYYYMMDD-demo/meta.yml
-python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec <workspace>/.docs/feature-YYYYMMDD-demo/meta.yml --project-config <workspace>/.docs/ship/project.yml --stage ship-build --file web/src/app.ts
+python3 skills/ship-orchestrator/scripts/feature_meta_runtime.py sync-spec <workspace>/.docs/feature-YYYYMMDD-demo/meta.yml --project-config <workspace>/.docs/ship/project.yml --stage ship-build --project web --file web/src/app.ts
 ```
 
 最小 workspace config 示例：
@@ -125,6 +128,7 @@ schema_version: 2
 workspace_mode: project_group
 workspace_name: demo-workspace
 feature_root: ".docs"
+spec_root: ".docs/spec"
 projects:
   - web
   - api

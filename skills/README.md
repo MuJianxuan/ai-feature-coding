@@ -36,10 +36,11 @@
 - 状态默认显示大阶段，不要求记住内部阶段名
 - 只有在恢复断点、排查阻塞、直接调用某阶段时，才展开内部细阶段
 - `ship-spec` 作为 workflow utility 隐式接入，不作为单独阶段暴露给默认用户视图
-- `ship-spec` 只消费 workspace 的 `spec_root`；多项目父目录下必须先初始化 `.docs/ship/project.yml`，再为 feature 选择默认关联 projects
+- `ship-spec` 只消费 workspace 的 `spec_root`；single_project 读 `.docs/spec/INDEX.md`，project_group 读 `.docs/spec/_shared/INDEX.md`，并按当前目标项目读取 `.docs/spec/<project>/INDEX.md`
 - 进入 Design 后，`ship-tech-discovery` 对已有项目必须 Project Reality First：先查真实功能、表、API、页面、服务、权限和既有 feature 文档，再做技术调研/选型
 - `technical_plan_provided` 入口直接从 `ship-tech-discovery` 开始，只计划 selected scope；不会把整份技术方案纳入计划，未选中内容默认 `out_of_scope`
-- 规范路由从单一 `.docs/spec/INDEX.md` 开始；INDEX 只区分 `frontend / backend / shared`，frontmatter schema 不新增 `spec_type`
+- 源码修改屏障：除 workspace `feature_root` 下的 `feature-*` 工作流产物（默认 `.docs/feature-*`）外，任何业务源码、测试、配置、迁移、脚本或构建文件修改都必须等到 `current_stage: ship-build`，且 `review-plan.md` 已 `approved + user_sign_off + signed_at`，并通过 `stage_transition_check.py --target-stage ship-build` 与 `build_task_preflight.py`
+- 规范索引只区分 `frontend / backend / shared`，frontmatter schema 不新增 `spec_type`；project_group 下顶层 `.docs/spec/INDEX.md` 只做导航，具体入口在 `_shared` 和 `<project>` 目录
 - Build 任务项同时保留机器字段和执行简报；`frontend-plan.md`、`backend-plan.md` 中每个任务都必须包含 `任务目标 / 上下文 / 约束 / 验收 / 输出`
 
 ## 为什么这样设计
@@ -244,7 +245,7 @@
 - `workspace_mode` 记录当前 feature 来自 `single_project` 还是 `project_group`
 - `projects` 记录本 feature 默认关联的一级项目名列表
 - `spec_context` 记录最近一次规范解析状态、已引用规范和待沉淀 proposal
-- `spec_context.workspace_mode / workspace_name / spec_root / feature_root` 记录本 feature 绑定的 workspace 解析结果
+- `spec_context.workspace_mode / workspace_name / spec_root / resolved_spec_roots / feature_root` 记录本 feature 绑定的 workspace 解析结果
 
 ## Advanced
 
@@ -266,7 +267,8 @@
 - 默认 `spec_root` 是 workspace `.docs/spec`
 - 默认 `feature_root` 是 workspace `.docs`
 - `project_group` 下 `projects` 是默认执行范围，不是硬安全边界
-- `.docs/spec/INDEX.md` 是唯一人工路由入口；agent 先读 INDEX，再按当前阶段、domain、tech_stack 和文件范围读取候选 spec
+- single_project 下 `.docs/spec/INDEX.md` 是人工路由入口；project_group 下 `.docs/spec/INDEX.md` 是顶层导航，具体入口为 `.docs/spec/_shared/INDEX.md` 和 `.docs/spec/<project>/INDEX.md`
+- project_group 下 `ship-build` 必须由任务 `project:` 显式提供目标项目，不从 `allowed_files` 路径反推
 - INDEX 分类只使用 `frontend / backend / shared`；runtime helper 仍用各 spec frontmatter 做 scan / resolve / 校验
 - 缺少 `spec_root` / `INDEX.md` / 匹配 spec 时只 warning；无法确定 workspace 时直接阻塞
 

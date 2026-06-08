@@ -140,7 +140,12 @@ def validate_protocol_doc() -> None:
         "`projects` 是默认执行范围，不是硬安全边界",
         "Project Reality Scan",
         "Research Alignment Check 是 research 子段内部的过程动作，不是 hard gate",
-        ".docs/spec/INDEX.md` 是唯一人工路由入口",
+        "Source Code Edit Barrier",
+        "源码修改",
+        "stage_transition_check.py <feature-dir> --target-stage ship-build",
+        "build_task_preflight.py <feature-dir> --project-scope",
+        ".docs/spec/_shared/INDEX.md",
+        ".docs/spec/<project>/INDEX.md",
         "frontend / backend / shared",
         "不新增 `review-tech-research.md`",
         "不新增 `review_status / user_sign_off / signed_at`",
@@ -304,6 +309,9 @@ def validate_readmes() -> None:
         require(".docs/ship/project.yml" in text or "project.yml.template" in text, f"{path}: missing workspace config wording")
         for snippet in (
             "Project Reality First",
+            "源码修改屏障",
+            "stage_transition_check.py --target-stage ship-build",
+            "build_task_preflight.py",
             ".docs/spec/INDEX.md",
             "frontend / backend / shared",
         ):
@@ -345,6 +353,7 @@ def validate_readmes() -> None:
         "Delivery Plan DAG",
         "Build Preflight",
         "Handoff Evidence",
+        "Technical Plan Direct Coding Blocked",
         "UIUX Gate Inserted Shape",
         "Technical Plan AC Confirmation",
         "Raw Inbox Recovery",
@@ -524,6 +533,11 @@ def validate_orchestrator_doc() -> None:
         "ship-design-review",
         "UIUX Material Gate",
         "awaiting_uiux_materials",
+        "Source Code Edit Barrier",
+        "源码修改屏障",
+        "stage_transition_check.py <feature-dir> --target-stage ship-build",
+        "build_task_preflight.py <feature-dir> --project-scope",
+        "初始化后直接编码",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
     require("ship-build 正式任务保持单 `DOING`" in text, f"{path}: missing build delegation wording")
@@ -595,8 +609,10 @@ def validate_ship_spec_doc() -> None:
         "workspace",
         "project_group",
         ".docs/spec/INDEX.md",
+        ".docs/spec/_shared/INDEX.md",
+        ".docs/spec/<project>/INDEX.md",
         "frontend / backend / shared",
-        "唯一人工路由入口",
+        "顶层导航",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")
     require("不是 canonical stage" in text, f"{path}: missing non-stage wording")

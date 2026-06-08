@@ -43,9 +43,10 @@ workspace 级配置模板。用于显式声明：
 - `workspace_mode`：`single_project` 或 `project_group`
 - `workspace_name`：工作区名称，默认可使用当前目录名
 - `feature_root`：feature 运行时产物目录，相对 workspace root，默认 `.docs`
+- `spec_root`：规范根目录，相对 workspace root，默认 `.docs/spec`
 - `projects`：仅 `project_group` 使用，项目名必须等于 workspace 下一级目录名
 
-这是 `ship-spec` workspace boundary 的唯一显式配置源；多项目父目录下必须先初始化 workspace config，再为 feature 选择默认关联 projects。
+这是 `ship-spec` workspace boundary 的唯一显式配置源；多项目父目录下必须先初始化 workspace config，再为 feature 选择默认关联 projects。project_group 下具体规范入口为 `.docs/spec/_shared/INDEX.md` 和 `.docs/spec/<project>/INDEX.md`。
 
 ### requirements/raw-prd-inbox.md.template
 

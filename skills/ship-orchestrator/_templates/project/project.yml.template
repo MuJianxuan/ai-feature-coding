@@ -13,6 +13,10 @@ workspace_name: ""
 # feature 需求目录根路径。默认所有需求都创建到当前 workspace 的 .docs/ 下。
 feature_root: ".docs"
 
+# 规范根路径。single_project 使用 .docs/spec/INDEX.md；
+# project_group 使用 .docs/spec/_shared/INDEX.md 和 .docs/spec/<project>/INDEX.md。
+spec_root: ".docs/spec"
+
 # 仅 workspace_mode=project_group 时使用。
 # 项目名称必须等于当前目录下的一级目录名，例如 ./web、./api。
 # 不支持 apps/web 这种二级路径。

@@ -148,8 +148,9 @@ Phase 3: 集成联调
 - 阅读任务条目中的 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报；缺失任一段落时停止，回到 plan 修正
 - 阅读"关联文件清单"中列出的所有文件，理解现状
 - 如果任务关联了 design 文档章节，读取该章节
-- 使用 `ship-spec` hook 匹配 workspace `spec_root` 下的规范文件；`--file` 必须先归一化为相对 workspace root 的路径，再与 `applies_to` 做 glob 匹配
-- 在 project_group 需求中，任务条目必须显式包含 `project:` 或在任务标题中标明目标项目
+- 使用 `ship-spec` hook 匹配 workspace `spec_root` 下的规范文件；single_project 读 `.docs/spec/INDEX.md`，project_group 读 `.docs/spec/_shared/INDEX.md` 和任务 `project:` 对应的 `.docs/spec/<project>/INDEX.md`
+- `--file` 必须先归一化为相对 workspace root 的路径，再与 `applies_to` 做 glob 匹配
+- 在 project_group 需求中，任务条目必须显式包含 `project:`；build 阶段只校验该字段，不从 `allowed_files` 路径反推目标项目
 - 将命中的 `spec_id` 写入任务的 `spec_refs`
 - 若无匹配规范或规范 frontmatter 不合法，记录 warning，但默认继续
 - 不要凭记忆或假设直接动手

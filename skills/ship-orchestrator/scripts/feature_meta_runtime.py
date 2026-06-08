@@ -435,6 +435,7 @@ def ensure_spec_context(data: dict) -> dict:
     spec_context.setdefault("workspace_mode", "")
     spec_context.setdefault("workspace_name", "")
     spec_context.setdefault("spec_root", "")
+    spec_context.setdefault("resolved_spec_roots", [])
     spec_context.setdefault("feature_root", "")
     spec_context.setdefault("resolution_source", "")
     spec_context.setdefault("index_status", "missing")
@@ -1360,6 +1361,7 @@ def sync_spec_context(
     stack_tags: list[str],
     domains: list[str],
     files: list[str],
+    projects: list[str] | tuple[str, ...] | None = None,
     project_config: Path | None = None,
     spec_root: Path | None = None,
 ) -> dict:
@@ -1390,6 +1392,7 @@ def sync_spec_context(
         stack_tags=stack_tags,
         domains=domains,
         files=files,
+        target_projects=projects,
     )
 
     spec_context = data["spec_context"]
@@ -1397,6 +1400,7 @@ def sync_spec_context(
     existing_spec_ids.update(result["matched_spec_ids"])
 
     _sync_workspace_spec_context(spec_context, workspace_context)
+    spec_context["resolved_spec_roots"] = result.get("resolved_spec_roots", [])
     spec_context["index_status"] = result["index_status"]
     spec_context["last_checked_at"] = iso_now()
     spec_context["last_checked_stage"] = stage_hook
@@ -1540,6 +1544,7 @@ def write_workspace_config(
         "workspace_mode": workspace_mode,
         "workspace_name": workspace_name,
         "feature_root": feature_root,
+        "spec_root": ".docs/spec",
         "projects": list(projects or []),
     }
     config_path.write_text(yaml.safe_dump(payload, allow_unicode=False, sort_keys=False), encoding="utf-8")
@@ -1695,6 +1700,7 @@ def build_parser() -> argparse.ArgumentParser:
     sync_parser.add_argument("--stack-tag", action="append", default=[], help="Stack tag used for spec matching")
     sync_parser.add_argument("--domain", action="append", default=[], help="Domain tag used for spec matching")
     sync_parser.add_argument("--file", action="append", default=[], help="File path used for ship-build matching")
+    sync_parser.add_argument("--project", action="append", default=[], help="Target project used for project_group spec routing")
 
     proposal_parser = subparsers.add_parser("record-spec-proposal", help="Append a pending spec proposal")
     proposal_parser.add_argument("meta_path", help="Path to meta.yml")
@@ -1796,6 +1802,7 @@ def main(argv: list[str]) -> int:
             stack_tags=args.stack_tag,
             domains=args.domain,
             files=args.file,
+            projects=args.project,
             project_config=Path(args.project_config) if args.project_config else None,
             spec_root=Path(args.spec_root) if args.spec_root else None,
         )

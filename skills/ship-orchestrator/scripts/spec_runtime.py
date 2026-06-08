@@ -64,6 +64,13 @@ class WorkspaceSpecContext:
     resolved_feature_root: Path
 
 
+@dataclass(frozen=True)
+class SpecScanRoot:
+    scope: str
+    project: str
+    root: Path
+
+
 def _load_frontmatter(path: Path) -> dict[str, Any]:
     text = path.read_text(encoding="utf-8")
     if not text.startswith("---\n"):
@@ -291,50 +298,135 @@ def _context_payload(workspace_context: WorkspaceSpecContext) -> dict[str, Any]:
     }
 
 
-def _scan_specs_with_context(workspace_context: WorkspaceSpecContext) -> dict[str, Any]:
+def _normalize_target_projects(
+    projects: tuple[str, ...] | list[str] | None,
+    workspace_context: WorkspaceSpecContext,
+    *,
+    include_all_when_empty: bool = False,
+) -> tuple[str, ...]:
+    if workspace_context.workspace_mode == "single_project":
+        if projects:
+            raise ValueError("single_project workspace does not accept target projects")
+        return ()
+
+    normalized: list[str] = []
+    for project in projects or ():
+        if not isinstance(project, str) or not project.strip():
+            raise ValueError("target projects entries must be non-empty strings")
+        name = project.strip()
+        if "/" in name or "\\" in name or name in {".", ".."}:
+            raise ValueError("target projects entries must be first-level directory names")
+        if name not in workspace_context.projects:
+            raise ValueError(f"target project `{name}` is not declared in workspace config")
+        if name not in normalized:
+            normalized.append(name)
+
+    if include_all_when_empty and not normalized:
+        return workspace_context.projects
+    return tuple(normalized)
+
+
+def _spec_scan_roots(
+    workspace_context: WorkspaceSpecContext,
+    *,
+    target_projects: tuple[str, ...] | list[str] | None = None,
+    include_all_projects_when_empty: bool = False,
+) -> list[SpecScanRoot]:
+    if workspace_context.workspace_mode == "single_project":
+        return [
+            SpecScanRoot(
+                scope="workspace",
+                project="",
+                root=workspace_context.resolved_spec_root,
+            )
+        ]
+
+    projects = _normalize_target_projects(
+        target_projects,
+        workspace_context,
+        include_all_when_empty=include_all_projects_when_empty,
+    )
+    roots = [
+        SpecScanRoot(
+            scope="shared",
+            project="_shared",
+            root=workspace_context.resolved_spec_root / "_shared",
+        )
+    ]
+    roots.extend(
+        SpecScanRoot(
+            scope="project",
+            project=project,
+            root=workspace_context.resolved_spec_root / project,
+        )
+        for project in projects
+    )
+    return roots
+
+
+def _root_payload(root: SpecScanRoot, workspace_root: Path) -> dict[str, str]:
+    return {
+        "scope": root.scope,
+        "project": root.project,
+        "root": _relative_to_workspace(root.root, workspace_root),
+    }
+
+
+def _scan_specs_with_context(
+    workspace_context: WorkspaceSpecContext,
+    *,
+    target_projects: tuple[str, ...] | list[str] | None = None,
+    include_all_projects_when_empty: bool = False,
+) -> dict[str, Any]:
     warnings: list[str] = []
     records: list[SpecRecord] = []
-    spec_root = workspace_context.resolved_spec_root
     workspace_root = workspace_context.resolved_workspace_root
+    roots = _spec_scan_roots(
+        workspace_context,
+        target_projects=target_projects,
+        include_all_projects_when_empty=include_all_projects_when_empty,
+    )
 
-    if not spec_root.exists():
-        return {
-            **_context_payload(workspace_context),
-            "index_status": "missing",
-            "warnings": [f"{workspace_context.spec_root}: spec directory does not exist"],
-            "specs": [],
-        }
+    existing_roots = [root for root in roots if root.root.exists()]
+    for root in roots:
+        if not root.root.exists():
+            warnings.append(f"{_relative_to_workspace(root.root, workspace_root)}: spec directory does not exist")
 
-    index_path = spec_root / "INDEX.md"
-    index_status = "ready" if index_path.exists() else "missing"
-    if not index_path.exists():
-        warnings.append(f"{_relative_to_workspace(index_path, workspace_root)}: missing INDEX.md registry")
+    index_status = "ready" if existing_roots else "missing"
 
     seen_ids: dict[str, str] = {}
-    for path in sorted(spec_root.rglob("*.md")):
-        if path.name == "INDEX.md":
-            continue
-        try:
-            record = _parse_spec(path, spec_root, workspace_root)
-        except ValueError as exc:
-            warnings.append(f"{_relative_to_workspace(path, workspace_root)}: invalid spec frontmatter: {exc}")
-            continue
+    record_sources: dict[str, SpecScanRoot] = {}
+    for root in existing_roots:
+        index_path = root.root / "INDEX.md"
+        if not index_path.exists():
+            warnings.append(f"{_relative_to_workspace(index_path, workspace_root)}: missing INDEX.md registry")
 
-        duplicate_path = seen_ids.get(record.spec_id)
-        if duplicate_path:
-            warnings.append(
-                f"duplicate spec_id `{record.spec_id}` in {duplicate_path} and {record.path}"
-            )
-            continue
+        for path in sorted(root.root.rglob("*.md")):
+            if path.name == "INDEX.md":
+                continue
+            try:
+                record = _parse_spec(path, root.root, workspace_root)
+            except ValueError as exc:
+                warnings.append(f"{_relative_to_workspace(path, workspace_root)}: invalid spec frontmatter: {exc}")
+                continue
 
-        seen_ids[record.spec_id] = record.path
-        records.append(record)
+            duplicate_path = seen_ids.get(record.spec_id)
+            if duplicate_path:
+                warnings.append(
+                    f"duplicate spec_id `{record.spec_id}` in {duplicate_path} and {record.path}"
+                )
+                continue
+
+            seen_ids[record.spec_id] = record.path
+            record_sources[record.spec_id] = root
+            records.append(record)
 
     if warnings and index_status == "ready":
         index_status = "invalid"
 
     return {
         **_context_payload(workspace_context),
+        "resolved_spec_roots": [_root_payload(root, workspace_root) for root in roots],
         "index_status": index_status,
         "warnings": warnings,
         "specs": [
@@ -347,6 +439,8 @@ def _scan_specs_with_context(workspace_context: WorkspaceSpecContext) -> dict[st
                 "domains": list(record.domains),
                 "applies_to": list(record.applies_to),
                 "last_updated": record.last_updated,
+                "source_scope": record_sources[record.spec_id].scope,
+                "source_project": record_sources[record.spec_id].project,
             }
             for record in records
         ],
@@ -362,6 +456,7 @@ def scan_specs(
     workspace_mode: str = "single_project",
     workspace_name: str = "",
     projects: tuple[str, ...] | list[str] | None = None,
+    target_projects: tuple[str, ...] | list[str] | None = None,
     resolution_source: str = "explicit_paths",
 ) -> dict[str, Any]:
     if workspace_context is None:
@@ -376,7 +471,11 @@ def scan_specs(
             projects=projects,
             resolution_source=resolution_source,
         )
-    return _scan_specs_with_context(workspace_context)
+    return _scan_specs_with_context(
+        workspace_context,
+        target_projects=target_projects,
+        include_all_projects_when_empty=True,
+    )
 
 
 def _normalize_requested_tags(values: list[str] | None) -> set[str]:
@@ -441,6 +540,7 @@ def resolve_specs(
     workspace_mode: str = "single_project",
     workspace_name: str = "",
     projects: tuple[str, ...] | list[str] | None = None,
+    target_projects: tuple[str, ...] | list[str] | None = None,
     resolution_source: str = "explicit_paths",
 ) -> dict[str, Any]:
     if stage_hook not in VALID_STAGE_HOOKS:
@@ -459,7 +559,18 @@ def resolve_specs(
             resolution_source=resolution_source,
         )
 
-    scan_result = scan_specs(workspace_context=workspace_context)
+    normalized_target_projects = _normalize_target_projects(
+        target_projects,
+        workspace_context,
+    )
+    if workspace_context.workspace_mode == "project_group" and stage_hook == "ship-build" and not normalized_target_projects:
+        raise ValueError("ship-build in project_group requires an explicit target project")
+
+    scan_result = _scan_specs_with_context(
+        workspace_context,
+        target_projects=normalized_target_projects,
+        include_all_projects_when_empty=False,
+    )
     stack_tag_set = _normalize_requested_tags(stack_tags)
     domain_set = _normalize_requested_tags(domains)
     file_list = _normalize_requested_files(
@@ -498,10 +609,12 @@ def resolve_specs(
     return {
         **_context_payload(workspace_context),
         "stage_hook": stage_hook,
+        "resolved_spec_roots": scan_result["resolved_spec_roots"],
         "index_status": scan_result["index_status"],
         "matched_spec_ids": [spec["spec_id"] for spec in matched_specs],
         "matched_specs": matched_specs,
         "normalized_files": file_list,
+        "target_projects": list(normalized_target_projects),
         "warnings": warnings,
     }
 
@@ -567,6 +680,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         help="File path used for ship-build applies_to matching",
     )
+    resolve_parser.add_argument(
+        "--project",
+        action="append",
+        default=[],
+        help="Target project used for project_group spec routing",
+    )
 
     return parser
 
@@ -600,6 +719,7 @@ def main(argv: list[str]) -> int:
                 stack_tags=args.stack_tag,
                 domains=args.domain,
                 files=args.file,
+                target_projects=args.project,
             )
         else:
             if not args.spec_root or not args.workspace_root:
@@ -614,6 +734,7 @@ def main(argv: list[str]) -> int:
                 files=args.file,
                 workspace_root=Path(args.workspace_root),
                 feature_root=Path(args.feature_root),
+                target_projects=args.project,
             )
         print(json.dumps(payload, ensure_ascii=True, indent=2))
         return 0

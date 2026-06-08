@@ -18,7 +18,7 @@ description: "ShipKit stage. Combines frontend and backend planning into one del
 - **Contract-First**：接口对齐任务和 checkpoint 先定义
 - **Consumer-First Planning Order**：fullstack 默认先写前端计划，再写后端计划；单侧 scope 只写对应计划。该固定顺序是计划收敛策略，先从用户路径/API consumer 视角列出前端 contract tasks，再让后端计划补齐 provider、数据、集成和测试任务，最后 sync 消除依赖错位；不做并行计划草稿是为了防止两份 plan 各自发散、sync 成本上升。
 - **Cross-Checked**：fullstack 阶段末必须做一次前后端计划一致性校验；单侧 scope 不执行双侧 sync
-- **Project-Explicit**：project_group 需求下，每个任务必须写明目标 `project:`，或在任务标题中显式标明目标项目
+- **Project-Explicit**：project_group 需求下，每个任务必须写明目标 `project:`；build 阶段只校验该字段，不从文件路径或标题反推目标项目
 
 ## When to Use
 
@@ -181,7 +181,7 @@ frontend 子段遵循前端计划规则：
 - Contract Tasks 必须排在所有页面/组件任务之前
 - 覆盖类型、API layer、Mock、共享组件、页面、集成测试
 - 每个任务至少关联一个 AC
-- 每个任务必须能看出目标项目；project_group 下优先写 `project: web`
+- 每个任务必须能看出目标项目；project_group 下必须写 `project: web`
 - 每个任务可在一次 AI 对话中完成并验证
 
 `frontend-plan.md` 必须至少包含：
@@ -199,7 +199,7 @@ backend 子段遵循后端计划规则：
 - Infrastructure Tasks 必须排在所有业务任务之前
 - 覆盖脚手架、数据库、路由骨架、中间件、业务域、集成测试、契约测试
 - 每个任务至少关联一个 AC 或 Domain / API ID
-- 每个任务必须能看出目标项目；project_group 下优先写 `project: api`
+- 每个任务必须能看出目标项目；project_group 下必须写 `project: api`
 - 每个任务可在一次 AI 对话中完成并验证
 
 `backend-plan.md` 必须至少包含：
@@ -240,7 +240,7 @@ sync 子段是新增要求，必须显式检查：
 - [ ] 实际产出的 plan frontmatter 已设置 `stage: ship-delivery-plan` 和对应 `artifact_role`
 - [ ] frontend-plan.md 中所有页面/组件已拆解为任务（非 frontend scope 标记为 `na`）
 - [ ] backend-plan.md 中所有业务域/接口已拆解为任务（非 backend scope 标记为 `na`）
-- [ ] project_group 下所有任务都显式包含 `project:` 或任务标题中的目标项目
+- [ ] project_group 下所有任务都显式包含 `project:`
 - [ ] 每个任务都包含 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报
 - [ ] 实际产出的 plan contract-first 顺序已明确
 - [ ] 实际产出的 plan 依赖关系无循环

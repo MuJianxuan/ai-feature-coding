@@ -176,6 +176,21 @@ NEW_FEATURE 启动确认模板：
   8. 进入 `ship-delivery-plan` 前必须通过 `ship-design-review`。
 - 等待用户一句话确认（"好的""开始""go"等均视为确认）
 
+### Source Code Edit Barrier（源码修改屏障）
+
+orchestrator 必须把 workflow 产物推进和业务源码修改分开处理。除 workspace `feature_root` 下 `feature-*` 目录内的工作流产物（默认 `.docs/feature-*`）、`meta.yml`、`resource/` 资料和 review / plan / discovery / design 文档外，任何业务源码、测试、配置、迁移、脚本或构建文件修改都只允许在 `ship-build` 阶段发生。
+
+在准备修改非 workspace `feature_root/feature-*` 文件前，必须先确认：
+
+1. `meta.yml.current_stage == ship-build`
+2. `review-plan.md.review_status == approved`
+3. `review-plan.md.user_sign_off` 非空
+4. `review-plan.md.signed_at` 非空
+5. `python3 skills/ship-orchestrator/scripts/stage_transition_check.py <feature-dir> --target-stage ship-build` 通过
+6. `python3 skills/ship-orchestrator/scripts/build_task_preflight.py <feature-dir> --project-scope <fullstack|backend_only|frontend_only>` 通过
+
+若任一条件不满足，必须停止源码修改，报告当前阶段和缺失门禁，并路由回对应阶段。技术方案选区入口只表示跳过 `ship-define` / `ship-define-review`，直接进入 `ship-tech-discovery`；它不允许跳过 `ship-design-review`、`ship-delivery-plan`、`ship-plan-review`，也不允许初始化后直接编码。
+
 ## Process
 
 ```
@@ -279,6 +294,7 @@ Macro stage 映射：
 - 场景 E 直接从 `ship-tech-discovery` 开始，但仍保留后续设计评审、交付计划和计划评审
 - 所有硬门禁必须通过：`ship-define-review`、`ship-design-review`、`ship-plan-review`（场景 E 跳过 define gate）
 - Build 必须消费经过 `ship-plan-review` 审批的 `frontend-plan.md` / `backend-plan.md`
+- 任何业务源码、测试、配置、迁移、脚本或构建文件修改前，必须通过 Source Code Edit Barrier；未进入 `ship-build` 时只允许修改 workflow 产物
 - 所有文档产物必须按 `project_scope` 完整产出；单侧 scope 只裁剪不适用侧，不跳过上游治理
 
 ### 路由分发机制
@@ -418,6 +434,8 @@ workspace resolution 规则：
 - CONTINUE_FEATURE 优先信任已有 `meta.yml.spec_context.workspace_*` 字段，不重新按 cwd 猜测
 - 无法确定 workspace 时阻塞；workspace 已确定但 spec 缺失时只 warning
 - feature `projects` 是默认执行范围，不是硬安全边界
+- single_project 下读取 `.docs/spec/INDEX.md`；project_group 下读取 `.docs/spec/_shared/INDEX.md`，并按当前目标项目读取 `.docs/spec/<project>/INDEX.md`
+- project_group 下 `ship-build` 必须由任务 `project:` 显式提供目标项目，不从 `allowed_files` 路径反推
 
 默认缺规策略：
 
@@ -497,7 +515,7 @@ NEW_FEATURE 模式下的目录创建流程：
 12. 初始化 `macro_stage.current`、`macro_stage.label`
 13. 初始化 `macro_stage.summary` 与 `macro_stage.next_user_decision`
 14. 初始化 `delegation.default_mode: current_context`、`ask_on_parallel_stage: true`、`ask_on_assistive_node: true`
-15. 初始化 `spec_context.workspace_mode / workspace_name / spec_root / feature_root / resolution_source`
+15. 初始化 `spec_context.workspace_mode / workspace_name / spec_root / resolved_spec_roots / feature_root / resolution_source`
 16. 将所有阶段的 status 初始化为 pending
 17. 场景 A：`current_stage: ship-discover`，不创建 raw `requirements.md` inbox，直接进入 `ship-discover`
 18. 场景 B/D：将 `stages.ship-discover.status` 和 `stages.ship-shape.status` 设为 `skipped`，`current_stage: ship-define`，`stages.ship-define.status: blocked`，`block_reason: awaiting_materials`

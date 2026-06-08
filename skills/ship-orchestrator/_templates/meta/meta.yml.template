@@ -84,6 +84,7 @@ spec_context:
   workspace_mode: ""         # single_project | project_group
   workspace_name: ""         # 来自 .docs/ship/project.yml
   spec_root: ""              # 例: ".docs/spec"
+  resolved_spec_roots: []     # 本次实际参与解析的 spec roots；project_group 例: _shared + web
   feature_root: ""           # 例: ".docs"
   resolution_source: ""      # workspace_config | meta_spec_context | explicit_paths
   index_status: missing       # missing | ready | invalid

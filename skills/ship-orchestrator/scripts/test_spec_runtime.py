@@ -241,6 +241,193 @@ last_updated: ""
         self.assertEqual(workspace_context.workspace_name, "workspace-a")
         self.assertEqual(workspace_context.projects, ("web", "api"))
 
+    def test_project_group_scan_reads_shared_and_project_spec_indexes(self) -> None:
+        (self.root / "web").mkdir()
+        (self.root / "api").mkdir()
+        config_path = self.write_project_config(
+            self.root,
+            workspace_mode="project_group",
+            projects=["web", "api"],
+        )
+        self.write_text(
+            self.spec_root / "_shared/INDEX.md",
+            "---\ndoc_type: spec-index\ndoc_status: active\nschema_version: 2\nupdated_at: \"\"\n---\n",
+        )
+        self.write_text(
+            self.spec_root / "_shared/error-codes.md",
+            """---
+spec_id: _shared/error-codes
+scope: project
+stage_hooks:
+  - ship-build
+stack_tags: []
+domains: []
+applies_to: []
+last_updated: ""
+---
+
+# Error codes
+""",
+        )
+        self.write_text(
+            self.spec_root / "web/INDEX.md",
+            "---\ndoc_type: spec-index\ndoc_status: active\nschema_version: 2\nupdated_at: \"\"\n---\n",
+        )
+        self.write_text(
+            self.spec_root / "web/frontend/react-query.md",
+            """---
+spec_id: web/react-query
+scope: module
+stage_hooks:
+  - ship-build
+stack_tags:
+  - react
+domains: []
+applies_to:
+  - "web/src/**/*.tsx"
+last_updated: ""
+---
+
+# React query
+""",
+        )
+        self.write_text(
+            self.spec_root / "api/INDEX.md",
+            "---\ndoc_type: spec-index\ndoc_status: active\nschema_version: 2\nupdated_at: \"\"\n---\n",
+        )
+        self.write_text(
+            self.spec_root / "api/backend/service.md",
+            """---
+spec_id: api/service-layer
+scope: module
+stage_hooks:
+  - ship-build
+stack_tags: []
+domains: []
+applies_to:
+  - "api/src/**/*.ts"
+last_updated: ""
+---
+
+# Service layer
+""",
+        )
+
+        result = scan_specs(workspace_context=load_project_context(config_path))
+
+        self.assertEqual(
+            sorted(spec["spec_id"] for spec in result["specs"]),
+            ["_shared/error-codes", "api/service-layer", "web/react-query"],
+        )
+        self.assertEqual(
+            [root["root"] for root in result["resolved_spec_roots"]],
+            [".docs/spec/_shared", ".docs/spec/web", ".docs/spec/api"],
+        )
+
+    def test_project_group_resolve_uses_target_project_and_shared_specs(self) -> None:
+        (self.root / "web").mkdir()
+        (self.root / "api").mkdir()
+        config_path = self.write_project_config(
+            self.root,
+            workspace_mode="project_group",
+            projects=["web", "api"],
+        )
+        self.write_text(
+            self.spec_root / "_shared/INDEX.md",
+            "---\ndoc_type: spec-index\ndoc_status: active\nschema_version: 2\nupdated_at: \"\"\n---\n",
+        )
+        self.write_text(
+            self.spec_root / "_shared/error-codes.md",
+            """---
+spec_id: _shared/error-codes
+scope: project
+stage_hooks:
+  - ship-build
+stack_tags: []
+domains: []
+applies_to: []
+last_updated: ""
+---
+
+# Error codes
+""",
+        )
+        self.write_text(
+            self.spec_root / "web/INDEX.md",
+            "---\ndoc_type: spec-index\ndoc_status: active\nschema_version: 2\nupdated_at: \"\"\n---\n",
+        )
+        self.write_text(
+            self.spec_root / "web/frontend/react-query.md",
+            """---
+spec_id: web/react-query
+scope: module
+stage_hooks:
+  - ship-build
+stack_tags:
+  - react
+domains: []
+applies_to:
+  - "web/src/**/*.tsx"
+last_updated: ""
+---
+
+# React query
+""",
+        )
+        self.write_text(
+            self.spec_root / "api/INDEX.md",
+            "---\ndoc_type: spec-index\ndoc_status: active\nschema_version: 2\nupdated_at: \"\"\n---\n",
+        )
+        self.write_text(
+            self.spec_root / "api/backend/service.md",
+            """---
+spec_id: api/service-layer
+scope: module
+stage_hooks:
+  - ship-build
+stack_tags: []
+domains: []
+applies_to:
+  - "api/src/**/*.ts"
+last_updated: ""
+---
+
+# Service layer
+""",
+        )
+
+        result = resolve_specs(
+            spec_root=None,
+            workspace_context=load_project_context(config_path),
+            stage_hook="ship-build",
+            stack_tags=["react"],
+            files=["web/src/app/page.tsx"],
+            target_projects=["web"],
+        )
+
+        self.assertEqual(result["matched_spec_ids"], ["_shared/error-codes", "web/react-query"])
+        self.assertEqual(result["target_projects"], ["web"])
+        self.assertEqual(
+            [root["root"] for root in result["resolved_spec_roots"]],
+            [".docs/spec/_shared", ".docs/spec/web"],
+        )
+
+    def test_project_group_build_requires_explicit_target_project(self) -> None:
+        (self.root / "web").mkdir()
+        config_path = self.write_project_config(
+            self.root,
+            workspace_mode="project_group",
+            projects=["web"],
+        )
+
+        with self.assertRaisesRegex(ValueError, "requires an explicit target project"):
+            resolve_specs(
+                spec_root=None,
+                workspace_context=load_project_context(config_path),
+                stage_hook="ship-build",
+                files=["web/src/app/page.tsx"],
+            )
+
     def test_project_group_rejects_nested_workspace_projects(self) -> None:
         config_path = self.write_project_config(
             self.root,
@@ -256,11 +443,11 @@ last_updated: ""
         (workspace_root / "project-a").mkdir()
         spec_root = workspace_root / ".docs/spec"
         self.write_text(
-            spec_root / "INDEX.md",
+            spec_root / "project-a/INDEX.md",
             "---\ndoc_type: spec-index\ndoc_status: active\nschema_version: 2\nupdated_at: \"\"\n---\n",
         )
         self.write_text(
-            spec_root / "coding/backend.md",
+            spec_root / "project-a/coding/backend.md",
             """---
 spec_id: backend-rule
 scope: file
@@ -287,6 +474,7 @@ last_updated: "2026-05-29T10:00:00+08:00"
                 workspace_context=load_project_context(config_path),
                 stage_hook="ship-build",
                 files=["project-a/src/app.ts"],
+                target_projects=["project-a"],
             )
         finally:
             os.chdir(previous_cwd)

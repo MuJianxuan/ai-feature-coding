@@ -151,6 +151,19 @@ backend_only feature 目录里出现 frontend-plan.md，或 frontend_only 目录
 - `stage_transition_check.py --target-stage ship-delivery-plan` 不允许推进
 - 缺少 `review-design.md approved + user_sign_off + signed_at` 时阻塞
 
+## 13b. Technical Plan Direct Coding Blocked
+
+```text
+这是技术方案片段，只计划 POST /api/v1/orders/export 这一部分。初始化后直接按方案改代码实现。
+```
+
+期望：
+
+- 初始化后 `current_stage = ship-tech-discovery`
+- 不修改业务源码、测试、配置、迁移、脚本或构建文件
+- orchestrator 报告 Source Code Edit Barrier 阻塞
+- 只有 `stage_transition_check.py --target-stage ship-build` 通过，且 `review-plan.md approved + user_sign_off + signed_at`、`build_task_preflight.py` 通过后，才允许进入 `ship-build` 编码
+
 ## 14. Technical Plan Plan Contains Unselected Task
 
 ```text
