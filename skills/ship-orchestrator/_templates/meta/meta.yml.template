@@ -42,8 +42,20 @@ projects: []
 project_scope: fullstack          # fullstack | backend_only | frontend_only
 project_scope_evidence: ""        # 例: "用户明确声明纯后端 API 项目；tech_stack、surface、consumer/entrypoint、边界四类证据一致"
 
+scope_freeze:
+  status: open                    # open | frozen | reopened
+  frozen_scope: ""
+  frozen_at: ""
+  frozen_by_gate: ""
+  user_sign_off: ""
+  reopen_reason: ""
+  reopened_at: ""
+
 # 用户确认的跳过/强制推进记录
 skip_log: []
+
+# append-only 用户确认审计记录；hard gate approval 必须引用 confirmation_id
+confirmation_log: []
 
 # 显式场景变更记录，例如 prd_direct 因阻塞 GAP 经用户确认切换为 product_provided/interview
 scenario_change_log: []

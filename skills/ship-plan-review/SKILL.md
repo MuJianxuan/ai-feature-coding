@@ -91,6 +91,14 @@ Review Checklist 调整：
 - 双侧对齐检查项（checkpoint 一致性、contract task 时间线对齐、循环依赖）在单侧模式下标记为 `na`
 - `reviewed_documents` 只列出实际评审的文档
 
+
+### User Sign-off Audit
+
+- 子代理或辅助检查只能起草 `review-plan.md`，frontmatter 必须保持 `review_status: pending`，且 `user_sign_off`、`signed_at`、`confirmation_id` 为空。
+- 只有主上下文在用户明确批准后，才可一次性写入 `review_status: approved`、`user_sign_off`、`signed_at` 和 `confirmation_id`。
+- 同一次批准必须追加 `meta.yml.confirmation_log`，条目 `type: hard_gate_signoff`、`stage: ship-plan-review`、`artifact: review-plan.md`、`actor: user`、`source: current_session`。
+- `confirmation_id` 必须能匹配该 confirmation log 条目；缺失时 legacy validator 可 warning，strict / implementation preflight 必须阻塞。
+
 ## Review Checklist
 
 评审时必须逐项检查：

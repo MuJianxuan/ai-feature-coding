@@ -84,8 +84,7 @@ Feature 未满足 `ship-build` 前置条件：
 - 或 `review-plan.md` 不是 `review_status: approved`
 - 或 `review-plan.md.user_sign_off` 为空
 - 或 `review-plan.md.signed_at` 为空
-- 或 `stage_transition_check.py --target-stage ship-build` 不通过
-- 或 `build_task_preflight.py` 不通过
+- 或 `implementation_preflight.py --files <paths...>` 不通过
 
 ### 检测方法
 
@@ -220,11 +219,11 @@ python3 skills/ship-orchestrator/scripts/validate_feature_artifacts.py <feature_
 
 ### 退出流程
 
-1. 回复要求用户明确退出 ShipKit
-2. 说明退出后将不再强制 workflow 门禁
-3. 等待用户明确确认退出
-4. 若用户确认退出，记录退出日志
-5. 本 skill 停止参与后续直接编码
+1. 只有用户明确说“退出 ShipKit”或 “stop ShipKit workflow” 才可启动退出；“直接做”“先开发”“我确认”都不是退出
+2. agent 必须复述后果：退出后将不再强制 workflow gate / Source Code Edit Barrier
+3. 等待用户二次明确确认退出
+4. 若用户二次确认退出，写入 `meta.yml.confirmation_log`：`type: shipkit_exit`、当前 `stage`、`reason`、`actor: user`、`source: current_session`
+5. 本 skill 停止参与后续直接编码；未完成二次确认时仍按 Source Code Edit Barrier 阻塞
 
 ### 退出后行为
 

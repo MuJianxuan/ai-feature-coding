@@ -14,11 +14,12 @@ python3 -m unittest skills/ship-orchestrator/scripts/test_workflow_hardening.py 
 
 本轮 workflow hardening 的自动回归集中在 `test_workflow_hardening.py`，覆盖：
 
-- B/D UIUX Gate inserted `ship-shape` transition。
-- D + `backend_only` contract material hard gate。
-- E technical_plan derived requirements AC/source completeness。
-- `project_scope` design-review 后冻结。
-- scenario/scope forbidden artifacts、raw inbox、delivery plan task schema。
+- P0 Source Code Edit Barrier：`current_stage == ship-build`、`implementation_preflight.py --files`、`allowed_files` 覆盖、非法 `allowed_files` path/glob。
+- P0 Workspace Boundary：`spec_root` / `feature_root` 禁止 `../` 与绝对路径逃逸，gate/preflight/doctor 统一校验 `feature_dir` 位于 workspace `feature_root/feature-*`。
+- P0/P1 Hard Gate Audit：`confirmation_log` + `confirmation_id` legacy warning / strict blocking，子代理草案不得自签。
+- P1 Resume Diagnostics：`workflow_doctor.py` 报告提前实现、越界实现、worktree status 与 workflow events。
+- P1 Traceability / Aggregation：`validate_traceability.py --strict --stage` 和 `validate_all.py --strict` 聚合输出。
+- 既有业务规则：B/D UIUX Gate、D backend_only contract material、E technical_plan selected scope、scope freeze、raw inbox、delivery plan task schema。
 
 推荐 preflight：
 

@@ -12,7 +12,7 @@ from typing import Any
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
-from feature_meta_runtime import load_meta  # noqa: E402
+from feature_meta_runtime import load_meta, resolve_and_validate_feature_dir  # noqa: E402
 from validate_feature_artifacts import ARTIFACTS_BY_STAGE, REVIEW_STAGES, validate_feature  # noqa: E402
 from workflow_stage_map import CANONICAL_STAGE_ORDER  # noqa: E402
 from workflow_invariants import (  # noqa: E402
@@ -143,6 +143,17 @@ def _scope_freeze_transition_issues(meta: dict[str, Any], validation: dict[str, 
 
 def check_transition(feature_dir: Path, target_stage: str) -> dict[str, Any]:
     feature_dir = feature_dir.resolve()
+    feature_context = None
+    try:
+        feature_context = resolve_and_validate_feature_dir(feature_dir)
+        feature_dir = feature_context.feature_dir
+    except Exception as exc:
+        return {
+            "feature_dir": str(feature_dir),
+            "target_stage": target_stage,
+            "allowed": False,
+            "issues": [_issue("error", "invalid_feature_dir", str(exc))],
+        }
     if target_stage not in CANONICAL_STAGE_ORDER:
         return {
             "feature_dir": str(feature_dir),
@@ -178,6 +189,9 @@ def check_transition(feature_dir: Path, target_stage: str) -> dict[str, Any]:
 
     return {
         "feature_dir": str(feature_dir),
+        "workspace_root": str(feature_context.workspace_root) if feature_context else None,
+        "feature_root": str(feature_context.feature_root) if feature_context else None,
+        "feature_dir_validated": feature_context is not None,
         "current_stage": current_stage,
         "target_stage": target_stage,
         "allowed": not any(issue["level"] == "error" for issue in issues),

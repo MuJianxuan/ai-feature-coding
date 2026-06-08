@@ -18,8 +18,10 @@ from validate_feature_artifacts import validate_feature
 from validate_contract import validate_contract_file
 from validate_delivery_plan import validate_delivery_plan
 from build_task_preflight import build_task_preflight
+from implementation_preflight import implementation_preflight
 from validate_requirements import validate_requirements_file
 from validate_traceability import validate_traceability
+from validate_all import validate_all
 from validate_verification import validate_verification_file
 from validate_handoff import validate_handoff
 from validate_tech_discovery import validate_tech_discovery
@@ -29,18 +31,31 @@ from validate_backend_design import validate_backend_design
 from validate_workflow_docs import validate_grill_hook_docs
 from workflow_stage_map import CANONICAL_STAGE_ORDER
 from workflow_doctor import diagnose_feature
-from feature_meta_runtime import freeze_project_scope_after_design_review, sync_meta_from_artifacts, validate_scope_change_allowed
+from feature_meta_runtime import append_workflow_event, freeze_project_scope_after_design_review, sync_meta_from_artifacts, validate_scope_change_allowed
 
 
 class WorkflowHardeningTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tempdir = tempfile.TemporaryDirectory()
         self.root = Path(self.tempdir.name)
-        self.feature_dir = self.root / "feature-demo"
+        self.feature_dir = self.root / ".docs" / "feature-demo"
         self.feature_dir.mkdir(parents=True)
+        self.write_root_text(".docs/ship/project.yml", yaml.safe_dump({
+            "schema_version": 2,
+            "workspace_mode": "single_project",
+            "workspace_name": "test-workspace",
+            "feature_root": ".docs",
+            "spec_root": ".docs/spec",
+            "projects": [],
+        }, sort_keys=False))
 
     def tearDown(self) -> None:
         self.tempdir.cleanup()
+
+    def write_root_text(self, relative_path: str, content: str) -> None:
+        path = self.root / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
 
     def write_text(self, relative_path: str, content: str) -> None:
         path = self.feature_dir / relative_path
@@ -405,6 +420,41 @@ conditions: []
 
         self.assertTrue(result["allowed"], result["issues"])
         self.assertNotIn("ship-shape", result["checked_previous_stages"])
+
+    def test_approved_gate_missing_confirmation_id_warns_legacy_and_errors_strict(self) -> None:
+        self.write_meta(current_stage="ship-define-review", define_review_status="approved")
+        self.write_requirements(status="ready")
+        self.write_define_review(status="approved", signed=True)
+
+        legacy = validate_feature(self.feature_dir)
+        strict = validate_feature(self.feature_dir, strict_confirmation=True)
+
+        self.assertTrue(any(issue["code"] == "missing_confirmation_id" and issue["level"] == "warning" for issue in legacy["issues"]), legacy["issues"])
+        self.assertFalse(strict["ok"])
+        self.assertTrue(any(issue["code"] == "missing_confirmation_id" and issue["level"] == "error" for issue in strict["issues"]), strict["issues"])
+
+    def test_approved_gate_confirmation_id_must_match_log(self) -> None:
+        self.write_meta(current_stage="ship-define-review", define_review_status="approved")
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["confirmation_log"] = []
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+        self.write_requirements(status="ready")
+        self.write_text("review-define.md", "---\nstage: ship-define-review\ngate_type: hard\nreview_status: approved\nuser_sign_off: approved\nsigned_at: '2026-05-31T10:00:00+08:00'\nconfirmation_id: CONF-MISSING\n---\n")
+
+        result = validate_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "confirmation_id_not_found" for issue in result["issues"]), result["issues"])
+
+    def test_workflow_doctor_reports_last_workflow_events(self) -> None:
+        self.write_meta(current_stage="ship-define")
+        append_workflow_event(self.feature_dir, event_type="stage_transition", actor="agent", stage="ship-define", summary="advanced to define")
+        append_workflow_event(self.feature_dir, event_type="validator_run", actor="agent", stage="ship-define", summary="validate_feature failed", issues=[{"code": "demo"}])
+
+        result = diagnose_feature(self.feature_dir)
+
+        self.assertEqual(result["last_transition_event"]["type"], "stage_transition")
+        self.assertEqual(result["last_validator_event"]["type"], "validator_run")
 
     def test_unsigned_approved_gate_blocks_transition(self) -> None:
         self.write_meta(current_stage="ship-define-review", define_review_status="approved")
@@ -833,6 +883,39 @@ Out of Scope: 订单导入。
         self.assertFalse(result["ok"])
         self.assertTrue(any(issue["code"] == "technical_plan_ac_missing_source_locator" for issue in result["issues"]))
 
+    def test_traceability_strict_verify_blocks_missing_test_links(self) -> None:
+        self.write_requirements(status="ready")
+        self.write_text("api-contract.md", "AC-AUTH-001\n")
+        self.write_text("backend-plan.md", "AC-AUTH-001\n")
+
+        result = validate_traceability(self.feature_dir, strict=True, stage="ship-verify")
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(any(issue["code"] == "ac_trace_gap" and issue["level"] == "error" for issue in result["issues"]), result["issues"])
+
+    def test_validate_all_aggregates_checks(self) -> None:
+        self.write_meta(current_stage="ship-verify")
+        self.write_requirements(status="ready")
+
+        result = validate_all(self.feature_dir, strict=True)
+
+        self.assertFalse(result["ok"])
+        self.assertGreaterEqual(len(result["checks"]), 5)
+        self.assertGreater(result["errors_count"], 0)
+
+    def test_workflow_doctor_reports_implementation_change_before_build(self) -> None:
+        self.write_meta(current_stage="ship-plan-review")
+        self.write_requirements(status="ready")
+        import subprocess
+        subprocess.run(["git", "init"], cwd=self.root, check=True, stdout=subprocess.DEVNULL)
+        self.write_root_text("src/auth.ts", "export const changed = true;\n")
+
+        result = diagnose_feature(self.feature_dir)
+
+        self.assertFalse(result["ok"])
+        self.assertIn("src/auth.ts", result["implementation_changes"])
+        self.assertTrue(any(issue["code"] == "implementation_changes_before_build_gate" for issue in result["issues"]), result["issues"])
+
     def test_traceability_reports_ac_gaps_and_orphans(self) -> None:
         self.write_requirements(status="ready")
         self.write_text(
@@ -1084,6 +1167,76 @@ AC-AUTH-001 通过。
         self.assertFalse(result["ok"])
         self.assertTrue(any(issue["code"] == "task_missing_brief_section" and "上下文" in issue["message"] for issue in result["issues"]))
 
+    def prepare_build_ready_feature(self, *, current_stage: str = "ship-build", allowed_files: str = "src/auth.ts") -> None:
+        self.write_meta(current_stage=current_stage, scenario="product_provided", project_scope="backend_only", project_scope_evidence="backend only", define_review_status="approved")
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        for stage in ("ship-define", "ship-tech-discovery", "ship-contract", "ship-backend-design", "ship-delivery-plan"):
+            meta["stages"][stage]["status"] = "ready"
+        for stage in ("ship-define-review", "ship-design-review", "ship-plan-review"):
+            meta["stages"][stage]["status"] = "approved"
+            meta["stages"][stage]["approved"] = True
+        meta["confirmation_log"] = [
+            {
+                "id": "CONF-PLAN-001",
+                "type": "hard_gate_signoff",
+                "stage": "ship-plan-review",
+                "artifact": "review-plan.md",
+                "user_sign_off": "approved by user",
+                "signed_at": "2026-05-31T10:00:00+08:00",
+                "actor": "user",
+                "source": "current_session",
+                "message_excerpt": "approved plan",
+            }
+        ]
+        meta["scope_freeze"] = {
+            "status": "frozen",
+            "frozen_scope": "backend_only",
+            "frozen_at": "2026-05-31T10:00:00+08:00",
+            "frozen_by_gate": "ship-design-review",
+            "user_sign_off": "approved by user",
+            "reopen_reason": "",
+        }
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+        self.write_requirements(status="ready")
+        self.write_define_review(status="approved", signed=True)
+        self.write_research_ready(self.valid_research_body())
+        self.write_selection_ready()
+        self.write_contract_ready()
+        self.write_text(
+            "backend-design.md",
+            """---
+stage: ship-backend-design
+stage_status: ready
+updated_at: ''
+evidence_complete: true
+---
+# Backend Design
+
+D-AUTH-001 maps endpoint POST /api/v1/login to Controller, Service, and Repository.
+Controller validates request, Service handles auth rules, Repository reads user credentials.
+migration: none required; rollback: revert AuthService change; backfill: N/A reason no data shape change.
+auth, rate limit, logging, metrics, error handling and alerts reuse existing middleware.
+""",
+        )
+        self.write_text("review-design.md", "---\nstage: ship-design-review\ngate_type: hard\nreview_status: approved\nuser_sign_off: approved by user\nsigned_at: '2026-05-31T10:00:00+08:00'\nconditions: []\n---\n")
+        self.write_plan(
+            "backend-plan.md",
+            "backend-plan",
+            f"""## Tasks
+### BE-AUTH-001
+- status: DOING
+- project: api
+- scope: POST /api/v1/login
+- allowed_files: {allowed_files}
+- depends_on: []
+- ac_refs: AC-AUTH-001
+- verification_command: npm test
+- done evidence: pending
+{self.task_brief()}
+""",
+        )
+        self.write_text("review-plan.md", "---\nstage: ship-plan-review\ngate_type: hard\nreview_status: approved\nuser_sign_off: approved by user\nsigned_at: '2026-05-31T10:00:00+08:00'\nconfirmation_id: CONF-PLAN-001\nconditions: []\n---\n")
+
     def test_build_task_preflight_requires_single_ready_doing_task(self) -> None:
         self.write_plan(
             "backend-plan.md",
@@ -1203,6 +1356,83 @@ evidence_complete: false
 
         self.assertFalse(result["ok"])
         self.assertTrue(any(issue["code"] == "doing_missing_task_brief_section" and "验收" in issue["message"] for issue in result["issues"]))
+
+    def test_build_preflight_parses_and_validates_allowed_files(self) -> None:
+        self.write_plan(
+            "backend-plan.md",
+            "backend-plan",
+            f"""## Tasks
+### BE-AUTH-001
+- status: DOING
+- allowed_files:
+  - src/auth/**
+  - src/**/*.test.ts
+- ac_refs: AC-AUTH-001
+- verification_command: npm test
+{self.task_brief(context="仓库探索证据：src/auth/service.ts；接口：POST /api/v1/login。")}
+""",
+        )
+
+        result = build_task_preflight(self.feature_dir, project_scope="backend_only")
+
+        self.assertTrue(result["ok"], result["issues"])
+        self.assertEqual(result["doing_tasks"][0]["allowed_files"], ["src/auth/**", "src/**/*.test.ts"])
+
+    def test_build_preflight_blocks_invalid_allowed_files(self) -> None:
+        for allowed_file, code in (("../secrets.env", "invalid_allowed_file_path"), ("/tmp/a.ts", "invalid_allowed_file_path"), ("**/*", "allowed_file_glob_too_broad")):
+            with self.subTest(allowed_file=allowed_file):
+                self.write_plan(
+                    "backend-plan.md",
+                    "backend-plan",
+                    f"""## Tasks
+### BE-AUTH-001
+- status: DOING
+- allowed_files: {allowed_file}
+- ac_refs: AC-AUTH-001
+- verification_command: npm test
+{self.task_brief()}
+""",
+                )
+
+                result = build_task_preflight(self.feature_dir, project_scope="backend_only")
+
+                self.assertFalse(result["ok"])
+                self.assertTrue(any(issue["code"] == code for issue in result["issues"]), result["issues"])
+
+    def test_implementation_preflight_requires_ship_build_stage(self) -> None:
+        self.prepare_build_ready_feature(current_stage="ship-plan-review")
+
+        result = implementation_preflight(self.feature_dir, project_scope="backend_only", files=["src/auth.ts"])
+
+        self.assertFalse(result["allowed"])
+        self.assertTrue(any(issue["code"] == "current_stage_not_ship_build" for issue in result["issues"]), result["issues"])
+
+    def test_implementation_preflight_blocks_files_outside_doing_task(self) -> None:
+        self.prepare_build_ready_feature(current_stage="ship-build")
+
+        result = implementation_preflight(self.feature_dir, project_scope="backend_only", files=["src/auth.test.ts"])
+
+        self.assertFalse(result["allowed"])
+        self.assertTrue(any(issue["code"] == "file_not_allowed_by_doing_task" for issue in result["issues"]), result["issues"])
+
+    def test_implementation_preflight_allows_declared_file_and_directory_glob(self) -> None:
+        self.prepare_build_ready_feature(current_stage="ship-build", allowed_files="src/auth/**")
+
+        result = implementation_preflight(self.feature_dir, project_scope="backend_only", files=["src/auth/service.ts"])
+
+        self.assertTrue(result["allowed"], result["issues"])
+        self.assertEqual(result["target_files"], ["src/auth/service.ts"])
+
+    def test_preflight_rejects_feature_dir_outside_feature_root(self) -> None:
+        self.prepare_build_ready_feature(current_stage="ship-build")
+        fake_feature = self.root / "feature-fake"
+        fake_feature.mkdir()
+        (fake_feature / "meta.yml").write_text((self.feature_dir / "meta.yml").read_text(encoding="utf-8"), encoding="utf-8")
+
+        result = implementation_preflight(fake_feature, project_scope="backend_only", files=["src/auth.ts"])
+
+        self.assertFalse(result["allowed"])
+        self.assertTrue(any(issue["code"] == "invalid_feature_dir" for issue in result["issues"]), result["issues"])
 
     def test_build_preflight_requires_plan_source(self) -> None:
         self.write_text(
@@ -2061,6 +2291,19 @@ approved
         meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
         meta["stages"]["ship-design-review"]["status"] = "approved"
         meta["stages"]["ship-design-review"]["approved"] = True
+        meta["confirmation_log"] = [
+            {
+                "id": "CONF-PLAN-001",
+                "type": "hard_gate_signoff",
+                "stage": "ship-plan-review",
+                "artifact": "review-plan.md",
+                "user_sign_off": "approved by user",
+                "signed_at": "2026-05-31T10:00:00+08:00",
+                "actor": "user",
+                "source": "current_session",
+                "message_excerpt": "approved plan",
+            }
+        ]
         meta["scope_freeze"] = {
             "status": "frozen",
             "frozen_scope": "fullstack",

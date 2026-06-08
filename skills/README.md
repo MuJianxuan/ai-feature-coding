@@ -39,7 +39,7 @@
 - `ship-spec` 只消费 workspace 的 `spec_root`；single_project 读 `.docs/spec/INDEX.md`，project_group 读 `.docs/spec/_shared/INDEX.md`，并按当前目标项目读取 `.docs/spec/<project>/INDEX.md`
 - 进入 Design 后，`ship-tech-discovery` 对已有项目必须 Project Reality First：先查真实功能、表、API、页面、服务、权限和既有 feature 文档，再做技术调研/选型
 - `technical_plan_provided` 入口直接从 `ship-tech-discovery` 开始，只计划 selected scope；不会把整份技术方案纳入计划，未选中内容默认 `out_of_scope`
-- 源码修改屏障：除 workspace `feature_root` 下的 `feature-*` 工作流产物（默认 `.docs/feature-*`）外，任何业务源码、测试、配置、迁移、脚本或构建文件修改都必须等到 `current_stage: ship-build`，且 `review-plan.md` 已 `approved + user_sign_off + signed_at`，并通过 `stage_transition_check.py --target-stage ship-build` 与 `build_task_preflight.py`
+- 源码修改屏障：除 workspace `feature_root` 下的 `feature-*` 工作流产物（默认 `.docs/feature-*`）外，任何业务源码、测试、配置、迁移、脚本或构建文件修改都必须等到 `current_stage: ship-build`，且必须通过唯一入口 `implementation_preflight.py --files <paths...>`；该入口内部校验 `current_stage: ship-build`、hard gate 签字审计、stage transition、单一 DOING task 与 `allowed_files` 覆盖
 - 规范索引只区分 `frontend / backend / shared`，frontmatter schema 不新增 `spec_type`；project_group 下顶层 `.docs/spec/INDEX.md` 只做导航，具体入口在 `_shared` 和 `<project>` 目录
 - Build 任务项同时保留机器字段和执行简报；`frontend-plan.md`、`backend-plan.md` 中每个任务都必须包含 `任务目标 / 上下文 / 约束 / 验收 / 输出`
 
@@ -283,8 +283,12 @@
 常用校验与诊断命令：
 
 ```bash
+python3 skills/ship-orchestrator/scripts/validate_all.py <target-project>/.docs/feature-YYYYMMDD-demo --strict
 python3 skills/ship-orchestrator/scripts/validate_workflow_docs.py
-python3 skills/ship-orchestrator/scripts/validate_feature_artifacts.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/workflow_doctor.py <target-project>/.docs/feature-YYYYMMDD-demo
+```
+专项 validator 仍可单独运行定位问题：
+```bash
 python3 skills/ship-orchestrator/scripts/validate_product_brief.py <target-project>/.docs/feature-YYYYMMDD-demo
 python3 skills/ship-orchestrator/scripts/validate_ui_artifacts.py <target-project>/.docs/feature-YYYYMMDD-demo
 python3 skills/ship-orchestrator/scripts/validate_requirements.py <target-project>/.docs/feature-YYYYMMDD-demo
@@ -298,6 +302,4 @@ python3 skills/ship-orchestrator/scripts/validate_traceability.py <target-projec
 python3 skills/ship-orchestrator/scripts/build_task_preflight.py <target-project>/.docs/feature-YYYYMMDD-demo
 python3 skills/ship-orchestrator/scripts/validate_verification.py <target-project>/.docs/feature-YYYYMMDD-demo
 python3 skills/ship-orchestrator/scripts/validate_handoff.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/workflow_doctor.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/stage_transition_check.py <target-project>/.docs/feature-YYYYMMDD-demo --target-stage ship-tech-discovery
 ```

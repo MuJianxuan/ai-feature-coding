@@ -44,6 +44,15 @@ def validate_frontend_design(path: Path) -> dict:
         issues.append(_issue("error", "missing_api_refs", "ready frontend design must reference API endpoints or local component API"))
     if ready and not AC_RE.search(body):
         issues.append(_issue("error", "missing_ac_refs", "ready frontend design must reference AC IDs"))
+    for field in ("AC ID", "Source", "Evidence", "Owner"):
+        if ready and field.lower() not in body.lower():
+            issues.append(_issue("warning", "missing_structured_design_field", f"frontend design should include structured field: {field}"))
+    for field in ("metrics", "logs"):
+        if ready and field not in body.lower():
+            issues.append(_issue("warning", "missing_observability_field", f"frontend observability should mention {field}"))
+    for field in ("traces", "alerts"):
+        if ready and field not in body.lower() and "n/a reason" not in body.lower():
+            issues.append(_issue("warning", "missing_observability_field", f"frontend observability should mention {field} or N/A reason"))
     return {"path": str(path), "ok": not any(i["level"] == "error" for i in issues), "issues": issues}
 
 

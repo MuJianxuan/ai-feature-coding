@@ -127,6 +127,14 @@ Step 5: 汇总不一致项，按严重程度分级
 | Major | 字段/类型不一致，会导致运行时错误 | 前端期望 `userId: string` 但后端返回 `user_id: number` |
 | Minor | 命名风格不一致或文档描述模糊，不影响功能 | 前端用 camelCase 但 contract 示例用 snake_case（有转换层） |
 
+
+### User Sign-off Audit
+
+- 子代理或辅助检查只能起草 `review-design.md`，frontmatter 必须保持 `review_status: pending`，且 `user_sign_off`、`signed_at`、`confirmation_id` 为空。
+- 只有主上下文在用户明确批准后，才可一次性写入 `review_status: approved`、`user_sign_off`、`signed_at` 和 `confirmation_id`。
+- 同一次批准必须追加 `meta.yml.confirmation_log`，条目 `type: hard_gate_signoff`、`stage: ship-design-review`、`artifact: review-design.md`、`actor: user`、`source: current_session`。
+- `confirmation_id` 必须能匹配该 confirmation log 条目；缺失时 legacy validator 可 warning，strict / implementation preflight 必须阻塞。
+
 ## Review Checklist
 
 评审时必须逐项检查：

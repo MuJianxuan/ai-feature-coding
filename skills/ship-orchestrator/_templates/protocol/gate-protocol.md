@@ -197,8 +197,7 @@
   - `review_status: approved`
   - `user_sign_off` 非空
   - `signed_at` 非空
-  - `stage_transition_check.py --target-stage ship-build` 通过
-  - `build_task_preflight.py` 通过
+  - `implementation_preflight.py --files <paths...>` 通过；其内部负责 stage transition 与 DOING task preflight
 
 ## 门禁验证脚本
 
@@ -233,12 +232,14 @@ python3 skills/ship-orchestrator/scripts/build_task_preflight.py <feature_dir> -
 
 统一 build 前置检查（包装上述两个脚本）：
 ```bash
-python3 skills/ship-orchestrator/scripts/implementation_preflight.py <feature_dir> --project-scope backend_only --json
+python3 skills/ship-orchestrator/scripts/implementation_preflight.py <feature_dir> --project-scope backend_only --files src/auth.ts --json
 ```
 
 检查项：
 - `meta.yml` 存在且 current_stage 合法
+- `meta.yml.current_stage == ship-build`
 - `stage_transition_check.py --target-stage ship-build` 允许
+- 当前 DOING task `allowed_files` 覆盖 `--files`
 - `review-plan.md` 为 `review_status: approved`
 - `review-plan.md.user_sign_off` 非空
 - `review-plan.md.signed_at` 非空

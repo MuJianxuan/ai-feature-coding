@@ -23,7 +23,7 @@ Design 大阶段现在采用 Project Reality First：已有项目上的需求必
 
 `technical_plan_provided`（技术方案选区）入口适用于已有项目迭代：用户提供技术方案文件或粘贴片段，并指定章节、接口、模块等 selected scope。该入口要求 `existing_project`，跳过 `ship-define` 执行阶段与 `ship-define-review` hard gate；但 `ship-tech-discovery` 会为 selected scope 派生最小 `requirements.md` index，frontmatter 仍使用 `stage: ship-define`、`generation_mode: technical_plan`，仅用于 AC traceability。不会把整份技术方案纳入计划，未选中内容默认 `out_of_scope`，进入 `ship-delivery-plan` 前仍必须通过 `ship-design-review`。
 
-源码修改屏障：除 workspace `feature_root` 下的 `feature-*` 工作流产物（默认 `.docs/feature-*`）外，任何业务源码、测试、配置、迁移、脚本或构建文件修改都必须等到 `current_stage: ship-build`，且 `review-plan.md` 已 `approved + user_sign_off + signed_at`，并通过 `stage_transition_check.py --target-stage ship-build` 与 `build_task_preflight.py`。技术方案选区入口即使从 `ship-tech-discovery` 开始，也不得在 Design / Plan / Review 阶段直接编码。
+源码修改屏障：除 workspace `feature_root` 下的 `feature-*` 工作流产物（默认 `.docs/feature-*`）外，任何业务源码、测试、配置、迁移、脚本或构建文件修改都必须等到 `current_stage: ship-build`，并通过唯一入口 `implementation_preflight.py --files <paths...>`；该入口内部校验 hard gate 签字审计、stage transition、单一 DOING task 与 `allowed_files` 覆盖。技术方案选区入口即使从 `ship-tech-discovery` 开始，也不得在 Design / Plan / Review 阶段直接编码。
 
 Build 阶段的任务源（`frontend-plan.md`、`backend-plan.md`）都使用同一任务项合同：机器字段保留 `allowed_files`、AC refs、verification command，同时每个任务必须包含 `任务目标 / 上下文 / 约束 / 验收 / 输出` 执行简报。
 
@@ -91,8 +91,12 @@ Build 阶段的任务源（`frontend-plan.md`、`backend-plan.md`）都使用同
 可执行校验命令：
 
 ```bash
+python3 skills/ship-orchestrator/scripts/validate_all.py <workspace>/.docs/feature-YYYYMMDD-demo --strict
 python3 skills/ship-orchestrator/scripts/validate_workflow_docs.py
-python3 skills/ship-orchestrator/scripts/validate_feature_artifacts.py <workspace>/.docs/feature-YYYYMMDD-demo
+python3 skills/ship-orchestrator/scripts/workflow_doctor.py <workspace>/.docs/feature-YYYYMMDD-demo
+```
+专项 validator 仍可单独运行定位问题：
+```bash
 python3 skills/ship-orchestrator/scripts/validate_product_brief.py <workspace>/.docs/feature-YYYYMMDD-demo
 python3 skills/ship-orchestrator/scripts/validate_ui_artifacts.py <workspace>/.docs/feature-YYYYMMDD-demo
 python3 skills/ship-orchestrator/scripts/validate_requirements.py <workspace>/.docs/feature-YYYYMMDD-demo
@@ -106,8 +110,6 @@ python3 skills/ship-orchestrator/scripts/validate_traceability.py <workspace>/.d
 python3 skills/ship-orchestrator/scripts/build_task_preflight.py <workspace>/.docs/feature-YYYYMMDD-demo
 python3 skills/ship-orchestrator/scripts/validate_verification.py <workspace>/.docs/feature-YYYYMMDD-demo
 python3 skills/ship-orchestrator/scripts/validate_handoff.py <workspace>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/workflow_doctor.py <workspace>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/stage_transition_check.py <workspace>/.docs/feature-YYYYMMDD-demo --target-stage ship-tech-discovery
 python3 skills/ship-orchestrator/scripts/workflow_stage_map.py --list
 python3 skills/ship-orchestrator/scripts/spec_runtime.py scan --project-config <workspace>/.docs/ship/project.yml
 ```

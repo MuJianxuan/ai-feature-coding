@@ -162,7 +162,7 @@ backend_only feature 目录里出现 frontend-plan.md，或 frontend_only 目录
 - 初始化后 `current_stage = ship-tech-discovery`
 - 不修改业务源码、测试、配置、迁移、脚本或构建文件
 - orchestrator 报告 Source Code Edit Barrier 阻塞
-- 只有 `stage_transition_check.py --target-stage ship-build` 通过，且 `review-plan.md approved + user_sign_off + signed_at`、`build_task_preflight.py` 通过后，才允许进入 `ship-build` 编码
+- 只有 `implementation_preflight.py --files <paths...>` 通过后，才允许进入 `ship-build` 编码；单独运行 `stage_transition_check.py` 或 `build_task_preflight.py` 不构成源码修改授权
 
 ## 14. Technical Plan Plan Contains Unselected Task
 
@@ -454,8 +454,9 @@ Prompt：
 期望：
 
 - orchestrator 不在 ShipKit 内编码
-- 回复要求用户明确退出 ShipKit
-- 若用户确认退出，则本 skill 停止参与后续直接编码
+- “直接写接口”不触发退出；回复要求用户明确说“退出 ShipKit / stop ShipKit workflow”
+- agent 复述退出后果并等待二次确认；二次确认前仍按 Source Code Edit Barrier 阻塞
+- 二次确认后写入 `confirmation_log.type: shipkit_exit`，再停止本 skill 参与后续直接编码
 
 ## 37. Resume With Illegal Implementation
 
@@ -486,8 +487,9 @@ Prompt：
 - 检查 `review-plan.md.review_status == approved`
 - 检查 `review-plan.md.user_sign_off` 非空
 - 检查 `review-plan.md.signed_at` 非空
-- 检查 `stage_transition_check.py --target-stage ship-build` 通过
-- 检查 `build_task_preflight.py` 通过
+- 内部检查 `stage_transition_check.py --target-stage ship-build` 通过
+- 内部检查 `build_task_preflight.py` 通过
+- 检查 `--files` 均被当前 DOING task `allowed_files` 覆盖
 - preflight 不通过时只允许编辑 workflow 文档，不允许编辑业务代码
 
 ## 39. Backend Only Does Not Skip Governance

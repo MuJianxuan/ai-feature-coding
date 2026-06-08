@@ -54,6 +54,9 @@ def validate_meta_template() -> None:
         "pending_proposals: []",
         "lifecycle_status: active",
         "skip_log: []",
+        "confirmation_log: []",
+        "scope_freeze:",
+        "status: open",
         "delegation:",
         "default_mode: current_context",
         "ask_on_parallel_stage: true",
@@ -142,8 +145,8 @@ def validate_protocol_doc() -> None:
         "Research Alignment Check 是 research 子段内部的过程动作，不是 hard gate",
         "Source Code Edit Barrier",
         "源码修改",
-        "stage_transition_check.py <feature-dir> --target-stage ship-build",
-        "build_task_preflight.py <feature-dir> --project-scope",
+        "implementation_preflight.py",
+        "--files",
         ".docs/spec/_shared/INDEX.md",
         ".docs/spec/<project>/INDEX.md",
         "frontend / backend / shared",
@@ -310,8 +313,8 @@ def validate_readmes() -> None:
         for snippet in (
             "Project Reality First",
             "源码修改屏障",
-            "stage_transition_check.py --target-stage ship-build",
-            "build_task_preflight.py",
+            "implementation_preflight.py",
+            "--files",
             ".docs/spec/INDEX.md",
             "frontend / backend / shared",
         ):
@@ -535,8 +538,8 @@ def validate_orchestrator_doc() -> None:
         "awaiting_uiux_materials",
         "Source Code Edit Barrier",
         "源码修改屏障",
-        "stage_transition_check.py <feature-dir> --target-stage ship-build",
-        "build_task_preflight.py <feature-dir> --project-scope",
+        "implementation_preflight.py",
+        "--files",
         "初始化后直接编码",
     ):
         require(snippet in text, f"{path}: missing `{snippet}`")

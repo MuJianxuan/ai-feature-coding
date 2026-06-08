@@ -225,6 +225,22 @@ last_updated: ""
         self.assertEqual(workspace_context.resolved_spec_root, (self.root / ".docs/spec").resolve())
         self.assertEqual(workspace_context.resolved_feature_root, (self.root / "docs/features").resolve())
 
+    def test_project_config_rejects_workspace_path_escape(self) -> None:
+        for field, value in (("spec_root", "../spec"), ("feature_root", "../.docs"), ("spec_root", "/tmp/spec")):
+            with self.subTest(field=field, value=value):
+                kwargs = {field: value}
+                config_path = self.write_project_config(self.root, **kwargs)
+                with self.assertRaises(ValueError):
+                    load_project_context(config_path)
+
+    def test_project_config_allows_workspace_relative_spec_root(self) -> None:
+        config_path = self.write_project_config(self.root, spec_root=".docs/spec", feature_root=".docs")
+
+        workspace_context = load_project_context(config_path)
+
+        self.assertEqual(workspace_context.resolved_spec_root, (self.root / ".docs/spec").resolve())
+        self.assertEqual(workspace_context.resolved_feature_root, (self.root / ".docs").resolve())
+
     def test_project_group_config_resolves_projects(self) -> None:
         (self.root / "web").mkdir()
         (self.root / "api").mkdir()

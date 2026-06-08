@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import re
 from pathlib import Path
@@ -12,6 +13,95 @@ from typing import Any
 TASK_HEADING_RE = re.compile(r"(?m)^(?:#{2,6}\s+|[-*]\s+)?(?:Task\s+)?((?:FE|BE|FS|FT|TASK)-[A-Z0-9]+-\d{3}|(?:FE|BE|FS|FT)?-\d{3})\b")
 AC_RE = re.compile(r"\bAC-[A-Z0-9]+-\d{3}\b")
 REQUIRED_TASK_BRIEF_SECTIONS = ("任务目标", "上下文", "约束", "验收", "输出")
+
+
+BROAD_ALLOWED_FILE_GLOBS = {"*", "**", "**/*", "./**/*", "."}
+ALLOWED_FILES_KEY_RE = re.compile(r"(?im)^\s*[-*]?\s*(allowed_files|allowed files|允许文件)\s*:\s*(.*)$")
+INLINE_LIST_RE = re.compile(r"^\[(.*)\]$")
+
+
+def normalize_allowed_file_pattern(raw: str) -> str:
+    value = raw.strip().strip('"\'')
+    if not value:
+        raise ValueError("empty_allowed_file_path")
+    path = Path(value)
+    if path.is_absolute():
+        raise ValueError("invalid_allowed_file_path")
+    if any(part == ".." for part in path.parts):
+        raise ValueError("invalid_allowed_file_path")
+    normalized = path.as_posix().lstrip("./")
+    if not normalized or normalized in BROAD_ALLOWED_FILE_GLOBS:
+        raise ValueError("allowed_file_glob_too_broad")
+    if normalized.endswith("/**") and normalized.count("/") == 0:
+        raise ValueError("allowed_file_glob_too_broad")
+    return normalized
+
+
+def _split_inline_allowed_files(value: str) -> list[str]:
+    value = value.strip()
+    if not value:
+        return []
+    match = INLINE_LIST_RE.match(value)
+    if match:
+        return [item.strip().strip('"\'') for item in match.group(1).split(",") if item.strip()]
+    return [value]
+
+
+def extract_allowed_files(block: str) -> list[str]:
+    lines = block.splitlines()
+    allowed: list[str] = []
+    for index, line in enumerate(lines):
+        match = ALLOWED_FILES_KEY_RE.match(line)
+        if not match:
+            continue
+        inline = match.group(2).strip()
+        allowed.extend(_split_inline_allowed_files(inline))
+        if inline:
+            continue
+        base_indent = len(line) - len(line.lstrip())
+        for child in lines[index + 1:]:
+            if not child.strip():
+                continue
+            indent = len(child) - len(child.lstrip())
+            if indent <= base_indent:
+                break
+            item = child.strip()
+            if item.startswith(("- ", "* ")):
+                item = item[2:].strip()
+                if ":" in item:
+                    _, _, item = item.partition(":")
+                    item = item.strip()
+                if item:
+                    allowed.extend(_split_inline_allowed_files(item))
+    return allowed
+
+
+def validate_allowed_files(paths: list[str]) -> tuple[list[str], list[dict[str, str]]]:
+    normalized: list[str] = []
+    issues: list[dict[str, str]] = []
+    for raw in paths:
+        try:
+            value = normalize_allowed_file_pattern(raw)
+        except ValueError as exc:
+            code = str(exc) or "invalid_allowed_file_path"
+            issues.append(_issue("error", code, f"invalid allowed_files entry: {raw!r}"))
+            continue
+        if value not in normalized:
+            normalized.append(value)
+    return normalized, issues
+
+
+def file_matches_allowed(path: str, allowed_pattern: str) -> bool:
+    target = normalize_allowed_file_pattern(path)
+    pattern = normalize_allowed_file_pattern(allowed_pattern)
+    if pattern.endswith("/**"):
+        prefix = pattern[:-3].rstrip("/")
+        return target == prefix or target.startswith(prefix + "/")
+    if any(char in pattern for char in "*?["):
+        return fnmatch.fnmatch(target, pattern)
+    if pattern.endswith("/"):
+        return target.startswith(pattern)
+    return target == pattern or target.startswith(pattern.rstrip("/") + "/")
 
 
 def _issue(level: str, code: str, message: str, path: str | None = None) -> dict[str, str]:
@@ -68,12 +158,16 @@ def build_task_preflight(feature_dir: Path, project_scope: str = "fullstack") ->
                 "path": path.name,
                 "status": status,
                 "ac_refs": sorted(set(AC_RE.findall(block))),
-                "has_allowed_files": _has(block, "allowed_files", "allowed files", "允许文件"),
+                "allowed_files_raw": extract_allowed_files(block),
                 "has_verification_command": _has(block, "verification command", "verification_command", "验证命令"),
                 "has_evidence": _has(block, "evidence", "done evidence", "完成证据"),
                 "has_spec_refs": _has(block, "spec_refs", "spec refs", "spec context"),
                 "missing_brief_sections": [section for section in REQUIRED_TASK_BRIEF_SECTIONS if section not in block],
             }
+            allowed_files, invalid_allowed_files = validate_allowed_files(task["allowed_files_raw"])
+            task["allowed_files"] = allowed_files
+            task["invalid_allowed_files"] = invalid_allowed_files
+            task["has_allowed_files"] = bool(allowed_files)
             tasks.append(task)
             if status == "DOING":
                 doing.append(task)
@@ -84,6 +178,10 @@ def build_task_preflight(feature_dir: Path, project_scope: str = "fullstack") ->
         task = doing[0]
         if not task["has_allowed_files"]:
             issues.append(_issue("error", "doing_missing_allowed_files", f"{task['task_id']} missing allowed_files", task["path"]))
+        for invalid in task.get("invalid_allowed_files", []):
+            issue = dict(invalid)
+            issue["path"] = task["path"]
+            issues.append(issue)
         if not task["ac_refs"]:
             issues.append(_issue("error", "doing_missing_ac_refs", f"{task['task_id']} missing AC refs", task["path"]))
         if not task["has_verification_command"]:

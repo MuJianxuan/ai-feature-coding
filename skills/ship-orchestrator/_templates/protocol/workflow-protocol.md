@@ -190,15 +190,17 @@ conditions: []
 
 ### 7.0 Source Code Edit Barrier
 
-workflow 产物推进不等于允许业务源码修改。除 workspace `feature_root` 下 `feature-*` 目录内的工作流产物（默认 `.docs/feature-*`）、`meta.yml`、`resource/` 资料和 review / plan / discovery / design 文档外，任何业务源码、测试、配置、迁移、脚本或构建文件修改都必须满足以下条件：
+workflow 产物推进不等于允许业务源码修改。除 workspace `feature_root` 下 `feature-*` 目录内的工作流产物（默认 `.docs/feature-*`）、`meta.yml`、`resource/` 资料和 review / plan / discovery / design 文档外，任何业务源码、测试、配置、迁移、脚本或构建文件修改都必须先通过唯一入口：
 
+```bash
+python3 skills/ship-orchestrator/scripts/implementation_preflight.py <feature-dir> --project-scope <fullstack|backend_only|frontend_only> --files <workspace-relative-path...>
+```
+该入口内部必须校验：
 1. `meta.yml.current_stage == ship-build`
-2. `review-plan.md.review_status == approved`
-3. `review-plan.md.user_sign_off` 非空
-4. `review-plan.md.signed_at` 非空
-5. `stage_transition_check.py <feature-dir> --target-stage ship-build` 通过
-6. `build_task_preflight.py <feature-dir> --project-scope <fullstack|backend_only|frontend_only>` 通过
-
+2. `review-plan.md.review_status == approved`，且 `user_sign_off`、`signed_at` 非空
+3. `review-plan.md.confirmation_id` 匹配 `meta.yml.confirmation_log` 中 `type: hard_gate_signoff`、`actor: user`、`source: current_session` 的审计条目
+4. `stage_transition_check.py <feature-dir> --target-stage ship-build` 通过
+5. `build_task_preflight.py <feature-dir> --project-scope <fullstack|backend_only|frontend_only>` 通过，且当前唯一 `DOING` task 的 `allowed_files` 覆盖 `--files`
 未满足这些条件时，orchestrator 必须阻塞源码修改，报告当前阶段和缺失门禁，并路由回对应阶段。场景 E `technical_plan_provided` 只跳过 `ship-define` / `ship-define-review`，仍必须完成 `ship-tech-discovery`、`ship-contract`、按 scope 裁剪的 design、`ship-design-review`、`ship-delivery-plan` 和 `ship-plan-review` 后才能进入 `ship-build`。
 
 说明：

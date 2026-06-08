@@ -49,6 +49,15 @@ def validate_backend_design(path: Path) -> dict:
         if ready and signal not in body.lower():
             issues.append(_issue("warning", "nfr_strategy_gap", f"missing backend NFR signal: {signal}"))
             break
+    for field in ("AC ID", "Source", "Evidence", "Owner"):
+        if ready and field.lower() not in body.lower():
+            issues.append(_issue("warning", "missing_structured_design_field", f"backend design should include structured field: {field}"))
+    for field in ("metrics", "logs"):
+        if ready and field not in body.lower():
+            issues.append(_issue("warning", "missing_observability_field", f"backend observability should mention {field}"))
+    for field in ("traces", "alerts"):
+        if ready and field not in body.lower() and "n/a reason" not in body.lower():
+            issues.append(_issue("warning", "missing_observability_field", f"backend observability should mention {field} or N/A reason"))
     return {"path": str(path), "ok": not any(i["level"] == "error" for i in issues), "issues": issues}
 
 

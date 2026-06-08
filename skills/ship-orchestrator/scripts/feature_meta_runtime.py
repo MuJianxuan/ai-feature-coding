@@ -9,11 +9,13 @@ and resume flows.
 from __future__ import annotations
 
 import argparse
+import hashlib
 from dataclasses import dataclass
 import json
 import shutil
 import sys
 from datetime import datetime
+from uuid import uuid4
 from pathlib import Path
 
 import yaml
@@ -130,6 +132,14 @@ SCOPE_SKIP_MAP: dict[str, list[str]] = {
     "backend_only": ["ship-shape", "ship-frontend-design"],
     "frontend_only": ["ship-backend-design"],
 }
+
+
+@dataclass(frozen=True)
+class FeatureContext:
+    feature_dir: Path
+    workspace_root: Path
+    feature_root: Path
+    workspace_context: WorkspaceSpecContext
 
 
 @dataclass(frozen=True)
@@ -306,6 +316,49 @@ HARD_GATE_NODE_IDS = frozenset(
 
 def iso_now() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+def append_workflow_event(
+    feature_dir: Path,
+    *,
+    event_type: str,
+    actor: str,
+    stage: str,
+    summary: str,
+    issues: list[dict] | None = None,
+) -> dict:
+    event_dir = feature_dir / ".workflow"
+    event_dir.mkdir(parents=True, exist_ok=True)
+    issues_payload = json.dumps(issues or [], ensure_ascii=True, sort_keys=True)
+    event = {
+        "event_id": f"evt-{uuid4().hex[:12]}",
+        "type": event_type,
+        "timestamp": iso_now(),
+        "actor": actor,
+        "stage": stage,
+        "summary": summary,
+        "issues_hash": hashlib.sha256(issues_payload.encode("utf-8")).hexdigest()[:16],
+    }
+    with (event_dir / "events.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n")
+    return event
+
+
+def read_last_workflow_events(feature_dir: Path, limit: int = 5) -> list[dict]:
+    path = feature_dir / ".workflow" / "events.jsonl"
+    if not path.exists():
+        return []
+    events: list[dict] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            events.append(payload)
+    return events[-limit:]
 
 
 def load_meta(meta_path: Path) -> dict:
@@ -871,6 +924,31 @@ def resolve_project_context(
     raise ValueError("unable to determine workspace; initialize .docs/ship/project.yml first")
 
 
+
+def resolve_and_validate_feature_dir(feature_dir: Path) -> FeatureContext:
+    resolved_feature_dir = feature_dir.resolve()
+    if not resolved_feature_dir.name.startswith("feature-"):
+        raise ValueError("feature_dir name must match feature-*")
+    meta_path = resolved_feature_dir / "meta.yml"
+    if not meta_path.exists():
+        raise ValueError("feature_dir missing meta.yml")
+    data = load_meta(meta_path)
+    workspace_context = resolve_project_context(search_from=resolved_feature_dir, meta_path=meta_path, data=data)
+    resolved_feature_root = workspace_context.resolved_feature_root.resolve()
+    try:
+        resolved_feature_dir.relative_to(resolved_feature_root)
+    except ValueError as exc:
+        raise ValueError(
+            f"feature_dir must be inside workspace feature_root `{workspace_context.feature_root}`"
+        ) from exc
+    return FeatureContext(
+        feature_dir=resolved_feature_dir,
+        workspace_root=workspace_context.resolved_workspace_root.resolve(),
+        feature_root=resolved_feature_root,
+        workspace_context=workspace_context,
+    )
+
+
 def resolve_feature_dir(feature_arg: str, workspace_context: WorkspaceSpecContext) -> Path:
     raw = Path(feature_arg)
     if raw.is_absolute():
@@ -887,6 +965,93 @@ def resolve_feature_dir(feature_arg: str, workspace_context: WorkspaceSpecContex
             f"feature_dir must be inside workspace feature_root `{workspace_context.feature_root}`"
         ) from exc
     return feature_dir
+
+
+def ensure_confirmation_log(data: dict) -> list[dict]:
+    log = data.setdefault("confirmation_log", [])
+    if not isinstance(log, list):
+        raise ValueError("confirmation_log must be a list")
+    return log
+
+
+def append_confirmation_log(
+    data: dict,
+    *,
+    confirmation_id: str,
+    confirmation_type: str,
+    stage: str,
+    artifact: str = "",
+    user_sign_off: str = "",
+    signed_at: str = "",
+    actor: str = "user",
+    source: str = "current_session",
+    message_excerpt: str = "",
+    reason: str = "",
+) -> dict:
+    if not confirmation_id.strip():
+        raise ValueError("confirmation_id must be non-empty")
+    if not confirmation_type.strip():
+        raise ValueError("confirmation type must be non-empty")
+    if actor != "user":
+        raise ValueError("confirmation actor must be user")
+    entry = {
+        "id": confirmation_id.strip(),
+        "type": confirmation_type.strip(),
+        "stage": stage.strip(),
+        "artifact": artifact.strip(),
+        "user_sign_off": user_sign_off.strip(),
+        "signed_at": signed_at.strip(),
+        "actor": actor,
+        "source": source.strip() or "current_session",
+        "message_excerpt": message_excerpt.strip(),
+    }
+    if reason.strip():
+        entry["reason"] = reason.strip()
+    log = ensure_confirmation_log(data)
+    if any(str(item.get("id", "")) == entry["id"] for item in log if isinstance(item, dict)):
+        raise ValueError(f"confirmation_id already exists: {entry['id']}")
+    log.append(entry)
+    return entry
+
+
+def validate_gate_confirmation(data: dict, frontmatter: dict, stage: str, artifact: str, *, strict: bool = False) -> list[dict[str, str]]:
+    issues: list[dict[str, str]] = []
+    if frontmatter.get("review_status") != "approved":
+        return issues
+    confirmation_id = str(frontmatter.get("confirmation_id") or "").strip()
+    if not confirmation_id:
+        level = "error" if strict else "warning"
+        issues.append({
+            "level": level,
+            "code": "missing_confirmation_id",
+            "message": "approved hard gate should reference meta.yml confirmation_log via confirmation_id",
+            "path": artifact,
+        })
+        return issues
+    log = data.get("confirmation_log") if isinstance(data.get("confirmation_log"), list) else []
+    match = next((item for item in log if isinstance(item, dict) and str(item.get("id", "")) == confirmation_id), None)
+    if not match:
+        issues.append({"level": "error", "code": "confirmation_id_not_found", "message": f"confirmation_id {confirmation_id!r} not found in meta.yml confirmation_log", "path": artifact})
+        return issues
+    if match.get("type") != "hard_gate_signoff" or match.get("stage") != stage or match.get("artifact") != artifact:
+        issues.append({"level": "error", "code": "confirmation_log_mismatch", "message": "confirmation_log entry type/stage/artifact does not match approved hard gate", "path": artifact})
+    if match.get("actor") != "user" or match.get("source") != "current_session":
+        issues.append({"level": "error", "code": "confirmation_log_untrusted_source", "message": "hard gate confirmation must be actor=user and source=current_session", "path": artifact})
+    return issues
+
+
+def ensure_scope_freeze(data: dict) -> dict:
+    freeze = data.setdefault("scope_freeze", {})
+    if not isinstance(freeze, dict):
+        raise ValueError("scope_freeze must be a mapping")
+    freeze.setdefault("status", "open")
+    freeze.setdefault("frozen_scope", "")
+    freeze.setdefault("frozen_at", "")
+    freeze.setdefault("frozen_by_gate", "")
+    freeze.setdefault("user_sign_off", "")
+    freeze.setdefault("reopen_reason", "")
+    freeze.setdefault("reopened_at", "")
+    return freeze
 
 
 def ensure_technical_plan_ac_confirmation(data: dict) -> dict:
@@ -1291,6 +1456,8 @@ def create_feature_meta(
         _sync_workspace_spec_context(data["spec_context"], workspace_context)
     ensure_delegation(data)
     ensure_skip_log(data)
+    ensure_confirmation_log(data)
+    ensure_scope_freeze(data)
     ensure_lifecycle_status(data)
     save_meta(meta_path, data)
     return meta_path
@@ -1351,6 +1518,8 @@ def refresh_feature_meta(meta_path: Path) -> None:
     ensure_spec_context(data)
     ensure_delegation(data)
     ensure_skip_log(data)
+    ensure_confirmation_log(data)
+    ensure_scope_freeze(data)
     ensure_lifecycle_status(data)
     save_meta(meta_path, data)
 
@@ -1606,6 +1775,8 @@ def advance_stage(
     ensure_spec_context(data)
     ensure_delegation(data)
     ensure_skip_log(data)
+    ensure_confirmation_log(data)
+    ensure_scope_freeze(data)
     ensure_lifecycle_status(data)
     save_meta(meta_path, data)
     return {

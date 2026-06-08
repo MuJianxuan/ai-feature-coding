@@ -16,7 +16,7 @@ import yaml
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
-from feature_meta_runtime import is_raw_prd_inbox_frontmatter, load_meta, validate_evolve_source  # noqa: E402
+from feature_meta_runtime import is_raw_prd_inbox_frontmatter, load_meta, resolve_and_validate_feature_dir, validate_evolve_source, validate_gate_confirmation  # noqa: E402
 from workflow_stage_map import CANONICAL_STAGE_ORDER, stage_view_for  # noqa: E402
 from workflow_invariants import (  # noqa: E402
     TECHNICAL_PLAN_SCENARIO,
@@ -434,7 +434,7 @@ def _validate_technical_plan_meta(feature_dir: Path, meta: dict[str, Any]) -> li
     return issues
 
 
-def _validate_artifact_spec(feature_dir: Path, meta: dict[str, Any], spec: ArtifactSpec) -> tuple[dict[str, Any] | None, list[dict[str, str]]]:
+def _validate_artifact_spec(feature_dir: Path, meta: dict[str, Any], spec: ArtifactSpec, *, strict_confirmation: bool = False) -> tuple[dict[str, Any] | None, list[dict[str, str]]]:
     path = feature_dir / spec.path
     issues: list[dict[str, str]] = []
     if not path.exists():
@@ -462,6 +462,8 @@ def _validate_artifact_spec(feature_dir: Path, meta: dict[str, Any], spec: Artif
             issues.append(_issue("error", "invalid_review_status", f"invalid review_status: {review_status!r}", spec.path))
         if review_status == "approved" and (not frontmatter.get("user_sign_off") or not frontmatter.get("signed_at")):
             issues.append(_issue("error", "unsigned_approved_gate", "approved hard gate requires user_sign_off and signed_at", spec.path))
+        if meta is not None:
+            issues.extend(validate_gate_confirmation(meta, frontmatter, spec.stage, spec.path, strict=strict_confirmation))
     else:
         stage_status = frontmatter.get("stage_status")
         if stage_status not in NON_REVIEW_STATUSES:
@@ -559,8 +561,19 @@ def _validate_backend_contract_material(meta: dict[str, Any], requirements_fm: d
     ]
 
 
-def validate_feature(feature_dir: Path) -> dict[str, Any]:
+def validate_feature(feature_dir: Path, *, strict_confirmation: bool = False) -> dict[str, Any]:
     feature_dir = feature_dir.resolve()
+    feature_context = None
+    try:
+        feature_context = resolve_and_validate_feature_dir(feature_dir)
+        feature_dir = feature_context.feature_dir
+    except Exception as exc:
+        return {
+            "feature_dir": str(feature_dir),
+            "ok": False,
+            "issues": [_issue("error", "invalid_feature_dir", str(exc))],
+            "artifacts": {},
+        }
     meta_path = feature_dir / "meta.yml"
     issues: list[dict[str, str]] = []
     artifacts: dict[str, dict[str, Any]] = {}
@@ -596,7 +609,7 @@ def validate_feature(feature_dir: Path) -> dict[str, Any]:
                 )
             )
     for spec in ARTIFACT_SPECS:
-        frontmatter, spec_issues = _validate_artifact_spec(feature_dir, meta, spec)
+        frontmatter, spec_issues = _validate_artifact_spec(feature_dir, meta, spec, strict_confirmation=strict_confirmation)
         issues.extend(spec_issues)
         if frontmatter is not None:
             artifacts[spec.path] = {
@@ -721,6 +734,9 @@ def validate_feature(feature_dir: Path) -> dict[str, Any]:
 
     return {
         "feature_dir": str(feature_dir),
+        "workspace_root": str(feature_context.workspace_root) if feature_context else None,
+        "feature_root": str(feature_context.feature_root) if feature_context else None,
+        "feature_dir_validated": feature_context is not None,
         "ok": not any(issue["level"] == "error" for issue in issues),
         "issues": issues,
         "artifacts": artifacts,

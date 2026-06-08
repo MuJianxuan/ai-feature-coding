@@ -70,6 +70,8 @@ def scope_freeze(meta: dict[str, Any]) -> dict[str, Any]:
 
 def scope_freeze_is_valid(meta: dict[str, Any]) -> bool:
     freeze = scope_freeze(meta)
+    if freeze.get("status") == "open":
+        return not design_review_meta_approved(meta)
     return freeze.get("status") == "frozen" and str(freeze.get("frozen_scope", "")).strip() == normalize_project_scope(meta.get("project_scope"))
 
 

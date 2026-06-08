@@ -95,6 +95,14 @@ description: "ShipKit hard gate. Reviews requirements for completeness and corre
 - 只有主代理可以把 `review_status` 改成 `approved / rejected / revision_needed`
 - 子代理不可替用户做 `approved / rejected / revision_needed` 决策
 
+
+### User Sign-off Audit
+
+- 子代理或辅助检查只能起草 `review-define.md`，frontmatter 必须保持 `review_status: pending`，且 `user_sign_off`、`signed_at`、`confirmation_id` 为空。
+- 只有主上下文在用户明确批准后，才可一次性写入 `review_status: approved`、`user_sign_off`、`signed_at` 和 `confirmation_id`。
+- 同一次批准必须追加 `meta.yml.confirmation_log`，条目 `type: hard_gate_signoff`、`stage: ship-define-review`、`artifact: review-define.md`、`actor: user`、`source: current_session`。
+- `confirmation_id` 必须能匹配该 confirmation log 条目；缺失时 legacy validator 可 warning，strict / implementation preflight 必须阻塞。
+
 ## Review Checklist (评审清单详细说明)
 
 逐条检查，每条必须给出明确的 通过/不通过 判定及理由：

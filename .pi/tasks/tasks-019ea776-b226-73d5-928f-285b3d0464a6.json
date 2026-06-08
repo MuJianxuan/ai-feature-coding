@@ -1,0 +1,41 @@
+{
+  "nextId": 4,
+  "tasks": [
+    {
+      "id": "1",
+      "subject": "梳理 skills 流程结构",
+      "description": "只读查看 skills 目录结构、入口文档、模板和验证器，建立流程地图。",
+      "status": "completed",
+      "activeForm": "梳理 skills 流程结构",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1780926041884,
+      "updatedAt": 1780926115863
+    },
+    {
+      "id": "2",
+      "subject": "审查流程与状态风险",
+      "description": "从死锁、过度门禁、职责边界、模板/validator 一致性、状态机可达性、用户体验和维护性角度识别高置信问题。",
+      "status": "completed",
+      "activeForm": "审查流程与状态风险",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1780926055439,
+      "updatedAt": 1780926214948
+    },
+    {
+      "id": "3",
+      "subject": "整理 P0/P1/P2 建议",
+      "description": "引用具体文件路径和关键证据，用中文生成简洁报告，并确认未修改文件。",
+      "status": "completed",
+      "activeForm": "整理 P0/P1/P2 建议",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1780926060878,
+      "updatedAt": 1780926249040
+    }
+  ]
+}

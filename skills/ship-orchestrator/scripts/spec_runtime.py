@@ -114,6 +114,10 @@ def _normalize_relative_path(value: Any, field_name: str, default: str) -> str:
     normalized = Path(raw.strip())
     if normalized.is_absolute():
         raise ValueError(f"`{field_name}` must be a workspace-relative path")
+    if any(part == ".." for part in normalized.parts):
+        raise ValueError(f"`{field_name}` must not contain '..'")
+    if normalized.as_posix() in ("", "."):
+        raise ValueError(f"`{field_name}` must not point to workspace root")
     return normalized.as_posix()
 
 
@@ -125,7 +129,13 @@ def _relative_to_workspace(path: Path, workspace_root: Path) -> str:
 
 
 def _resolve_workspace_relative(workspace_root: Path, raw_path: str) -> Path:
-    return (workspace_root / Path(raw_path)).resolve()
+    resolved_workspace = workspace_root.resolve()
+    resolved = (resolved_workspace / Path(raw_path)).resolve()
+    try:
+        resolved.relative_to(resolved_workspace)
+    except ValueError as exc:
+        raise ValueError("path escapes workspace_root") from exc
+    return resolved
 
 
 def _validate_workspace_mode(value: Any) -> str:

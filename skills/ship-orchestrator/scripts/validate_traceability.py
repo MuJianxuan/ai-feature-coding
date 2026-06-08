@@ -34,7 +34,15 @@ def _ac_ids_in(path: Path) -> set[str]:
     return set(AC_RE.findall(_read(path)))
 
 
-def validate_traceability(feature_dir: Path) -> dict[str, Any]:
+def _required_links(strict: bool, stage: str) -> tuple[str, ...]:
+    if strict and stage == "ship-verify":
+        return ("test",)
+    if strict and stage == "ship-handoff":
+        return ("contract", "plan", "test", "handoff")
+    return ("contract", "plan", "test")
+
+
+def validate_traceability(feature_dir: Path, *, strict: bool = False, stage: str = "") -> dict[str, Any]:
     feature_dir = feature_dir.resolve()
     issues: list[dict[str, str]] = []
     requirements_path = feature_dir / "requirements.md"
@@ -43,6 +51,8 @@ def validate_traceability(feature_dir: Path) -> dict[str, Any]:
             "feature_dir": str(feature_dir),
             "ok": False,
             "issues": [_issue("error", "missing_requirements", "requirements.md is required", "requirements.md")],
+            "strict": strict,
+            "stage": stage,
             "matrix": [],
         }
 
@@ -66,19 +76,17 @@ def validate_traceability(feature_dir: Path) -> dict[str, Any]:
             missing_target_files[target_name] = missing
 
     matrix: list[dict[str, Any]] = []
+    required_links = _required_links(strict, stage)
     for ac_id in requirement_acs:
         row = {"ac_id": ac_id}
         for target_name, _paths in TRACE_TARGETS:
             row[target_name] = ac_id in target_ac_sets[target_name]
         matrix.append(row)
 
-        missing_links = [
-            target_name
-            for target_name in ("contract", "plan", "test")
-            if not row[target_name]
-        ]
+        missing_links = [target_name for target_name in required_links if not row[target_name]]
         if missing_links:
-            issues.append(_issue("warning", "ac_trace_gap", f"{ac_id} missing trace links: {', '.join(missing_links)}"))
+            level = "error" if strict and stage in {"ship-verify", "ship-handoff"} else "warning"
+            issues.append(_issue(level, "ac_trace_gap", f"{ac_id} missing trace links: {', '.join(missing_links)}"))
 
     for target_name, missing in missing_target_files.items():
         issues.append(_issue("warning", "missing_trace_target", f"{target_name} trace target files missing: {', '.join(missing)}"))
@@ -95,6 +103,8 @@ def validate_traceability(feature_dir: Path) -> dict[str, Any]:
         "feature_dir": str(feature_dir),
         "ok": not any(issue["level"] == "error" for issue in issues),
         "issues": issues,
+        "strict": strict,
+        "stage": stage,
         "matrix": matrix,
         "orphan_refs": orphan_refs,
     }
@@ -103,13 +113,15 @@ def validate_traceability(feature_dir: Path) -> dict[str, Any]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate AC traceability across workflow artifacts")
     parser.add_argument("feature_dir", help="Feature directory containing requirements.md")
+    parser.add_argument("--strict", action="store_true", help="Upgrade close-stage trace gaps to errors")
+    parser.add_argument("--stage", choices=("ship-contract", "ship-delivery-plan", "ship-verify", "ship-handoff"), default="")
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    result = validate_traceability(Path(args.feature_dir))
+    result = validate_traceability(Path(args.feature_dir), strict=args.strict, stage=args.stage)
     if args.json:
         print(json.dumps(result, ensure_ascii=True, indent=2))
     else:

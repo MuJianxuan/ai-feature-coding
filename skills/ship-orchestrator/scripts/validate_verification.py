@@ -16,6 +16,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from validate_feature_artifacts import read_frontmatter  # noqa: E402
 
 AC_RE = re.compile(r"\bAC-[A-Z0-9]+-\d{3}\b")
+AC_RESULT_RE = re.compile(r"\bAC-[A-Z0-9]+-\d{3}\b.*\b(PASS|FAIL|BLOCKED|NOT_TESTED)\b", re.IGNORECASE)
 TRACKS = ("backend-unit", "backend-integration", "backend-contract", "frontend-component", "frontend-e2e")
 
 
@@ -84,6 +85,14 @@ def validate_verification_file(path: Path, project_scope: str = "fullstack") -> 
             issues.append(_issue("error" if ready else "warning", "missing_test_run_field", f"missing test run field signal: {field}"))
 
     ac_ids = sorted(set(AC_RE.findall(body)))
+    if ready:
+        for line in body.splitlines():
+            match = AC_RESULT_RE.search(line)
+            if not match:
+                continue
+            result = match.group(1).upper()
+            if result == "NOT_TESTED" and "reason" not in line.lower() and "原因" not in line:
+                issues.append(_issue("error", "not_tested_missing_reason", "NOT_TESTED AC result requires reason"))
     if ready and not ac_ids:
         issues.append(_issue("error", "missing_linked_ac", "ready verification must link test runs to AC IDs"))
 
