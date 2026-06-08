@@ -168,7 +168,7 @@
 #### 入口条件
 
 `project_scope` 对应 plan ready：
-- fullstack: `frontend-plan.md` + `backend-plan.md` + `sync-plan.md`（可选） 均 ready
+- fullstack: `frontend-plan.md` + `backend-plan.md` ready，且所需前后端同步以 plan 内 sync 子段/依赖检查记录（不要求独立 `sync-plan.md`）
 - backend_only: `backend-plan.md` ready
 - frontend_only: `frontend-plan.md` ready
 

@@ -108,15 +108,18 @@ revision_count: 0
 user_sign_off: ""
 signed_at: ""
 conditions: []
+confirmation_id: ""
+required_changes: []
 ---
 ```
 
 推进规则：
 
-- 只有 `review_status: approved` 且 `user_sign_off`、`signed_at` 非空时，才允许推进。
+- 只有 `review_status: approved` 且 `user_sign_off`、`signed_at`、`confirmation_id` 非空并通过确认日志校验时，才允许推进。
 - `rejected`：必须回退到上一个产出阶段。
-- `revision_needed`：必须修复列出的 Critical / Major 问题后重审。
+- `revision_needed`：存在未处理 Major，或必须修复的非根本性问题；必须修复 `required_changes` 后重审。
 - `approved` 是 `meta.yml` 可选缓存字段，不是评审文档事实源。
+- 有 Critical finding 必须 `rejected`；有未处理 Major finding 必须 `revision_needed`；只有 Minor finding 可记录风险接受后等待用户批准。
 
 ## 6. meta.yml Summary Contract
 

@@ -1,13 +1,13 @@
 ---
 name: ship-define
-description: "ShipKit stage 1 (Define). Parses requirement materials (PRD, prototypes, UI/UX designs, Figma) into structured requirements. Use when starting a new feature or when requirement materials are provided."
+description: "ShipKit Define stage. Advanced/direct stage only: normal feature requests route through ship-orchestrator. Parses provided requirement materials or upstream ShipKit artifacts into structured requirements after orchestrator selects Define."
 ---
 
 # 需求定义 (Requirement Define)
 
 ## Overview
 
-需求定义是开发工作流的第一个阶段，负责将用户提供的各类需求资料（PRD、原型图、UI/UX 设计稿、Figma 链接、墨刀链接、会议纪要等）解析为结构化的需求文档。
+需求定义是开发工作流的 Define 阶段，负责将 orchestrator 判定可进入 Define 的资料（PRD、原型图、UI/UX 设计稿、Figma 链接、墨刀链接、会议纪要、或上游 ShipKit 产物）解析为结构化的需求文档。
 
 核心目标：
 - 消除需求模糊性，将"我大概想要..."转化为可验证的需求条目
@@ -17,9 +17,9 @@ description: "ShipKit stage 1 (Define). Parses requirement materials (PRD, proto
 
 ## When to Use
 
-- 用户提供了新功能的 PRD / 原型 / 设计稿 / Figma 链接
-- 用户口头描述了一个新需求，需要结构化整理
-- 项目启动阶段，需要从零梳理需求
+- orchestrator 已路由到 `ship-define`，且存在 PRD / 原型 / 设计稿 / Figma 链接或上游 `product-brief.md` / `design-brief.md`
+- 场景 B/D 已有资料但需要 normalize 为结构化 `requirements.md`
+- 场景 A/C 已完成 Discover/Shaping，需要把上游产物整理成可评审需求
 - 需求变更时，需要更新已有 requirements.md
 
 ## When NOT to Use
@@ -28,6 +28,7 @@ description: "ShipKit stage 1 (Define). Parses requirement materials (PRD, proto
 - 纯 bug 修复 —— 使用 debugging 流程
 - 纯技术重构且无功能变更 —— 直接进入技术设计阶段
 - 用户只是想讨论方案可行性 —— 使用 brainstorming
+- 只有一句话想法、尚未完成场景判定或没有 feature_dir —— 先使用 `ship-orchestrator` / `ship-discover`
 
 ## Input Materials (支持的输入类型)
 

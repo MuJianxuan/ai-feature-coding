@@ -145,7 +145,7 @@ scope_freeze:
 `ship-delivery-plan` 生成：
 - `frontend-plan.md`
 - `backend-plan.md`
-- `sync-plan.md`（可选，若需要前后端同步）
+- `frontend-plan.md` / `backend-plan.md` 内的 sync 子段（若需要前后端同步；不生成独立 `sync-plan.md`）
 
 ## 范围验证
 

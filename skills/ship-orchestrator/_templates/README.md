@@ -1,4 +1,4 @@
-# skills-new — 共享模板
+# ShipKit templates — 共享模板
 
 本目录包含跨 skill 共享的协议与模板，用于维持 workflow 的单一事实源。
 
@@ -15,9 +15,17 @@ _templates/
 ├── resource/
 │   └── README.md.template         # feature resource/ 资料目录说明
 ├── review/
-│   └── review.md.template         # 硬门禁评审记录模板（define/design/plan 三个 hard gate 共用）
+│   ├── review.md.template         # 硬门禁评审记录模板（define/design/plan 三个 hard gate 共用）
+│   └── review-gate-reference.md   # hard gate frontmatter 与 finding 速查
 ├── protocol/
-│   └── workflow-protocol.md       # 共享协议单源（阶段 id / 门禁 / 状态机）
+│   ├── feature-initialization.md  # feature 目录初始化
+│   ├── gate-protocol.md           # gate 运行时检查与失败处理
+│   ├── resume-protocol.md         # 断点恢复
+│   ├── routing-protocol.md        # 路由委派与 assistive questioning 运行时说明
+│   ├── scenario-detection.md      # A/B/C/D/E 场景判定
+│   ├── scope-detection.md         # fullstack/backend_only/frontend_only 判定
+│   ├── stage-routing.md           # stage 跳转速查
+│   └── workflow-protocol.md       # canonical contract：阶段 id / 门禁 / 状态机 / source barrier
 └── README.md                      # 当前说明文档
 ```
 
@@ -58,7 +66,7 @@ PRD 直通和产品提供模式下，`ship-orchestrator` 可先创建 raw `requi
 
 ### protocol/workflow-protocol.md
 
-共享协议单源。凡是涉及 stage id、门禁字段、`verification.md` ownership、子代理委派边界、`ship-spec` hook 契约，都先对照此文档，再更新其他 SKILL。
+共享协议单源。凡是涉及 stage id、hard gate schema、`verification.md` ownership、source code edit barrier、子代理委派边界、`ship-spec` hook 契约，都先对照此文档，再更新其他 SKILL。专题协议只能引用或摘要，不得重新定义冲突字段。
 
 其中 delegation 相关的 canonical `node_id`、自动解析顺序、warning 落点，也统一以该协议为准，不允许阶段文档自行发明 key 名。
 

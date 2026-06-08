@@ -252,16 +252,16 @@ E2E 路径选择原则：
 **Step 1-3: 测试覆盖审计**
 - 列出所有 DONE 任务
 - 对照 Verification Per Task 检查测试是否齐全
-- 缺失测试者补齐，不再以 `ship-build` 已结束为由跳过
+- 缺失测试时记录为 verification gap，创建修复任务并回退到 `ship-build`；不得以 `ship-verify` 身份直接新增或修改测试。
 
 **Step 4-5: 分轨执行**
 - 优先级：后端单测 → 后端集成 → 后端契约 → 前端组件 → 前端 E2E
 - 前序失败时不阻塞后序，但需要分类标记
 
 **Step 6-7: 失败诊断**
-- 真 bug → 创建修复任务，回到 `ship-build`
-- 测试问题（写错的断言、过期的 fixture）→ 修测试
-- 环境问题（端口冲突、依赖缺失）→ 修环境，记录到 README
+- 真 bug → 创建修复任务，回到 `ship-build`，通过 `implementation_preflight.py --files <paths...>` 后修复
+- 测试问题（写错的断言、过期的 fixture）→ 创建测试修复任务，回到 `ship-build` 后修测试
+- 环境问题（端口冲突、依赖缺失）→ 记录环境阻塞与建议处理；若需改配置/脚本，回到 `ship-build` 并通过 preflight
 
 **Step 8: 结果归档**
 - 测试运行命令与输出

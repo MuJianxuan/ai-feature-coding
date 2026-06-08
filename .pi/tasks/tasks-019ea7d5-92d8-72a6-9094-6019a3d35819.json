@@ -1,0 +1,17 @@
+{
+  "nextId": 2,
+  "tasks": [
+    {
+      "id": "1",
+      "subject": "盘点 skills 技能结构",
+      "description": "只读审阅当前仓库 skills/ 目录，重点读取 skills/README.md、各 */SKILL.md、ship-orchestrator/_templates/protocol/*.md，产出技能地图、最大执行风险、可删除/合并候选和优先修改文件。",
+      "status": "completed",
+      "activeForm": "盘点 skills 技能结构",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1780932270295,
+      "updatedAt": 1780932384867
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-# skills-new — 开发工作流技能套件
+# ShipKit skills — 开发工作流技能套件
 
 > 一套从需求到交付的端到端开发工作流，把 PRD/原型/UI-UX 设计稿转化为可验证的可工作软件。对外默认只展示 5 个大阶段（Discover 可选），内部仍保留严格的细阶段、门禁和产物。
 
@@ -141,6 +141,8 @@
 ```
 
 这类调用保留给高级用户、诊断场景和精确恢复场景，不作为默认使用路径。
+
+高级直调必须同时满足：已知 `feature_dir`、上游产物达到该阶段入口条件、且不会绕过 orchestrator 的 hard gate / source code edit barrier；缺任一条件时先回到 `ship-orchestrator` 诊断。
 
 补充说明：
 

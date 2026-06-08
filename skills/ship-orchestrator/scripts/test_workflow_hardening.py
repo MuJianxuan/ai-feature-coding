@@ -1415,6 +1415,14 @@ evidence_complete: false
         self.assertFalse(result["allowed"])
         self.assertTrue(any(issue["code"] == "file_not_allowed_by_doing_task" for issue in result["issues"]), result["issues"])
 
+    def test_implementation_preflight_requires_target_files(self) -> None:
+        self.prepare_build_ready_feature(current_stage="ship-build")
+
+        result = implementation_preflight(self.feature_dir, project_scope="backend_only")
+
+        self.assertFalse(result["allowed"])
+        self.assertTrue(any(issue["code"] == "target_files_not_provided" for issue in result["issues"]), result["issues"])
+
     def test_implementation_preflight_allows_declared_file_and_directory_glob(self) -> None:
         self.prepare_build_ready_feature(current_stage="ship-build", allowed_files="src/auth/**")
 

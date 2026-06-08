@@ -1,6 +1,6 @@
 ---
 name: ship-shape
-description: "ShipKit pre-Define stage. Produces design system tokens, HTML wireframe prototypes, and multi-variant design directions when no external UIUX materials exist. Use when feature has UI but no Figma/prototype/design."
+description: "ShipKit conditional pre-Define stage. Advanced/direct stage only: normal UI feature requests route through ship-orchestrator. Produces tokens, HTML wireframes, and design variants only when orchestrator or UIUX Material Gate explicitly inserts ship-shape."
 ---
 
 # UIUX 原型设计 (Design Shaping)

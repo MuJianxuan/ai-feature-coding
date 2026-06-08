@@ -1,0 +1,17 @@
+{
+  "nextId": 2,
+  "tasks": [
+    {
+      "id": "1",
+      "subject": "审阅 skills 输出质量规范",
+      "description": "只读审阅 skills/ 目录，从输出质量视角检查产物格式、验收标准、证据要求、最终回复/文档写入规范是否一致；输出具体文件和建议，不修改文件。",
+      "status": "completed",
+      "activeForm": "审阅 skills 输出质量",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1780932434436,
+      "updatedAt": 1780932618560
+    }
+  ]
+}

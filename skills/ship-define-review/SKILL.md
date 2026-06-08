@@ -273,7 +273,7 @@ Phase 3: 标准 Checklist（8 项）
 - 需求范围无边界，存在无限蔓延风险
 - 不同章节对同一功能描述矛盾
 
-### Major（应当修复，影响质量）
+### Major（必须修复后重审，影响质量）
 
 - 异常流程覆盖不完整
 - 非功能需求缺少量化指标
@@ -347,7 +347,7 @@ generation_mode: ""  # 从 requirements.md 继承: interview | prd_direct
 | 问题编号 | 建议修改方案 | 优先级 | 预计影响范围 |
 |---------|------------|--------|------------|
 | C-001   | [具体建议]  | 必须   | [涉及章节]  |
-| M-001   | [具体建议]  | 建议   | [涉及章节]  |
+| M-001   | [具体建议]  | 必须   | [涉及章节]  |
 
 ## 5. 用户签字
 
@@ -365,7 +365,7 @@ generation_mode: ""  # 从 requirements.md 继承: interview | prd_direct
 
 ```
 1. 将问题清单传递给 ship-define 阶段
-2. 在 requirements.md 中修复所有 Critical 问题（Major 视情况）
+2. 在 requirements.md 中修复所有 Critical / Major 问题
 3. 更新 requirements.md 的 updated_at 时间戳
 4. 重新进入 ship-define-review，执行完整评审流程
 5. 不可只检查"修改的部分"，必须全量重审

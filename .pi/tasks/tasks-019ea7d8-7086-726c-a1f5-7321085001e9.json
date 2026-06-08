@@ -1,0 +1,17 @@
+{
+  "nextId": 2,
+  "tasks": [
+    {
+      "id": "1",
+      "subject": "审阅 skills 执行流程文档",
+      "description": "只读审阅当前仓库 skills/ 目录，聚焦 agent 按文档执行时可能卡住、顺序不明确、门禁/状态推进含糊、源码修改屏障难执行的问题；输出高置信问题，不修改文件。",
+      "status": "completed",
+      "activeForm": "审阅 skills 执行流程",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1780932444924,
+      "updatedAt": 1780932500365
+    }
+  ]
+}

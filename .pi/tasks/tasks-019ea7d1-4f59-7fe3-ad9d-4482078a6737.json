@@ -1,0 +1,53 @@
+{
+  "nextId": 5,
+  "tasks": [
+    {
+      "id": "1",
+      "subject": "盘点技能现状",
+      "description": "扫描 `skills/` 下所有技能、模板、脚本和文档，识别技能职责、调用关系、重复点、可执行性问题与潜在删除/合并候选。验收：形成基于文件证据的现状摘要。",
+      "status": "completed",
+      "activeForm": "盘点技能现状",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1780932183221,
+      "updatedAt": 1780932226095
+    },
+    {
+      "id": "2",
+      "subject": "运行 workflow 多视角审阅",
+      "description": "按用户要求使用 workflow，从 agent 视角分别审阅触发边界、执行流程、输出质量、维护性，并汇总为可执行重构方案。验收：workflow 返回明确建议与风险点。",
+      "status": "completed",
+      "activeForm": "运行 workflow 审阅",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1780932191222,
+      "updatedAt": 1780932690127
+    },
+    {
+      "id": "3",
+      "subject": "实施技能重构优化",
+      "description": "依据盘点与 workflow 建议，最小必要地重写/调整 `skills/` 技能文件；允许必要删除/合并但需有明确依据。验收：技能触发边界、执行流程、输出质量和维护性均被改善。",
+      "status": "completed",
+      "activeForm": "实施技能重构",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1780932197145,
+      "updatedAt": 1780932968874
+    },
+    {
+      "id": "4",
+      "subject": "验证并复查结果",
+      "description": "运行可用的校验脚本或静态检查，逐项对比用户目标与最终文件，确认无遗漏并总结变更。验收：验证结果清楚，剩余风险明确。",
+      "status": "completed",
+      "activeForm": "验证并复查",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1780932203625,
+      "updatedAt": 1780933009830
+    }
+  ]
+}

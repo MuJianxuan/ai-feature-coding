@@ -1,9 +1,9 @@
 ---
 name: ship-grill-me
-description: Assistive questioning skill for ShipKit. Use to stress-test a plan or design, "grill me", or run pre-ready / pre-signoff questioning before a ShipKit stage is marked ready or a hard gate asks for sign-off. This is not a canonical stage.
+description: Assistive questioning skill for ShipKit. Only use as a ShipKit stage hook or explicit advanced diagnostic; never as a workflow entry. It asks one blocking decision question at a time before stage ready/sign-off and never replaces review gates.
 ---
 
-Interview me relentlessly about every aspect of this plan until we reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.
+Interview only the current artifact's unresolved blocking decisions until the next safe workflow action is clear. For each question, provide your recommended answer and cite evidence already checked.
 
 Ask the questions one at a time.
 

@@ -29,7 +29,7 @@ def _issue(level: str, code: str, message: str, path: str | None = None) -> dict
     return payload
 
 
-def implementation_preflight(feature_dir: Path, project_scope: str = "fullstack", files: list[str] | None = None, strict_files: bool = False) -> dict[str, Any]:
+def implementation_preflight(feature_dir: Path, project_scope: str = "fullstack", files: list[str] | None = None, strict_files: bool = True) -> dict[str, Any]:
     """Check all preconditions for entering ship-build and editing implementation code.
 
     Returns a dict with:
@@ -150,8 +150,7 @@ def implementation_preflight(feature_dir: Path, project_scope: str = "fullstack"
             except ValueError as exc:
                 issues.append(_issue("error", "invalid_target_file_path", str(exc), raw_file))
     else:
-        level = "error" if strict_files else "warning"
-        (issues if strict_files else warnings).append(_issue(level, "target_files_not_provided", "pass --files with planned implementation paths"))
+        issues.append(_issue("error", "target_files_not_provided", "pass --files with planned implementation paths"))
 
     if target_files and build_result.get("doing_tasks"):
         allowed_files = build_result["doing_tasks"][0].get("allowed_files", [])
@@ -198,7 +197,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Project scope (default: fullstack)"
     )
     parser.add_argument("--files", nargs="*", default=None, help="Workspace-relative implementation files planned for this edit")
-    parser.add_argument("--strict-files", action="store_true", help="Fail when --files is omitted")
+    parser.add_argument("--strict-files", action="store_true", help="Deprecated compatibility flag; --files is always required")
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
     return parser
 

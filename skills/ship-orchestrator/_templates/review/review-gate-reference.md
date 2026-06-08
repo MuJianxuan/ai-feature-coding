@@ -16,6 +16,7 @@ revision_count: 0
 user_sign_off: ""
 signed_at: ""
 conditions: []
+confirmation_id: ""
 required_changes: []
 ---
 ```
@@ -23,8 +24,9 @@ required_changes: []
 规则：
 
 - 只有 `review_status: approved` 且 `user_sign_off`、`signed_at` 非空时，允许推进。
-- 子代理起草 gate 草案时，`review_status` 必须保持 `pending`，`user_sign_off` 与 `signed_at` 必须为空。
+- 子代理起草 gate 草案时，`review_status` 必须保持 `pending`，`user_sign_off`、`signed_at` 与 `confirmation_id` 必须为空。
 - `required_changes` 用于 `rejected` / `revision_needed`，每项必须能定位到上游 artifact。
+- approved 时 `confirmation_id` 必须匹配 `meta.yml.confirmation_log` 中同 stage / artifact 的 `hard_gate_signoff` 条目。
 
 ## Finding Table
 
@@ -42,6 +44,6 @@ required_changes: []
 ## Decision Rules
 
 - 有 Critical finding：不得 approved。
-- 有未处理 Major finding：默认 `revision_needed`，除非用户明确接受风险并写入 conditions / risk record。
+- 有未处理 Major finding：必须 `revision_needed`，不可用风险接受替代修复；只有 Minor finding 可由用户接受风险后推进。
 - Minor finding 不阻塞，但必须记录。
 - 用户签字不可代替 review 内容；签字只确认 gate 决策。

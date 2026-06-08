@@ -233,6 +233,10 @@ P3 (Low):    优化建议、非功能性改进
 ---
 stage: ship-handoff
 stage_status: ready  # ship-verify 结束时应为 ready；ship-handoff 完成后改为 complete 或回退为 draft
+produced_by:
+  - ship-verify
+accepted_by: ship-handoff
+artifact_phase: acceptance  # ship-verify ready 时为 testing；ship-handoff complete 时必须为 acceptance
 updated_at: ""
 all_ac_verified: false  # 所有 AC 都有明确结果（含 N/A）则为 true
 accepted_risks_sign_off: ""
