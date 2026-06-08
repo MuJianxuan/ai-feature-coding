@@ -2534,5 +2534,160 @@ risk: low.
         self.assertIn("review-plan.md", missing_paths)
 
 
+    def test_technical_plan_scope_confirmation_not_build_authorization(self) -> None:
+        """Technical plan entry + scope confirmation does not authorize ship-build."""
+        self.write_meta(
+            current_stage="ship-tech-discovery",
+            scenario="technical_plan_provided",
+            project_context="existing_project",
+            project_scope="backend_only",
+            project_scope_evidence="用户明确声明纯后端 API 项目",
+        )
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["technical_plan_source"] = {
+            "source_files": ["resource/tech-plan.md"],
+            "selection_mode": "referenced_sections",
+            "selected_scope": [{"type": "section", "label": "申请记录页接口", "source_file": "resource/tech-plan.md", "locator": "heading"}],
+            "pasted_excerpt_file": "",
+            "ignored_source_policy": "out_of_scope",
+            "repository_scan_required": True,
+            "repository_scan_status": "ready",
+            "selected_scope_ac_confirmation": {
+                "status": "confirmed",
+                "confirmed_ac_ids": ["AC-APP-001"],
+                "user_sign_off": "确认",
+                "confirmed_at": "2026-06-08T12:00:00+08:00",
+                "source_summary": "申请记录页接口",
+            },
+        }
+        meta["stages"]["ship-define"]["status"] = "skipped"
+        meta["stages"]["ship-define-review"]["status"] = "skipped"
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        # User confirmed selected scope, but cannot enter ship-build directly
+        result = check_transition(self.feature_dir, "ship-build")
+
+        self.assertFalse(result["allowed"])
+        self.assertTrue(any("ship-contract" in issue["message"] or "ship-design-review" in issue["message"] or "ship-plan-review" in issue["message"] for issue in result["issues"]))
+
+    def test_technical_plan_cannot_skip_design_review(self) -> None:
+        """Scenario E cannot skip ship-design-review hard gate."""
+        self.write_meta(
+            current_stage="ship-delivery-plan",
+            scenario="technical_plan_provided",
+            project_context="existing_project",
+            project_scope="backend_only",
+            project_scope_evidence="用户明确声明纯后端 API 项目",
+        )
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["stages"]["ship-define"]["status"] = "skipped"
+        meta["stages"]["ship-define-review"]["status"] = "skipped"
+        meta["stages"]["ship-tech-discovery"]["status"] = "ready"
+        meta["stages"]["ship-contract"]["status"] = "ready"
+        meta["stages"]["ship-backend-design"]["status"] = "ready"
+        meta["stages"]["ship-frontend-design"]["status"] = "skipped"
+        # Missing ship-design-review
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        result = check_transition(self.feature_dir, "ship-delivery-plan")
+
+        self.assertFalse(result["allowed"])
+        self.assertTrue(any("ship-design-review" in issue["message"] for issue in result["issues"]))
+
+    def test_backend_only_does_not_skip_contract(self) -> None:
+        """backend_only cannot skip ship-contract."""
+        self.write_meta(
+            current_stage="ship-backend-design",
+            project_scope="backend_only",
+            project_scope_evidence="用户明确声明纯后端 API 项目",
+            scenario="product_provided",
+            define_review_status="approved",
+        )
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["stages"]["ship-define"]["status"] = "ready"
+        meta["stages"]["ship-define-review"]["status"] = "approved"
+        meta["stages"]["ship-define-review"]["approved"] = True
+        meta["stages"]["ship-tech-discovery"]["status"] = "ready"
+        # Missing ship-contract
+        meta["stages"]["ship-frontend-design"]["status"] = "skipped"
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        result = check_transition(self.feature_dir, "ship-backend-design")
+
+        self.assertFalse(result["allowed"])
+        self.assertIn("ship-contract", result["checked_previous_stages"])
+
+    def test_backend_only_does_not_skip_delivery_plan(self) -> None:
+        """backend_only cannot skip ship-delivery-plan."""
+        self.write_meta(
+            current_stage="ship-plan-review",
+            project_scope="backend_only",
+            project_scope_evidence="用户明确声明纯后端 API 项目",
+            scenario="product_provided",
+            define_review_status="approved",
+        )
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["stages"]["ship-define"]["status"] = "ready"
+        meta["stages"]["ship-define-review"]["status"] = "approved"
+        meta["stages"]["ship-define-review"]["approved"] = True
+        meta["stages"]["ship-tech-discovery"]["status"] = "ready"
+        meta["stages"]["ship-contract"]["status"] = "ready"
+        meta["stages"]["ship-backend-design"]["status"] = "ready"
+        meta["stages"]["ship-frontend-design"]["status"] = "skipped"
+        meta["stages"]["ship-design-review"]["status"] = "approved"
+        meta["stages"]["ship-design-review"]["approved"] = True
+        # Missing ship-delivery-plan
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        result = check_transition(self.feature_dir, "ship-plan-review")
+
+        self.assertFalse(result["allowed"])
+        self.assertIn("ship-delivery-plan", result["checked_previous_stages"])
+
+    def test_implementation_preflight_blocks_without_plan_review(self) -> None:
+        """implementation_preflight.py fails when review-plan.md is missing or not approved."""
+        from implementation_preflight import implementation_preflight
+
+        self.write_meta(
+            current_stage="ship-tech-discovery",
+            scenario="technical_plan_provided",
+            project_context="existing_project",
+            project_scope="backend_only",
+        )
+
+        result = implementation_preflight(self.feature_dir, "backend_only")
+
+        self.assertFalse(result["allowed"])
+        self.assertTrue(any(issue["code"] == "implementation_before_plan_review" for issue in result["issues"]))
+
+    def test_user_scope_confirmation_does_not_change_current_stage_to_build(self) -> None:
+        """User confirming scope/interface list does not change current_stage to ship-build."""
+        self.write_meta(
+            current_stage="ship-tech-discovery",
+            scenario="technical_plan_provided",
+            project_context="existing_project",
+            project_scope="backend_only",
+        )
+        meta = yaml.safe_load((self.feature_dir / "meta.yml").read_text(encoding="utf-8"))
+        meta["technical_plan_source"] = {
+            "selected_scope": [{"type": "section", "label": "申请记录页", "source_file": "resource/tech.md", "locator": "heading"}],
+            "selected_scope_ac_confirmation": {
+                "status": "confirmed",
+                "confirmed_ac_ids": ["AC-APP-001"],
+                "user_sign_off": "确认",
+                "confirmed_at": "2026-06-08T12:00:00+08:00",
+            },
+        }
+        self.write_text("meta.yml", yaml.safe_dump(meta, sort_keys=False))
+
+        # Confirming scope should not allow direct transition to ship-build
+        result = check_transition(self.feature_dir, "ship-build")
+
+        self.assertFalse(result["allowed"])
+        # Should require contract, design, design-review, plan, plan-review
+        required = {"ship-contract", "ship-backend-design", "ship-design-review", "ship-delivery-plan", "ship-plan-review"}
+        self.assertTrue(required.intersection(result["checked_previous_stages"]))
+
+
 if __name__ == "__main__":
     unittest.main()
