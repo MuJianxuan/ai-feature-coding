@@ -867,6 +867,77 @@ def validate_semantic_contracts() -> None:
     require("ship-shape` 仅 A/C 激活" not in combined, "unconditional ship-shape A/C-only wording remains")
 
 
+def validate_workflow_fix_plan_contracts() -> None:
+    skills_root = ROOT / "skills"
+    protocol_paths = [
+        ROOT / "skills/ship-orchestrator/_templates/protocol/scenario-detection.md",
+        ROOT / "skills/ship-orchestrator/_templates/protocol/feature-initialization.md",
+        ROOT / "skills/ship-orchestrator/_templates/protocol/workflow-protocol.md",
+        ROOT / "skills/ship-orchestrator/_templates/meta/meta.yml.template",
+    ]
+    legacy_selection = "file" + "_section"
+    for path in skills_root.rglob("*.md"):
+        require(legacy_selection not in read_text(path), f"{path}: legacy selection_mode value remains")
+    for path in protocol_paths:
+        require("referenced_sections" in read_text(path), f"{path}: missing `referenced_sections` selection_mode")
+
+    stage_routing = read_text(ROOT / "skills/ship-orchestrator/_templates/protocol/stage-routing.md")
+    gate_protocol = read_text(ROOT / "skills/ship-orchestrator/_templates/protocol/gate-protocol.md")
+    for path, text in (
+        (ROOT / "skills/ship-orchestrator/_templates/protocol/stage-routing.md", stage_routing),
+        (ROOT / "skills/ship-orchestrator/_templates/protocol/gate-protocol.md", gate_protocol),
+    ):
+        for snippet in ("soft_optional", "soft_blocking", "blocking_gaps"):
+            require(snippet in text, f"{path}: missing soft gate semantic `{snippet}`")
+        for legacy in (
+            "`stage_status: draft` → 提示用户当前阶段未完成，询问是否允许软门禁强制推进",
+            "软门禁失败：警告用户风险后，用户可选择强制推进",
+        ):
+            require(legacy not in text, f"{path}: legacy soft gate force-pass wording remains")
+        require(
+            "软门禁 |" not in text or "是（记录 skip_log） | 是（记录 skip_log）" not in text,
+            f"{path}: legacy soft gate table allows unconditional skip and force-pass",
+        )
+
+    orchestrator_text = read_text(ROOT / "skills/ship-orchestrator/SKILL.md")
+    scope_detection = read_text(ROOT / "skills/ship-orchestrator/_templates/protocol/scope-detection.md")
+    for path, text in (
+        (ROOT / "skills/ship-orchestrator/SKILL.md", orchestrator_text),
+        (ROOT / "skills/ship-orchestrator/_templates/protocol/scope-detection.md", scope_detection),
+    ):
+        require("backend_only" in text and "ship-shape" in text, f"{path}: backend_only must mention ship-shape skip")
+        require("ship-frontend-design" in text, f"{path}: backend_only must still mention frontend design skip")
+    for path, text in (
+        (ROOT / "skills/ship-orchestrator/SKILL.md", orchestrator_text),
+        (ROOT / "skills/ship-orchestrator/_templates/protocol/stage-routing.md", stage_routing),
+    ):
+        require("backend_only" in text and "UIUX Material Gate" in text and "ship-shape" in text, f"{path}: backend_only UIUX gate insertion prohibition missing")
+
+    verify_text = read_text(ROOT / "skills/ship-verify/SKILL.md")
+    build_text = read_text(ROOT / "skills/ship-build/SKILL.md")
+    legacy_verify_trigger = "during ship-build" + " for TDD"
+    legacy_build_sync = "".join([
+        "ship-verify 已与 ",
+        "ship-build",
+        " 同步完成",
+    ])
+    require(legacy_verify_trigger not in verify_text, "ship-verify/SKILL.md: legacy build-time TDD trigger remains")
+    require(legacy_build_sync not in build_text, "ship-build/SKILL.md: legacy ship-verify/build sync wording remains")
+    for snippet in (
+        "TDD 和任务级测试发生在 `ship-build`",
+        "正式 `current_stage=ship-verify` 只在 build 阶段完成后进入",
+        "不在 build 期间提前把 `verification.md.stage_status` 置为 `ready`",
+    ):
+        require(snippet in verify_text, f"ship-verify/SKILL.md: missing build/verify boundary `{snippet}`")
+    workflow_text = read_text(ROOT / "skills/ship-orchestrator/_templates/protocol/workflow-protocol.md")
+    for snippet in (
+        "build task evidence 可作为 `ship-verify` 的输入",
+        "不拥有 `verification.md` frontmatter",
+        "不推进 `verification.md.stage_status=ready`",
+    ):
+        require(snippet in workflow_text, f"workflow-protocol.md: missing verification ownership `{snippet}`")
+
+
 def main() -> int:
     validators = [
         validate_stage_map_script,
@@ -884,6 +955,7 @@ def main() -> int:
         validate_cross_file_semantics,
         validate_root_readme_commands,
         validate_semantic_contracts,
+        validate_workflow_fix_plan_contracts,
     ]
     for validator in validators:
         validator()

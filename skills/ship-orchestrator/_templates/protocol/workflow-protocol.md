@@ -587,7 +587,7 @@ artifact_phase: testing       # testing | acceptance
   - 完成后将 `verification.md.stage_status` 置为 `complete` 或保留 `draft`
   - 产出 `handoff.md`
 
-`ship-build` 只负责任务级验证与 plan 状态，不拥有 `verification.md`。
+`ship-build` 只负责任务级验证与 plan 状态，不拥有 `verification.md` frontmatter，也不推进 `verification.md.stage_status=ready`。build task evidence 可作为 `ship-verify` 的输入，由 `ship-verify` 统一汇总到 `verification.md`。
 
 并行约束补充：
 

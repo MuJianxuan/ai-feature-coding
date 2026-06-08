@@ -70,13 +70,16 @@
 #### 2. 通过条件
 
 - `stage_status: ready` 或 `complete` → 允许推进
-- `stage_status: draft` → 提示用户当前阶段未完成，询问是否允许软门禁强制推进
+- `stage_status: draft` 时先读取 `soft_gate_class` 与 `blocking_gaps`
+- `soft_gate_class: soft_optional` 且 `blocking_gaps` 为空 → 可在用户明确确认后强制推进，并写入 `meta.yml.skip_log`
+- `soft_gate_class: soft_blocking` 且 `blocking_gaps` 非空 → 不可推进，不可通过 `skip_log` 绕过；只能补材料、缩 scope 或显式转场景
 - 若 `meta.yml.stages.<stage>.status` 为 `in_progress/blocked`，但 artifact 已 `ready`，以 artifact frontmatter 为事实源并回写 `meta.yml`
 - 上游文档不存在 → 阻断，路由回上游阶段
 
 #### 3. 失败处理
 
-- 软门禁失败：警告用户风险后，用户可选择强制推进（记录到 `meta.yml` 的 `skip_log`）
+- `soft_optional` 失败：警告用户风险后，可由用户明确确认强制推进（记录到 `meta.yml.skip_log`）
+- `soft_blocking` 失败：不可强制推进；必须先解决 `blocking_gaps`
 - 评审产物缺失：阻断推进，路由回评审阶段重新生成
 
 ## 门禁失败处理总结
@@ -84,7 +87,8 @@
 | 门禁类型 | 失败处理 | 是否可跳过 | 是否可强制通过 |
 |---------|---------|-----------|--------------|
 | 硬门禁 | 必须回退 | 否 | 否 |
-| 软门禁 | 警告风险后用户可选择强制推进 | 是（记录 skip_log） | 是（记录 skip_log） |
+| 软门禁 `soft_optional` | 警告风险后用户可选择强制推进 | 仅 `soft_optional` 可记录 skip_log | 是（记录 skip_log） |
+| 软门禁 `soft_blocking` | 补材料、缩 scope 或显式转场景 | 否 | 否 |
 
 ## 三个硬门禁的具体规则
 

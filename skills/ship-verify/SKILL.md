@@ -1,16 +1,16 @@
 ---
 name: ship-verify
-description: "ShipKit stage. Runs frontend and backend tests to verify implementation correctness. Use after ship-build completes or during ship-build for TDD."
+description: "ShipKit stage. Use after all relevant ship-build tasks are DONE to consolidate verification evidence for handoff."
 ---
 
 # 测试 (Testing)
 
 ## Overview
 
-测试阶段负责对实现产物进行系统性验证，覆盖前端、后端及前后端契约一致性。核心原则：**前后端分轨执行 + 契约层统一校验**。
+测试阶段负责在 `ship-build` 完成后汇总实现验证证据，覆盖前端、后端及前后端契约一致性。核心原则：**前后端分轨执行 + 契约层统一校验**。
 
 核心目标：
-- 后端测试在 `ship-build` 阶段随任务同步完成（TDD 风格）
+- TDD 和任务级测试发生在 `ship-build`；本阶段消费这些 test evidence 并统一归档
 - 前端 E2E 测试在所有前端任务完成后统一执行
 - 契约测试验证前后端对 api-contract.md 的实现一致性
 - 输出可审计的测试结果，创建或更新 `verification.md` 的测试章节
@@ -21,10 +21,11 @@ description: "ShipKit stage. Runs frontend and backend tests to verify implement
 
 ## When to Use
 
-- `ship-build` 阶段的任务正在/已完成，需要验证
-- TDD 模式下：每个后端任务实现前先写测试
-- 前端任务全部完成后，准备跑 E2E
+- 所有相关 `ship-build` 任务均已 DONE，准备汇总验证证据
+- build 期间已经产生任务级测试证据，需要统一写入 `verification.md`
+- 前端任务全部完成后，准备跑或归档 E2E
 - 需要验证前后端集成一致性时
+- 正式 `current_stage=ship-verify` 只在 build 阶段完成后进入，不在 build 期间提前把 `verification.md.stage_status` 置为 `ready`
 
 ## When NOT to Use
 

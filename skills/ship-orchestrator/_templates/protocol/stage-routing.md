@@ -55,7 +55,7 @@ ship-define → ship-define-review [硬门禁]
 | ship-delivery-plan | review-design.md review_status: approved | `project_scope` 对应 plan（fullstack: frontend+backend+sync；backend_only: backend；frontend_only: frontend） | 对应 plan `stage_status: ready`，fullstack 还要求 sync 完成 |
 | ship-plan-review | `project_scope` 对应 plan ready | review-plan.md | review_status: approved + user_sign_off/signed_at |
 | ship-build | review-plan.md review_status: approved | 代码产物 | 所有 task 完成 |
-| ship-verify | ship-build 完成 | verification.md | `stage_status: ready` |
+| ship-verify | `ship-build` 已完成，且对应 scope 的 plan task 全部 DONE | verification.md | `stage_status: ready` |
 | ship-handoff | verification.md stage_status: ready | handoff.md + verification.md | `handoff.md` 完成且 `verification.md stage_status: complete` |
 
 ## 并行规则
@@ -117,13 +117,16 @@ ship-define → ship-define-review [硬门禁]
 
 - 检查上游文档 frontmatter 中 `stage_status` 字段
 - `stage_status: ready` 或 `complete` → 允许推进
-- `stage_status: draft` → 提示用户当前阶段未完成，询问是否允许软门禁强制推进
+- `stage_status: draft` 时先读取 `soft_gate_class` 与 `blocking_gaps`
+- `soft_gate_class: soft_optional` 且 `blocking_gaps` 为空 → 可在用户明确确认后强制推进，并写入 `meta.yml.skip_log`
+- `soft_gate_class: soft_blocking` 且 `blocking_gaps` 非空 → 不可推进，不可通过 `skip_log` 绕过；只能补材料、缩 scope 或显式转场景
 - 若 `meta.yml.stages.<stage>.status` 为 `in_progress/blocked`，但 artifact 已 `ready`，以 artifact frontmatter 为事实源并回写 `meta.yml`
 - 上游文档不存在 → 阻断，路由回上游阶段
 
 ### 软门禁失败处理
 
-- 警告用户风险后，用户可选择强制推进（记录到 `meta.yml` 的 `skip_log`）
+- `soft_optional` 的强制推进必须记录到 `meta.yml.skip_log`
+- `soft_blocking` 不可通过 `skip_log` 绕过；必须先关闭 `blocking_gaps`
 - hard gate 永远不可通过 `skip_log` 跳过或强制通过
 
 ## 场景与路由规则
@@ -157,10 +160,11 @@ ship-define → ship-define-review
 ```
 
 **可能的插入**：
-- UIUX Material Gate 授权生成线框时，插入 `ship-shape`：
+- UIUX Material Gate 在 `project_scope = fullstack | frontend_only` 且用户授权生成线框时，插入 `ship-shape`：
   ```
   ship-shape → ship-define → ...
   ```
+- 若 `project_scope = backend_only`，B/D 的 UIUX Material Gate 不得插入 `ship-shape`，必须保持 `ship-shape` 为 skipped
 
 **B 与 D 的区别**：
 - B：`ship-define` 走 `generation_mode: interview`（多轮采访）
@@ -188,7 +192,7 @@ ship-tech-discovery → ship-contract
 
 **跳过阶段**：
 - `ship-frontend-design`
-- `ship-shape`（若场景为 A/C）
+- `ship-shape`
 
 **保留阶段**：
 - 所有其他阶段，包括：
@@ -197,6 +201,9 @@ ship-tech-discovery → ship-contract
   - `ship-design-review`
   - `ship-delivery-plan`
   - `ship-plan-review`
+
+**UIUX Gate 约束**：
+- `backend_only` 下不允许 UIUX Material Gate 插入 `ship-shape`，即使场景 B/D 缺少 UIUX 材料，也应按后端契约材料缺口处理
 
 ### frontend_only
 

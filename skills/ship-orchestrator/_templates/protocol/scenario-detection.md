@@ -139,7 +139,7 @@
 - `stages.ship-define-review.status: skipped`
 - `stages.ship-define.generation_mode: technical_plan`（用于派生 requirements index 兼容标识）
 - `technical_plan_source.selected_scope` 非空
-- `technical_plan_source.selection_mode: file_section | pasted_excerpt`
+- `technical_plan_source.selection_mode: referenced_sections | pasted_excerpt`
 - `technical_plan_source.ignored_source_policy: out_of_scope`
 - `technical_plan_source.repository_scan_required: true`
 
@@ -157,7 +157,7 @@
 **场景 E 不等于直接实现**：
 - 场景 E 只跳过 `ship-define` 执行阶段与 `ship-define-review` hard gate
 - 仍必须按顺序执行：`ship-tech-discovery → ship-contract → ship-backend-design / ship-frontend-design（按 scope 裁剪） → ship-design-review → ship-delivery-plan → ship-plan-review → ship-build`
-- `backend_only` 仅跳过 `ship-frontend-design`，不跳过 `ship-contract`、`ship-backend-design`、`ship-design-review`、`ship-delivery-plan`、`ship-plan-review`
+- `backend_only` 跳过 `ship-shape` 与 `ship-frontend-design`，但不跳过 `ship-contract`、`ship-backend-design`、`ship-design-review`、`ship-delivery-plan`、`ship-plan-review`
 - selected scope 确认、接口列表确认、响应结构确认都不是 `ship-build` 授权
 
 ## 场景 B 与 D 的区分
@@ -196,13 +196,13 @@
 |------|---------|---------|
 | A + `backend_only` | 允许 | `ship-discover` 走 backend 子分支（聚焦消费者画像/SLA/契约形态），`ship-shape` 自动跳过 |
 | A + `frontend_only` | 允许 | `ship-discover` 走 frontend 子分支，`ship-shape` 正常激活 |
-| B + `backend_only` | 允许 | 标准路径，跳过 `ship-frontend-design` |
+| B + `backend_only` | 允许 | 标准路径，跳过 `ship-shape` 与 `ship-frontend-design`；UIUX Material Gate 不得插入 `ship-shape` |
 | B + `frontend_only` | 允许 | 标准路径，跳过 `ship-backend-design` |
 | C + `backend_only` | 允许 | `ship-discover` evolve 子分支聚焦 API surface 与消费者 |
 | C + `frontend_only` | 允许 | `ship-discover` evolve 子分支聚焦组件/页面影响 |
-| D + `backend_only` | 允许（材料类型确认） | D + backend_only 需要 PRD 同时具备契约级材料（OpenAPI / endpoint list / 接口文档 / API spec / message protocol / 消息协议 / CLI spec / SDK / request-response 等）。该材料类型会在 `ship-define-review` hard gate 复核；若只有产品 PRD，无接口或技术规约，默认建议降级为 B/interview 补齐契约信息 |
+| D + `backend_only` | 允许（材料类型确认） | D + backend_only 跳过 `ship-shape` 与 `ship-frontend-design`，UIUX Material Gate 不得插入 `ship-shape`；PRD 需要同时具备契约级材料（OpenAPI / endpoint list / 接口文档 / API spec / message protocol / 消息协议 / CLI spec / SDK / request-response 等）。该材料类型会在 `ship-define-review` hard gate 复核；若只有产品 PRD，无接口或技术规约，默认建议降级为 B/interview 补齐契约信息 |
 | D + `frontend_only` | 允许 | 标准路径 |
-| E + `backend_only` | 允许 | 标准路径，跳过 `ship-frontend-design` |
+| E + `backend_only` | 允许 | 标准路径，跳过 `ship-shape` 与 `ship-frontend-design` |
 | E + `frontend_only` | 允许 | 标准路径，跳过 `ship-backend-design` |
 
 ## 启动确认模板
@@ -211,7 +211,7 @@ NEW_FEATURE 启动确认必须包含：
 - 简述功能名称和目标
 - 标明识别到的场景（A/B/C/D/E）及起点阶段
 - 标明识别到的范围（fullstack / backend_only / frontend_only）及跳过的阶段
-  - `backend_only` 时显式列出："将跳过 `ship-frontend-design`；若场景为 A/C，`ship-shape` 因 `backend_only` 路由跳过，不代表 UI 原型遗漏"
+  - `backend_only` 时显式列出："将跳过 `ship-shape` 与 `ship-frontend-design`；不代表 contract / backend design / review / plan 可跳过"
   - `frontend_only` 时显式列出："将跳过 `ship-backend-design`"
 - 列出将要经历的大阶段序列（含 Discover 是否激活）
 - 预估涉及的技术领域

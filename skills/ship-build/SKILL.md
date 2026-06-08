@@ -343,5 +343,5 @@ python3 skills/ship-orchestrator/scripts/build_task_preflight.py <feature-dir> -
 - [ ] 端到端关键路径已跑通（即使是手动验证）
 - [ ] 已知的偏离/妥协已记录在当前事实源的 notes 字段
 - [ ] 相关规范已加载并在任务证据中留痕（如适用）
-- [ ] 准备进入 `ship-verify` 阶段（或 `ship-verify` 已与 `ship-build` 同步完成）
+- [ ] 准备进入 `ship-verify` 阶段；build 期间的测试证据已记录，供 `ship-verify` 汇总
 ```

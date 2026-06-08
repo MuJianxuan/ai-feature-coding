@@ -174,7 +174,7 @@
 - `stages.ship-define-review.status: skipped`
 - `stages.ship-define.generation_mode: technical_plan`（用于派生 requirements index 兼容标识）
 - `technical_plan_source.selected_scope` 非空
-- `technical_plan_source.selection_mode: file_section | pasted_excerpt`
+- `technical_plan_source.selection_mode: referenced_sections | pasted_excerpt`
 - `technical_plan_source.ignored_source_policy: out_of_scope`
 - `technical_plan_source.repository_scan_required: true`
 

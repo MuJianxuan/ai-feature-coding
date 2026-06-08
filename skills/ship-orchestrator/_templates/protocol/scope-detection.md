@@ -7,7 +7,7 @@
 | 范围 | 入口信号 | 跳过阶段 |
 |------|---------|---------|
 | `fullstack`（默认） | 用户描述涉及前后端、或未明确声明 | 无 |
-| `backend_only` | 用户明确说"纯后端""只做 API""不涉及前端" | `ship-frontend-design` |
+| `backend_only` | 用户明确说"纯后端""只做 API""不涉及前端" | `ship-shape`, `ship-frontend-design` |
 | `frontend_only` | 用户明确说"纯前端""只做 UI""不涉及后端" | `ship-backend-design` |
 
 ## 判定规则
@@ -78,7 +78,7 @@
 
 ## backend_only 不等于跳过治理
 
-`backend_only` **只裁剪前端阶段**，不裁剪上游治理：
+`backend_only` 跳过 UI shaping 与 frontend design，但不裁剪上游治理：
 - 不跳过 `ship-contract`
 - 不跳过 `ship-backend-design`
 - 不跳过 `ship-design-review`
@@ -171,8 +171,8 @@ scope_freeze:
 NEW_FEATURE 启动确认必须标明识别到的范围：
 - `fullstack`：无跳过阶段
 - `backend_only`：
-  - 显式列出："将跳过 `ship-frontend-design`"
-  - 若场景为 A/C，补充："若场景为 A/C，`ship-shape` 因 `backend_only` 路由跳过，不代表 UI 原型遗漏"
+  - 显式列出："将跳过 `ship-shape` 与 `ship-frontend-design`"
+  - 明确：B/D 的 UIUX Material Gate 在 `backend_only` 下不得插入 `ship-shape`
   - 强调：**不跳过 `ship-contract`、`ship-backend-design`、`ship-design-review`、`ship-delivery-plan`、`ship-plan-review`**
 - `frontend_only`：
   - 显式列出："将跳过 `ship-backend-design`"
