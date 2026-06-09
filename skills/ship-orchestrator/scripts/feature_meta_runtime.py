@@ -927,13 +927,16 @@ def resolve_project_context(
 
 def resolve_and_validate_feature_dir(feature_dir: Path) -> FeatureContext:
     resolved_feature_dir = feature_dir.resolve()
-    if not resolved_feature_dir.name.startswith("feature-"):
-        raise ValueError("feature_dir name must match feature-*")
     meta_path = resolved_feature_dir / "meta.yml"
     if not meta_path.exists():
         raise ValueError("feature_dir missing meta.yml")
     data = load_meta(meta_path)
     workspace_context = resolve_project_context(search_from=resolved_feature_dir, meta_path=meta_path, data=data)
+    is_solo_work = int(data.get("schema_version") or 0) >= 3 or str(workspace_context.feature_root).rstrip("/") == ".docs/ship"
+    if not is_solo_work and not resolved_feature_dir.name.startswith("feature-"):
+        raise ValueError("feature_dir name must match feature-* or be inside .docs/ship for schema_version 3")
+    if is_solo_work and (not resolved_feature_dir.name or resolved_feature_dir.name.startswith(".")):
+        raise ValueError("ship work directory name must be a non-hidden work id")
     resolved_feature_root = workspace_context.resolved_feature_root.resolve()
     try:
         resolved_feature_dir.relative_to(resolved_feature_root)
@@ -1020,11 +1023,11 @@ def validate_gate_confirmation(data: dict, frontmatter: dict, stage: str, artifa
         return issues
     confirmation_id = str(frontmatter.get("confirmation_id") or "").strip()
     if not confirmation_id:
-        level = "error" if strict else "warning"
+        level = "warning"
         issues.append({
             "level": level,
-            "code": "missing_confirmation_id",
-            "message": "approved hard gate should reference meta.yml confirmation_log via confirmation_id",
+            "code": "missing_review_confirmation_id",
+            "message": "approved review checklist may reference meta.yml confirmation_log via confirmation_id, but it is not a default runtime gate",
             "path": artifact,
         })
         return issues
@@ -1033,10 +1036,10 @@ def validate_gate_confirmation(data: dict, frontmatter: dict, stage: str, artifa
     if not match:
         issues.append({"level": "error", "code": "confirmation_id_not_found", "message": f"confirmation_id {confirmation_id!r} not found in meta.yml confirmation_log", "path": artifact})
         return issues
-    if match.get("type") != "hard_gate_signoff" or match.get("stage") != stage or match.get("artifact") != artifact:
-        issues.append({"level": "error", "code": "confirmation_log_mismatch", "message": "confirmation_log entry type/stage/artifact does not match approved hard gate", "path": artifact})
-    if match.get("actor") != "user" or match.get("source") != "current_session":
-        issues.append({"level": "error", "code": "confirmation_log_untrusted_source", "message": "hard gate confirmation must be actor=user and source=current_session", "path": artifact})
+    if match.get("stage") != stage or match.get("artifact") != artifact:
+        issues.append({"level": "warning", "code": "confirmation_log_mismatch", "message": "confirmation_log entry stage/artifact does not match review checklist", "path": artifact})
+    if match.get("actor") not in ("user", "agent"):
+        issues.append({"level": "warning", "code": "confirmation_log_untrusted_actor", "message": "review checklist confirmation actor should be user or agent", "path": artifact})
     return issues
 
 
@@ -1630,7 +1633,7 @@ def record_skip(
         raise ValueError(f"invalid to_stage: {to_stage}")
     if gate_type.strip().lower() == "hard" or from_stage in HARD_GATE_STAGES:
         raise ValueError(
-            "hard gates cannot be skipped; require approved review_status plus user_sign_off and signed_at"
+            "legacy hard skip requests are unsupported in the solo workflow; record accepted_risks instead"
         )
     if not reason.strip():
         raise ValueError("skip reason must be non-empty")

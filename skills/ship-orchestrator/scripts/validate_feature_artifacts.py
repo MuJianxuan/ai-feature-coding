@@ -34,6 +34,8 @@ REVIEW_STATUSES = frozenset({"pending", "approved", "rejected", "revision_needed
 META_NON_REVIEW_STATUSES = frozenset({"pending", "in_progress", "ready", "blocked", "completed", "skipped"})
 META_REVIEW_STATUSES = frozenset({"pending", "in_progress", "approved", "rejected", "revision_needed", "skipped"})
 REVIEW_STAGES = frozenset({"ship-define-review", "ship-design-review", "ship-plan-review"})
+SUPPORT_STAGES = frozenset({"ship-shape", "ship-frontend-design", "ship-backend-design", "ship-define-review", "ship-design-review", "ship-plan-review", "ship-grill-me", "ship-spec"})
+META_SUPPORT_STATUSES = frozenset({"pending", "in_progress", "ready", "blocked", "completed", "skipped", "approved", "rejected", "revision_needed"})
 TECHNICAL_PLAN_SCAN_STATUSES = frozenset({"pending", "in_progress", "ready", "blocked"})
 AC_RE = re.compile(r"\bAC-[A-Z0-9]+-\d{3}\b")
 SOFT_BLOCKING_STAGES = frozenset({"ship-define", "ship-tech-discovery", "ship-contract", "ship-frontend-design", "ship-backend-design", "ship-delivery-plan", "ship-verify", "ship-handoff"})
@@ -64,25 +66,33 @@ class ArtifactSpec:
 
 
 ARTIFACT_SPECS: tuple[ArtifactSpec, ...] = (
-    ArtifactSpec("ship-discover", "product-brief.md", "artifact"),
+    ArtifactSpec("ship-discover", "intent.md", "artifact"),
+    ArtifactSpec("ship-define", "brief.md", "artifact"),
+    ArtifactSpec("ship-tech-discovery", "context-map.md", "artifact"),
+    ArtifactSpec("ship-contract", "contract.md", "artifact"),
+    ArtifactSpec("ship-delivery-plan", "plan.md", "artifact"),
+    ArtifactSpec("ship-build", "build-log.md", "artifact"),
+    ArtifactSpec("ship-verify", "verification.md", "artifact"),
+    ArtifactSpec("ship-handoff", "handoff.md", "artifact"),
+    # Optional support/legacy artifacts are validated when present but are not
+    # required runtime stages in the solo workflow.
     ArtifactSpec("ship-shape", "design-brief.md", "artifact"),
-    ArtifactSpec("ship-define", "requirements.md", "artifact"),
-    ArtifactSpec("ship-define-review", "review-define.md", "review"),
-    ArtifactSpec("ship-tech-discovery", "tech-research.md", "artifact", "research"),
-    ArtifactSpec("ship-tech-discovery", "tech-selection.md", "artifact", "selection"),
-    ArtifactSpec("ship-contract", "api-contract.md", "artifact"),
     ArtifactSpec("ship-frontend-design", "frontend-design.md", "artifact"),
     ArtifactSpec("ship-backend-design", "backend-design.md", "artifact"),
+    ArtifactSpec("ship-define-review", "review-define.md", "review"),
     ArtifactSpec("ship-design-review", "review-design.md", "review"),
-    ArtifactSpec("ship-delivery-plan", "frontend-plan.md", "artifact", "frontend-plan"),
-    ArtifactSpec("ship-delivery-plan", "backend-plan.md", "artifact", "backend-plan"),
     ArtifactSpec("ship-plan-review", "review-plan.md", "review"),
-    ArtifactSpec("ship-verify", "verification.md", "artifact", frontmatter_stage="ship-handoff"),
-    ArtifactSpec("ship-handoff", "handoff.md", "artifact"),
+    ArtifactSpec("ship-define", "requirements.md", "artifact"),
+    ArtifactSpec("ship-tech-discovery", "tech-research.md", "artifact", "legacy-research"),
+    ArtifactSpec("ship-tech-discovery", "tech-selection.md", "artifact", "legacy-selection"),
+    ArtifactSpec("ship-contract", "api-contract.md", "artifact", "legacy-contract"),
+    ArtifactSpec("ship-delivery-plan", "frontend-plan.md", "artifact", "legacy-frontend-plan"),
+    ArtifactSpec("ship-delivery-plan", "backend-plan.md", "artifact", "legacy-backend-plan"),
 )
 
+RUNTIME_ARTIFACT_SPECS: tuple[ArtifactSpec, ...] = ARTIFACT_SPECS[:8]
 ARTIFACTS_BY_STAGE: dict[str, tuple[ArtifactSpec, ...]] = {
-    stage: tuple(spec for spec in ARTIFACT_SPECS if spec.stage == stage)
+    stage: tuple(spec for spec in RUNTIME_ARTIFACT_SPECS if spec.stage == stage)
     for stage in CANONICAL_STAGE_ORDER
 }
 
@@ -179,9 +189,9 @@ def _validate_grill_records(path: str, frontmatter: dict[str, Any], body: str, k
         ):
             issues.append(
                 _issue(
-                    "error",
-                    "pre_signoff_grill_missing_user_signoff",
-                    "Pre-Signoff Grill cannot replace user_sign_off or signed_at",
+                    "warning",
+                    "pre_signoff_grill_without_optional_confirmation",
+                    "Pre-Signoff Grill is advisory in the solo workflow; record accepted_risks when the user explicitly accepts risk",
                     path,
                 )
             )
@@ -189,17 +199,21 @@ def _validate_grill_records(path: str, frontmatter: dict[str, Any], body: str, k
 
 
 def _stage_is_active_enough(meta: dict[str, Any], stage: str) -> bool:
-    stage_meta = _stage_meta(meta, stage)
-    status = stage_meta.get("status")
-    if status and status not in ("pending", "skipped"):
-        return True
     current_stage = meta.get("current_stage")
-    if current_stage not in CANONICAL_STAGE_ORDER:
+    if current_stage not in CANONICAL_STAGE_ORDER or stage not in CANONICAL_STAGE_ORDER:
         return False
-    return CANONICAL_STAGE_ORDER.index(stage) <= CANONICAL_STAGE_ORDER.index(current_stage)
+    stage_status = _stage_meta(meta, stage).get("status")
+    if stage_status == "skipped":
+        return False
+    # In the solo workflow, artifacts are mandatory for completed previous
+    # runtime stages. The current stage may still be in progress and future
+    # stages must not block transition checks.
+    return CANONICAL_STAGE_ORDER.index(stage) < CANONICAL_STAGE_ORDER.index(current_stage)
 
 
 def _artifact_required(meta: dict[str, Any], spec: ArtifactSpec) -> bool:
+    if spec not in RUNTIME_ARTIFACT_SPECS:
+        return False
     project_scope = meta.get("project_scope", "fullstack")
     if project_scope == "backend_only" and (
         spec.stage in ("ship-shape", "ship-frontend-design")
@@ -239,14 +253,17 @@ def _validate_meta(feature_dir: Path, meta: dict[str, Any]) -> list[dict[str, st
         return issues
 
     for stage, value in stages.items():
-        if stage not in CANONICAL_STAGE_ORDER:
+        if stage not in CANONICAL_STAGE_ORDER and stage not in SUPPORT_STAGES:
             issues.append(_issue("error", "unknown_stage", f"unknown meta stage: {stage}", "meta.yml"))
             continue
         if not isinstance(value, dict):
             issues.append(_issue("error", "invalid_stage_summary", f"meta.yml stages.{stage} must be a mapping", "meta.yml"))
             continue
         status = value.get("status")
-        allowed = META_REVIEW_STATUSES if stage in REVIEW_STAGES else META_NON_REVIEW_STATUSES
+        if stage in SUPPORT_STAGES:
+            allowed = META_SUPPORT_STATUSES
+        else:
+            allowed = META_REVIEW_STATUSES if stage in REVIEW_STAGES else META_NON_REVIEW_STATUSES
         if status not in allowed:
             issues.append(_issue("error", "invalid_meta_status", f"invalid meta status for {stage}: {status!r}", "meta.yml"))
 
@@ -268,10 +285,9 @@ def _validate_ship_shape_meta(meta: dict[str, Any]) -> list[dict[str, str]]:
     shape = _stage_meta(meta, "ship-shape")
     status = shape.get("status")
     if scenario in {"product_provided", "prd_direct"} and not status == "skipped":
-        if not shape.get("activation_mode") == "uiux_material_gate_insert":
-            issues.append(_issue("error", "invalid_shape_activation_mode", "B/D ship-shape requires activation_mode=uiux_material_gate_insert", "meta.yml"))
-        if not shape.get("uiux_gate_user_sign_off") or not shape.get("uiux_gate_signed_at"):
-            issues.append(_issue("error", "missing_uiux_gate_sign_off", "B/D inserted ship-shape requires user sign-off and signed_at", "meta.yml"))
+        if shape.get("activation_mode") in {"uiux_material_gate_insert", "ui_shape_insert"}:
+            if not (shape.get("ui_shape_decision") or shape.get("open_questions") or shape.get("uiux_risks") or shape.get("uiux_gate_user_sign_off")):
+                issues.append(_issue("warning", "missing_ui_shape_decision", "inserted ship-shape should record ui_shape_decision, open_questions, or uiux_risks", "meta.yml"))
         if status in ("pending", "in_progress", "ready", "completed"):
             issues.append(
                 _issue(
@@ -455,15 +471,13 @@ def _validate_artifact_spec(feature_dir: Path, meta: dict[str, Any], spec: Artif
         issues.append(_issue("error", "artifact_role_mismatch", f"expected artifact_role {spec.role}, found {frontmatter.get('artifact_role')!r}", spec.path))
 
     if spec.kind == "review":
-        if frontmatter.get("gate_type") != "hard":
-            issues.append(_issue("error", "invalid_gate_type", "review gate artifact must set gate_type: hard", spec.path))
         review_status = frontmatter.get("review_status")
-        if review_status not in REVIEW_STATUSES:
+        if review_status not in REVIEW_STATUSES and review_status not in {"pass", "needs_revision", "blocked"}:
             issues.append(_issue("error", "invalid_review_status", f"invalid review_status: {review_status!r}", spec.path))
         if review_status == "approved" and (not frontmatter.get("user_sign_off") or not frontmatter.get("signed_at")):
-            issues.append(_issue("error", "unsigned_approved_gate", "approved hard gate requires user_sign_off and signed_at", spec.path))
+            issues.append(_issue("warning", "unsigned_review_checklist", "approved review checklist lacks optional user confirmation; record accepted_risks for strict mode", spec.path))
         if meta is not None:
-            issues.extend(validate_gate_confirmation(meta, frontmatter, spec.stage, spec.path, strict=strict_confirmation))
+            issues.extend(validate_gate_confirmation(meta, frontmatter, spec.stage, spec.path, strict=False))
     else:
         stage_status = frontmatter.get("stage_status")
         if stage_status not in NON_REVIEW_STATUSES:
@@ -474,8 +488,8 @@ def _validate_artifact_spec(feature_dir: Path, meta: dict[str, Any], spec: Artif
         if stage_status == "ready" and isinstance(blocking_gaps, list) and blocking_gaps:
             issues.append(_issue("error", "ready_with_blocking_gaps", "artifact ready cannot contain blocking_gaps", spec.path))
         if spec.path == "design-brief.md":
-            if frontmatter.get("activation_mode") == "uiux_material_gate_insert" and (not frontmatter.get("uiux_gate_user_sign_off") or not frontmatter.get("uiux_gate_signed_at")):
-                issues.append(_issue("error", "missing_uiux_gate_sign_off", "inserted design-brief requires UIUX gate sign-off", spec.path))
+            if frontmatter.get("activation_mode") in {"uiux_material_gate_insert", "ui_shape_insert"} and not (frontmatter.get("ui_shape_decision") or frontmatter.get("open_questions") or frontmatter.get("uiux_risks") or frontmatter.get("uiux_gate_user_sign_off")):
+                issues.append(_issue("warning", "missing_ui_shape_decision", "inserted design brief should record ui_shape_decision, open_questions, or uiux_risks", spec.path))
             if stage_status == "ready" and frontmatter.get("browser_verified") is not True:
                 issues.append(_issue("error", "design_brief_browser_not_verified", "ready design-brief requires browser_verified: true", spec.path))
         if spec.path == "product-brief.md" and stage_status == "ready" and not frontmatter.get("user_direction_sign_off"):
@@ -728,7 +742,7 @@ def validate_feature(feature_dir: Path, *, strict_confirmation: bool = False) ->
             from_stage = str(entry.get("from_stage", ""))
             reason = str(entry.get("reason", "")).lower()
             if gate_type == "hard":
-                issues.append(_issue("error", "hard_gate_skip_not_allowed", "hard gates cannot be skipped via skip_log", "meta.yml"))
+                issues.append(_issue("warning", "legacy_hard_gate_skip", "legacy hard skip_log entries are ignored in the solo workflow; use accepted_risks for strict mode", "meta.yml"))
             if gate_type == "soft" and (from_stage in SOFT_BLOCKING_STAGES or "soft_blocking" in reason):
                 issues.append(_issue("error", "soft_blocking_skip_not_allowed", "soft_blocking gates cannot be bypassed by skip_log", "meta.yml"))
 

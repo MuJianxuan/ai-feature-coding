@@ -36,8 +36,8 @@ def validate_ui_artifacts(feature_dir: Path) -> dict:
     variations = fm.get("variations_count", 0)
     if ready and (not isinstance(variations, int) or variations < 3):
         issues.append(_issue("error", "insufficient_variants", "ready design brief requires 3+ variants"))
-    if fm.get("activation_mode") == "uiux_material_gate_insert" and (not fm.get("uiux_gate_user_sign_off") or not fm.get("uiux_gate_signed_at")):
-        issues.append(_issue("error", "missing_uiux_gate_sign_off", "inserted design brief requires UIUX gate sign-off"))
+    if fm.get("activation_mode") == "ui_shape_insert" and not (fm.get("ui_shape_decision") or fm.get("open_questions") or fm.get("uiux_risks")):
+        issues.append(_issue("warning", "missing_ui_shape_decision", "inserted design brief should record ui_shape_decision, open_questions, or uiux_risks"))
     if ready and fm.get("browser_verified") is not True:
         issues.append(_issue("error", "design_brief_browser_not_verified", "ready design brief requires browser_verified: true"))
     coverage = fm.get("uiux_material_coverage")

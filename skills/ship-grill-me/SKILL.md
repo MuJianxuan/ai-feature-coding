@@ -1,38 +1,34 @@
 ---
 name: ship-grill-me
-description: Assistive questioning skill for ShipKit. Only use as a ShipKit stage hook or explicit advanced diagnostic; never as a workflow entry. It asks one blocking decision question at a time before stage ready/sign-off and never replaces review gates.
+description: "Optional Ship support skill for one-question-at-a-time decision grilling. Use when exactly one blocking product, scope, risk, or trade-off question must be resolved before the next safe action."
 ---
 
-Interview only the current artifact's unresolved blocking decisions until the next safe workflow action is clear. For each question, provide your recommended answer and cite evidence already checked.
+# Ship Grill Me
 
-Ask the questions one at a time.
+一次只问一个真正阻塞的问题。能从仓库、文档、测试、日志或现有产物查到答案时，先查，不问用户。
 
-If a question can be answered by exploring the codebase, explore the codebase instead.
+## Use When
 
-## Workflow Boundaries
+- 需要用户做业务取舍。
+- 需要用户接受风险或缩 scope。
+- 下一步有两个合理方向，且选择会改变实现。
 
-- `ship-grill-me` 是辅助质询 skill，不是 canonical stage。
+## Output
+
+```markdown
+Decision branch:
+Question:
+Why it matters:
+Recommended answer:
+Evidence checked:
+If user chooses A:
+If user chooses B:
+Blocking status: blocking | non_blocking | resolved
+```
+
+## Boundaries
+
 - 不修改 `meta.yml`。
-- 不修改正式 artifact frontmatter。
-- 不替用户 sign off，也不写 hard gate 最终结论。
-- 不绕过 validator、review gate 或 stage transition check。
-- 在 forbidden stage / node 中不可作为 subagent 启动，包括 `ship-contract`、`ship-tech-discovery.selection`、`ship-delivery-plan` 和任何正式状态推进动作。
-
-## Grill Output
-
-- Decision branch:
-- Question:
-- Recommended answer:
-- Evidence checked:
-- User answer:
-- Impact on current artifact:
-- Blocking status: blocking | non_blocking | resolved
-
-## Question Discipline
-
-- 一次只问一个问题。
-- 先说明为什么这个问题阻塞或影响质量。
-- 每个问题必须给出 recommended answer。
-- 如果用户采纳 recommended answer，将其记录为明确决策。
-- 能从仓库、已有 feature 文档、API、DB、页面、权限或测试命令确认的问题，先探索证据，不问用户。
-- 只把业务取舍、风险接受、scope 裁剪、无法从证据确认且会影响当前产物的问题交给用户。
+- 不替用户批准 review。
+- 不连续抛出一串问题。
+- 不问能从仓库事实中自行确认的问题。

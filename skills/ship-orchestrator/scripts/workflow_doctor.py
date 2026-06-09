@@ -68,18 +68,17 @@ def _gate_statuses(validation: dict[str, Any]) -> list[dict[str, Any]]:
         specs = ARTIFACTS_BY_STAGE.get(stage, ())
         artifact = artifacts.get(specs[0].path) if specs else None
         if not artifact:
-            rows.append({"stage": stage, "exists": False, "approved_for_transition": False})
+            rows.append({"stage": stage, "exists": False, "checklist_passed": False})
             continue
         fm = artifact["frontmatter"]
-        approved = fm.get("review_status") == "approved" and bool(fm.get("user_sign_off")) and bool(fm.get("signed_at"))
+        passed = fm.get("review_status") in {"approved", "pass"}
         rows.append(
             {
                 "stage": stage,
                 "exists": True,
                 "review_status": fm.get("review_status"),
-                "user_sign_off": bool(fm.get("user_sign_off")),
-                "signed_at": bool(fm.get("signed_at")),
-                "approved_for_transition": approved,
+                "checklist_passed": passed,
+                "optional_user_confirmation": bool(fm.get("user_sign_off") and fm.get("signed_at")),
             }
         )
     return rows
@@ -117,9 +116,9 @@ def _next_action(meta: dict[str, Any], validation: dict[str, Any], current_stage
     current_stage_meta = stage_meta(meta, current_stage)
     if current_stage in REVIEW_STAGES:
         return {
-            "action": "complete_hard_gate",
+            "action": "finish_review_checklist",
             "target_stage": target_stage,
-            "detail": "Hard gate must be approved by the user; review_status, user_sign_off, and signed_at are required.",
+            "detail": "Review checklists are optional support artifacts; mark pass/needs_revision/blocked and record accepted_risks if needed.",
             "transition_issues": transition["issues"],
         }
 

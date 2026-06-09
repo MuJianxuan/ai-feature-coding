@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Preflight checks for the single DOING ship-build task."""
+"""Lightweight preflight checks for the active Ship build slice."""
 
 from __future__ import annotations
 
@@ -10,13 +10,15 @@ import re
 from pathlib import Path
 from typing import Any
 
-TASK_HEADING_RE = re.compile(r"(?m)^(?:#{2,6}\s+|[-*]\s+)?(?:Task\s+)?((?:FE|BE|FS|FT|TASK)-[A-Z0-9]+-\d{3}|(?:FE|BE|FS|FT)?-\d{3})\b")
-AC_RE = re.compile(r"\bAC-[A-Z0-9]+-\d{3}\b")
+TASK_HEADING_RE = re.compile(
+    r"(?m)^(?:#{2,6}\s+|[-*]\s+)?(?:Slice\s+|Task\s+)?((?:S|FE|BE|FS|FT|TASK)-[A-Z0-9]+-\d{3}|S-\d{3}|(?:FE|BE|FS|FT)?-\d{3})\b"
+)
+AC_RE = re.compile(r"\bAC-[A-Z0-9]+-\d{3}\b|\bAC-\d{3}\b")
 REQUIRED_TASK_BRIEF_SECTIONS = ("任务目标", "上下文", "约束", "验收", "输出")
-
 
 BROAD_ALLOWED_FILE_GLOBS = {"*", "**", "**/*", "./**/*", "."}
 ALLOWED_FILES_KEY_RE = re.compile(r"(?im)^\s*[-*]?\s*(allowed_files|allowed files|允许文件)\s*:\s*(.*)$")
+VERIFICATION_KEY_RE = re.compile(r"(?im)^\s*[-*]?\s*(verification_command|verification command|验证命令)\s*:\s*(.+)$")
 INLINE_LIST_RE = re.compile(r"^\[(.*)\]$")
 
 
@@ -126,18 +128,61 @@ def _status(block: str) -> str:
     return match.group(1) if match else ""
 
 
-def _has(block: str, *needles: str) -> bool:
+def _has_verification(block: str) -> bool:
+    return bool(VERIFICATION_KEY_RE.search(block)) or "verification command" in block.lower() or "验证命令" in block
+
+
+def _missing_brief_sections(block: str) -> list[str]:
+    # English-only solo plans are valid when they contain equivalent fields.
     lowered = block.lower()
-    return any(needle.lower() in lowered for needle in needles)
+    if all(token in lowered for token in ("goal", "context", "constraint", "acceptance", "output")):
+        return []
+    return [section for section in REQUIRED_TASK_BRIEF_SECTIONS if section not in block]
 
 
 def _plan_paths(feature_dir: Path, project_scope: str) -> list[Path]:
-    paths = []
+    paths = [feature_dir / "plan.md"]
     if project_scope in ("fullstack", "frontend_only"):
         paths.append(feature_dir / "frontend-plan.md")
     if project_scope in ("fullstack", "backend_only"):
         paths.append(feature_dir / "backend-plan.md")
     return paths
+
+
+def _slice_tasks_from_meta(feature_dir: Path) -> list[dict[str, Any]]:
+    try:
+        import yaml
+    except Exception:
+        return []
+    meta_path = feature_dir / "meta.yml"
+    if not meta_path.exists():
+        return []
+    try:
+        meta = yaml.safe_load(meta_path.read_text(encoding="utf-8")) or {}
+    except Exception:
+        return []
+    slices = meta.get("slices")
+    if not isinstance(slices, list):
+        return []
+    tasks: list[dict[str, Any]] = []
+    for item in slices:
+        if not isinstance(item, dict):
+            continue
+        allowed_files, invalid_allowed_files = validate_allowed_files([str(value) for value in item.get("allowed_files") or []])
+        tasks.append({
+            "task_id": str(item.get("id") or item.get("slice_id") or "S-UNKNOWN"),
+            "path": "meta.yml",
+            "status": str(item.get("status") or ""),
+            "ac_refs": [str(value) for value in item.get("ac_refs") or []],
+            "allowed_files_raw": [str(value) for value in item.get("allowed_files") or []],
+            "allowed_files": allowed_files,
+            "invalid_allowed_files": invalid_allowed_files,
+            "has_allowed_files": bool(allowed_files),
+            "has_verification_command": bool(item.get("verification_command")),
+            "has_evidence": bool(item.get("evidence")),
+            "missing_brief_sections": [],
+        })
+    return tasks
 
 
 def build_task_preflight(feature_dir: Path, project_scope: str = "fullstack") -> dict[str, Any]:
@@ -148,33 +193,37 @@ def build_task_preflight(feature_dir: Path, project_scope: str = "fullstack") ->
 
     for path in _plan_paths(feature_dir, project_scope):
         if not path.exists():
-            issues.append(_issue("error", "missing_plan", f"{path.name} does not exist", path.name))
             continue
         text = path.read_text(encoding="utf-8")
         for task_id, block in _task_blocks(text):
             status = _status(block)
+            allowed_files, invalid_allowed_files = validate_allowed_files(extract_allowed_files(block))
             task = {
                 "task_id": task_id,
                 "path": path.name,
                 "status": status,
                 "ac_refs": sorted(set(AC_RE.findall(block))),
                 "allowed_files_raw": extract_allowed_files(block),
-                "has_verification_command": _has(block, "verification command", "verification_command", "验证命令"),
-                "has_evidence": _has(block, "evidence", "done evidence", "完成证据"),
-                "has_spec_refs": _has(block, "spec_refs", "spec refs", "spec context"),
-                "missing_brief_sections": [section for section in REQUIRED_TASK_BRIEF_SECTIONS if section not in block],
+                "allowed_files": allowed_files,
+                "invalid_allowed_files": invalid_allowed_files,
+                "has_allowed_files": bool(allowed_files),
+                "has_verification_command": _has_verification(block),
+                "has_evidence": "evidence" in block.lower() or "完成证据" in block,
+                "missing_brief_sections": _missing_brief_sections(block),
             }
-            allowed_files, invalid_allowed_files = validate_allowed_files(task["allowed_files_raw"])
-            task["allowed_files"] = allowed_files
-            task["invalid_allowed_files"] = invalid_allowed_files
-            task["has_allowed_files"] = bool(allowed_files)
             tasks.append(task)
             if status == "DOING":
                 doing.append(task)
 
-    if len(doing) != 1:
-        issues.append(_issue("error", "doing_count_invalid", f"expected exactly one DOING task, found {len(doing)}"))
-    elif doing:
+    if not tasks:
+        tasks = _slice_tasks_from_meta(feature_dir)
+        doing = [task for task in tasks if task["status"] == "DOING"]
+
+    if not tasks:
+        issues.append(_issue("error", "missing_plan", "plan.md or meta.yml slices must define at least one build slice", "plan.md"))
+    elif len(doing) != 1:
+        issues.append(_issue("error", "doing_count_invalid", f"expected exactly one DOING slice, found {len(doing)}"))
+    else:
         task = doing[0]
         if not task["has_allowed_files"]:
             issues.append(_issue("error", "doing_missing_allowed_files", f"{task['task_id']} missing allowed_files", task["path"]))
@@ -200,7 +249,7 @@ def build_task_preflight(feature_dir: Path, project_scope: str = "fullstack") ->
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Preflight the current ship-build DOING task")
+    parser = argparse.ArgumentParser(description="Preflight the current lightweight Ship build slice")
     parser.add_argument("feature_dir")
     parser.add_argument("--project-scope", choices=("fullstack", "backend_only", "frontend_only"), default="fullstack")
     parser.add_argument("--json", action="store_true")

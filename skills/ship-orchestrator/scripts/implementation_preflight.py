@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Unified preflight check before any implementation code edit.
+"""Unified lightweight preflight before implementation edits.
 
-Wraps stage_transition_check.py and build_task_preflight.py to provide
-a single machine-readable gate for Source Code Edit Barrier.
+The solo-developer workflow checks that implementation is scoped to the active
+DOING slice. It no longer requires review-plan.md user sign-off by default.
 """
 
 from __future__ import annotations
@@ -18,8 +18,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from build_task_preflight import build_task_preflight, file_matches_allowed, normalize_allowed_file_pattern  # noqa: E402
 from feature_meta_runtime import load_meta, resolve_and_validate_feature_dir  # noqa: E402
-from stage_transition_check import check_transition  # noqa: E402
-from validate_feature_artifacts import read_frontmatter, validate_gate_confirmation  # noqa: E402
+from workflow_stage_map import CANONICAL_STAGE_ORDER  # noqa: E402
 
 
 def _issue(level: str, code: str, message: str, path: str | None = None) -> dict[str, str]:
@@ -29,26 +28,50 @@ def _issue(level: str, code: str, message: str, path: str | None = None) -> dict
     return payload
 
 
-def implementation_preflight(feature_dir: Path, project_scope: str = "fullstack", files: list[str] | None = None, strict_files: bool = True) -> dict[str, Any]:
-    """Check all preconditions for entering ship-build and editing implementation code.
+def _stage_ready_enough(meta: dict[str, Any], stage: str) -> bool:
+    stages = meta.get("stages")
+    if not isinstance(stages, dict):
+        return False
+    value = stages.get(stage)
+    if not isinstance(value, dict):
+        return False
+    return value.get("status") in {"ready", "completed", "skipped"}
 
-    Returns a dict with:
-      - allowed: bool - whether implementation is allowed
-      - current_stage: str - current stage from meta.yml
-      - required_stage: str - always "ship-build"
-      - issues: list of dicts with level, code, message, optional path
-    """
+
+def _previous_runtime_issues(meta: dict[str, Any]) -> list[dict[str, str]]:
+    issues: list[dict[str, str]] = []
+    current_stage = meta.get("current_stage")
+    if current_stage not in CANONICAL_STAGE_ORDER:
+        return [_issue("error", "invalid_current_stage", f"invalid current_stage: {current_stage!r}", "meta.yml")]
+    if current_stage != "ship-build":
+        return [_issue("error", "current_stage_not_ship_build", "implementation edits require meta.yml.current_stage == ship-build", "meta.yml")]
+    for stage in CANONICAL_STAGE_ORDER[:CANONICAL_STAGE_ORDER.index("ship-build")]:
+        if not _stage_ready_enough(meta, stage):
+            # Lightweight mode permits compressed stages, but incomplete plan is unsafe.
+            if stage == "ship-delivery-plan":
+                issues.append(_issue("error", "plan_stage_not_ready", "ship-delivery-plan must be ready, completed, or skipped before source edits", "meta.yml"))
+            else:
+                issues.append(_issue("warning", "compressed_or_incomplete_stage", f"{stage} is not marked ready/completed/skipped", "meta.yml"))
+    return issues
+
+
+def implementation_preflight(
+    feature_dir: Path,
+    project_scope: str = "fullstack",
+    files: list[str] | None = None,
+    strict_files: bool = True,
+) -> dict[str, Any]:
     feature_dir = feature_dir.resolve()
     issues: list[dict[str, str]] = []
     warnings: list[dict[str, str]] = []
     feature_context = None
+
     try:
         feature_context = resolve_and_validate_feature_dir(feature_dir)
         feature_dir = feature_context.feature_dir
     except Exception as exc:
-        issues.append(_issue("error", "invalid_feature_dir", str(exc)))
+        warnings.append(_issue("warning", "feature_dir_context_unresolved", str(exc)))
 
-    # 1. Check meta.yml exists and current_stage is valid
     meta_path = feature_dir / "meta.yml"
     if not meta_path.exists():
         return {
@@ -69,71 +92,23 @@ def implementation_preflight(feature_dir: Path, project_scope: str = "fullstack"
         }
 
     current_stage = meta.get("current_stage")
-    if current_stage != "ship-build":
-        issues.append(_issue(
-            "error",
-            "current_stage_not_ship_build",
-            "implementation edits require meta.yml.current_stage == ship-build",
-            "meta.yml",
-        ))
+    for issue in _previous_runtime_issues(meta):
+        if issue["level"] == "error":
+            issues.append(issue)
+        else:
+            warnings.append(issue)
 
-    # 2. Check stage_transition_check.py --target-stage ship-build allows
-    transition_result = check_transition(feature_dir, "ship-build")
-    if not transition_result["allowed"]:
-        for issue in transition_result["issues"]:
-            if issue["level"] == "error":
-                issues.append(issue)
-
-    # 3. Check review-plan.md review_status, user_sign_off, signed_at
-    review_plan_path = feature_dir / "review-plan.md"
-    if not review_plan_path.exists():
-        issues.append(_issue("error", "missing_review_plan", "review-plan.md does not exist", "review-plan.md"))
-    else:
-        # Parse frontmatter
-        text = review_plan_path.read_text(encoding="utf-8")
-        lines = text.split("\n")
-        if lines and lines[0].strip() == "---":
-            fm_end = None
-            for i in range(1, len(lines)):
-                if lines[i].strip() == "---":
-                    fm_end = i
-                    break
-            if fm_end:
-                fm_lines = lines[1:fm_end]
-                fm_dict = {}
-                for line in fm_lines:
-                    if ":" in line:
-                        key, _, value = line.partition(":")
-                        fm_dict[key.strip()] = value.strip()
-
-                review_status = fm_dict.get("review_status", "")
-                user_sign_off = fm_dict.get("user_sign_off", "")
-                signed_at = fm_dict.get("signed_at", "")
-                confirmation_issues: list[dict[str, str]] = []
-                try:
-                    frontmatter, _body = read_frontmatter(review_plan_path)
-                    confirmation_issues = validate_gate_confirmation(meta, frontmatter, "ship-plan-review", "review-plan.md", strict=True)
-                except Exception as exc:
-                    confirmation_issues = [_issue("error", "invalid_review_plan_frontmatter", str(exc), "review-plan.md")]
-
-                if review_status != "approved":
-                    issues.append(_issue("error", "plan_not_approved", f"review-plan.md review_status is {review_status!r}, not 'approved'", "review-plan.md"))
-                if not user_sign_off or user_sign_off in ("null", "~", ""):
-                    issues.append(_issue("error", "plan_missing_user_sign_off", "review-plan.md user_sign_off is empty", "review-plan.md"))
-                if not signed_at or signed_at in ("null", "~", ""):
-                    issues.append(_issue("error", "plan_missing_signed_at", "review-plan.md signed_at is empty", "review-plan.md"))
-                issues.extend(confirmation_issues)
-
-    # 4. Check build_task_preflight.py passes
     build_result = build_task_preflight(feature_dir, project_scope)
     if not build_result["ok"]:
         for issue in build_result["issues"]:
             if issue["level"] == "error":
                 issues.append(issue)
+            else:
+                warnings.append(issue)
 
     target_files: list[str] = []
     if files:
-        workspace_root = feature_context.workspace_root if feature_context else Path.cwd().resolve()
+        workspace_root = feature_context.workspace_root if feature_context else feature_dir.parent.parent.resolve()
         for raw_file in files:
             try:
                 candidate = Path(raw_file)
@@ -152,24 +127,23 @@ def implementation_preflight(feature_dir: Path, project_scope: str = "fullstack"
     else:
         issues.append(_issue("error", "target_files_not_provided", "pass --files with planned implementation paths"))
 
-    if target_files and build_result.get("doing_tasks"):
-        allowed_files = build_result["doing_tasks"][0].get("allowed_files", [])
+    doing_tasks = build_result.get("doing_tasks") or []
+    if target_files and doing_tasks:
+        allowed_files = doing_tasks[0].get("allowed_files", [])
         for target_file in target_files:
             if not any(file_matches_allowed(target_file, allowed_file) for allowed_file in allowed_files):
                 issues.append(_issue(
                     "error",
                     "file_not_allowed_by_doing_task",
-                    f"{target_file} is not covered by current DOING task allowed_files",
+                    f"{target_file} is not covered by current DOING slice allowed_files",
                     target_file,
                 ))
 
-    # 5. Summary issue if not allowed
-    if issues and not any(issue["code"] == "implementation_before_plan_review" for issue in issues):
-        # Add a summary issue
+    if issues and not any(issue["code"] == "implementation_scope_not_ready" for issue in issues):
         issues.insert(0, _issue(
             "error",
-            "implementation_before_plan_review",
-            "ship-build requires approved review-plan.md with user sign-off and all build preconditions met"
+            "implementation_scope_not_ready",
+            "ship-build requires current_stage == ship-build, one DOING slice, allowed_files, AC refs, verification_command, and matching target files",
         ))
 
     all_issues = issues + warnings
@@ -181,23 +155,17 @@ def implementation_preflight(feature_dir: Path, project_scope: str = "fullstack"
         "feature_root": str(feature_context.feature_root) if feature_context else None,
         "feature_dir_validated": feature_context is not None,
         "target_files": target_files,
+        "doing_task": doing_tasks[0] if doing_tasks else None,
         "issues": all_issues,
     }
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Unified preflight check before implementation code edit"
-    )
-    parser.add_argument("feature_dir", help="Feature directory containing meta.yml")
-    parser.add_argument(
-        "--project-scope",
-        choices=("fullstack", "backend_only", "frontend_only"),
-        default="fullstack",
-        help="Project scope (default: fullstack)"
-    )
+    parser = argparse.ArgumentParser(description="Unified lightweight preflight before implementation code edits")
+    parser.add_argument("feature_dir", help="Ship work directory containing meta.yml")
+    parser.add_argument("--project-scope", choices=("fullstack", "backend_only", "frontend_only"), default="fullstack")
     parser.add_argument("--files", nargs="*", default=None, help="Workspace-relative implementation files planned for this edit")
-    parser.add_argument("--strict-files", action="store_true", help="Deprecated compatibility flag; --files is always required")
+    parser.add_argument("--strict-files", action="store_true", help="Compatibility flag; target files are always checked")
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
     return parser
 

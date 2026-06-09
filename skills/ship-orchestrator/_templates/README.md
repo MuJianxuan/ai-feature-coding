@@ -1,79 +1,44 @@
-# ShipKit templates — 共享模板
+# Ship Orchestrator Templates
 
-本目录包含跨 skill 共享的协议与模板，用于维持 workflow 的单一事实源。
+本目录保存新版 Ship Solo workflow 的共享模板。默认面向个人开发者：轻量门禁、证据驱动、一次一个 slice。
 
-## 目录结构
+## Layout
 
-```
+```text
 _templates/
 ├── meta/
-│   └── meta.yml.template          # feature 级索引模板（恢复 / 汇总 / 路由）
+│   └── meta.yml.template
 ├── project/
-│   └── project.yml.template       # workspace 配置模板（workspace_mode / workspace_name / feature_root / projects）
-├── requirements/
-│   └── raw-prd-inbox.md.template  # PRD 直通 / 产品提供的原始 PRD 粘贴入口
-├── resource/
-│   └── README.md.template         # feature resource/ 资料目录说明
-├── review/
-│   ├── review.md.template         # 硬门禁评审记录模板（define/design/plan 三个 hard gate 共用）
-│   └── review-gate-reference.md   # hard gate frontmatter 与 finding 速查
+│   └── project.yml.template
 ├── protocol/
-│   ├── feature-initialization.md  # feature 目录初始化
-│   ├── gate-protocol.md           # gate 运行时检查与失败处理
-│   ├── resume-protocol.md         # 断点恢复
-│   ├── routing-protocol.md        # 路由委派与 assistive questioning 运行时说明
-│   ├── scenario-detection.md      # A/B/C/D/E 场景判定
-│   ├── scope-detection.md         # fullstack/backend_only/frontend_only 判定
-│   ├── stage-routing.md           # stage 跳转速查
-│   └── workflow-protocol.md       # canonical contract：阶段 id / 门禁 / 状态机 / source barrier
-└── README.md                      # 当前说明文档
+│   ├── workflow-protocol.md
+│   ├── stage-routing.md
+│   ├── gate-protocol.md
+│   ├── routing-protocol.md
+│   ├── resume-protocol.md
+│   ├── scenario-detection.md
+│   ├── scope-detection.md
+│   └── feature-initialization.md
+└── review/
+    ├── review.md.template
+    └── review-gate-reference.md
 ```
 
-## 使用方式
+## Default Workspace
 
-### meta/meta.yml.template
+每个新工作项默认写入：
 
-每个新 feature 启动时，由 `ship-orchestrator` 复制到 workspace 的 `feature_root/feature-YYYYMMDD-<short-name>/meta.yml`，作为该 feature 的索引文件。
+```text
+.docs/ship/<work-id>/meta.yml
+```
 
-阶段文档不再各自维护 `project_context` 等冗余字段，只在 `meta.yml` 中维护一次。阶段是否 `ready` / `approved` 仍以产物 frontmatter 为准。
+旧版 `feature-*` 目录可以兼容读取，但新版模板和文档以 `.docs/ship/<work-id>/` 为准。
 
-`meta.yml` 同时维护两层视图：
+## Source of Truth
 
-- `current_stage`：内部 canonical stage id，用于恢复和精确路由
-- `macro_stage`：默认对外展示的 5 大阶段摘要（Discover 可选），用于状态列表和执行摘要
-- `delegation`：子代理偏好、节点级覆盖与 delegation warning，用于决定“当前上下文 vs 子代理策略”
-- `spec_context`：`ship-spec` 的摘要索引，用于恢复时快速知道 workspace、最近一次规范解析结果、已引用规范和待沉淀 proposal
+- 阶段映射：`scripts/workflow_stage_map.py`
+- 主协议：`protocol/workflow-protocol.md`
+- 元数据模板：`meta/meta.yml.template`
+- 校验：`scripts/validate_workflow_docs.py`
 
-### project/project.yml.template
-
-workspace 级配置模板。用于显式声明：
-
-- `workspace_mode`：`single_project` 或 `project_group`
-- `workspace_name`：工作区名称，默认可使用当前目录名
-- `feature_root`：feature 运行时产物目录，相对 workspace root，默认 `.docs`
-- `spec_root`：规范根目录，相对 workspace root，默认 `.docs/spec`
-- `projects`：仅 `project_group` 使用，项目名必须等于 workspace 下一级目录名
-
-这是 `ship-spec` workspace boundary 的唯一显式配置源；多项目父目录下必须先初始化 workspace config，再为 feature 选择默认关联 projects。project_group 下具体规范入口为 `.docs/spec/_shared/INDEX.md` 和 `.docs/spec/<project>/INDEX.md`。
-
-### requirements/raw-prd-inbox.md.template
-
-PRD 直通和产品提供模式下，`ship-orchestrator` 可先创建 raw `requirements.md` inbox，让用户直接粘贴完整 PRD 原文。该文件在资料准备态不是下游 contract，必须由 `ship-define` normalize 后才能进入 review 和后续设计阶段。
-
-### resource/README.md.template
-
-随 feature 的 `resource/` 目录创建，用于说明 PRD 补充资料的放置方式。运行时解除 `awaiting_materials` 时，`resource/README.md` 不算有效业务资料。
-
-### protocol/workflow-protocol.md
-
-共享协议单源。凡是涉及 stage id、hard gate schema、`verification.md` ownership、source code edit barrier、子代理委派边界、`ship-spec` hook 契约，都先对照此文档，再更新其他 SKILL。专题协议只能引用或摘要，不得重新定义冲突字段。
-
-其中 delegation 相关的 canonical `node_id`、自动解析顺序、warning 落点，也统一以该协议为准，不允许阶段文档自行发明 key 名。
-
-### review/review.md.template
-
-硬门禁阶段（ship-define-review / ship-design-review / ship-plan-review）的产物模板。每次评审产生一份独立的 `review-<stage>.md` 文件，含：
-
-- 评审 checklist 逐条打勾
-- 发现的问题（Critical / Major / Minor 三级）
-- 用户原话签字
+凡是涉及 stage id、review checklist、source edit barrier、子代理委派边界、`ship-spec` hook 契约，都先对照 `workflow-protocol.md`，再更新其他文档。

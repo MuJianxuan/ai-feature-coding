@@ -1,214 +1,123 @@
-# Feature 级元数据 - orchestrator 索引层
-# 位置: .docs/feature-YYYYMMDD-<short-name>/meta.yml
-# 用于恢复、总览、快速路由；阶段是否完成以各产物 frontmatter 为准
+# Ship Solo feature metadata
+# 位置: .docs/ship/<work-id>/meta.yml
+# 轻量索引层；事实以各阶段产物正文和验证输出为准。
 
-feature_name: ""              # 例: "用户 TODO 管理"
-feature_id: ""                # 例: "feature-20260522-todo-app"
-created_at: ""                # ISO8601 时间戳
-updated_at: ""                # ISO8601 时间戳，每次更新文档同步刷新
-lifecycle_status: active      # active | blocked | completed | abandoned（feature 级状态，不是 stage status）
+schema_version: 3
+work_id: ""                    # 例: ship-20260609-login-fix
+work_title: ""
+work_mode: feature              # feature | bugfix | refactor | ui | docs | release
+created_at: ""
+updated_at: ""
+lifecycle_status: active        # active | blocked | completed | abandoned
 
-# 当前所处阶段（必须使用 canonical stage id）
-current_stage: ""             # ship-discover | ship-shape | ship-define | ship-define-review | ship-tech-discovery | ship-contract | ship-frontend-design | ship-backend-design | ship-design-review | ship-delivery-plan | ship-plan-review | ship-build | ship-verify | ship-handoff
+current_stage: ""              # ship-discover | ship-define | ship-tech-discovery | ship-contract | ship-delivery-plan | ship-build | ship-verify | ship-handoff
 
-# 场景识别（NEW_FEATURE 入口判定，决定是否进入 Discover 大阶段）
-scenario: ""                  # greenfield | product_provided | prd_direct | evolve | technical_plan_provided
-# greenfield: 场景 A，零到一头脑风暴
-# product_provided: 场景 B，已有完整 PRD/原型/UIUX，跳过 Discover，走 interview 模式录入
-# prd_direct: 场景 D，已有完整 PRD/原型/UIUX 且用户明确不需要需求录入，跳过 Discover，走 prd_direct 模式提取
-# evolve: 场景 C，基于已有功能做迭代增强
-# technical_plan_provided: 场景 E，已有技术方案 + selected scope，直接从 ship-tech-discovery 开始；只适用于 existing_project
-
-# 默认对外展示的大阶段视图
 macro_stage:
-  current: ""                 # discover | define | design | build | close
-  label: ""                   # Discover | Define | Design | Build | Close
-  summary: ""                 # 面向用户的当前阶段摘要，不暴露细阶段名
-  next_user_decision: ""      # 下一次需要用户确认的动作或门禁
+  current: ""                   # discover | define | understand | design | plan | build | verify | close
+  label: ""                     # Discover | Define | Understand | Design | Plan | Build | Verify | Close
+  summary: ""
+  next_user_decision: ""
 
-# 项目上下文（一次性维护，所有阶段共用）
-project_context: unknown      # unknown | new_project | existing_project
-project_context_evidence: ""  # 一句话证据，例: "已有 package.json 且 src/ 下有源码"
+project_context:
+  kind: unknown                  # unknown | new_project | existing_project
+  evidence: ""
+  workspace_root: ""
+  feature_root: ".docs/ship"
+  projects: []                   # monorepo/project_group 时填写一级项目名
 
-# 工作区范围。由 .docs/ship/project.yml 初始化。
-workspace_mode: single_project # single_project | project_group
+flow_policy:
+  strictness: lightweight        # lightweight | strict
+  ask_before_source_changes: true
+  require_single_doing_slice: true
+  require_verification_command: true
+  review_skills_are_optional: true
 
-# 本需求默认关联的项目列表。
-# project_group 时使用一级目录名；single_project 时保持空列表。
-# 这是默认执行范围，不是不可突破的硬边界。
-projects: []
+scope:
+  in_scope: []
+  out_of_scope: []
+  assumptions: []
+  accepted_risks: []
 
-# 项目范围（决定哪些阶段被跳过）
-project_scope: fullstack          # fullstack | backend_only | frontend_only
-project_scope_evidence: ""        # 例: "用户明确声明纯后端 API 项目；tech_stack、surface、consumer/entrypoint、边界四类证据一致"
-
-scope_freeze:
-  status: open                    # open | frozen | reopened
-  frozen_scope: ""
-  frozen_at: ""
-  frozen_by_gate: ""
-  user_sign_off: ""
-  reopen_reason: ""
-  reopened_at: ""
-
-# 用户确认的跳过/强制推进记录
-skip_log: []
-
-# append-only 用户确认审计记录；hard gate approval 必须引用 confirmation_id
-confirmation_log: []
-
-# 显式场景变更记录，例如 prd_direct 因阻塞 GAP 经用户确认切换为 product_provided/interview
-scenario_change_log: []
-# 示例:
-# - at: "2026-05-24T20:00:00+08:00"
-#   from_stage: ship-discover
-#   to_stage: ship-define
-#   gate_type: soft
-#   reason: "用户明确跳过 Discover"
-#   user_sign_off: "确认跳过探索，直接进入需求定义"
-
-# 子代理委派偏好（由 orchestrator 维护；正式状态推进仍由主上下文统一收口）
-delegation:
-  default_mode: current_context   # current_context | assistive_subagent
-  ask_on_parallel_stage: true     # 在显式并行阶段前是否询问用户
-  ask_on_assistive_node: true     # 在辅助委派节点前是否询问用户
-  node_overrides: {}              # 例: { ship-frontend-design: parallel_subagent, ship-verify.backend-contract: assistive_subagent, ship-plan-review: gate_check_subagent }
-  warnings: []                    # delegation 解析 warning；对象结构见 workflow-protocol.md
-
-# 技术栈（在 ship-tech-discovery 阶段填写后冻结）
-evolve_source:
-  feature_dirs: []
-  code_paths: []
-  existing_behavior_summary: ""
-  baseline_confirmed_at: ""
-  user_sign_off: ""
-
-tech_stack:
-  frontend: ""                # 例: "React 18 + Vite 5 + TypeScript 5"
-  backend: ""                 # 例: "Node 20 + Express 4 + Prisma 5"
-  database: ""                # 例: "SQLite (开发) / PostgreSQL (生产)"
-  testing:
-    frontend: ""              # 例: "Vitest + Testing Library + Playwright"
-    backend: ""               # 例: "Vitest + Supertest"
-
-# ship-spec 摘要索引（Utility Hook；规范事实源是 workspace 下的 spec_root）
-spec_context:
-  workspace_mode: ""         # single_project | project_group
-  workspace_name: ""         # 来自 .docs/ship/project.yml
-  spec_root: ""              # 例: ".docs/spec"
-  resolved_spec_roots: []     # 本次实际参与解析的 spec roots；project_group 例: _shared + web
-  feature_root: ""           # 例: ".docs"
-  resolution_source: ""      # workspace_config | meta_spec_context | explicit_paths
-  index_status: missing       # missing | ready | invalid
-  last_checked_at: ""
-  last_checked_stage: ""      # ship-tech-discovery | ship-frontend-design | ship-backend-design | ship-build | ship-handoff
-  referenced_spec_ids: []     # 本 feature 已引用过的规范
-  warnings: []                # 最近一次 helper 解析产生的告警
-  pending_proposals: []       # ship-handoff 生成、待用户确认沉淀的规范提案
-
-# 技术方案选区入口索引层（scenario=technical_plan_provided 时必填，current_stage=ship-tech-discovery）
-# 原始技术方案或粘贴片段必须归档到 resource/ 或用户提供的可读路径；未选中内容默认 out_of_scope。
-technical_plan_source:
-  source_files: []            # 例: ["resource/order-export-tech-design.md"]
-  selection_mode: ""          # referenced_sections | pasted_excerpt
-  selected_scope: []          # 例: [{type: section, label: "3.2 订单导出异步任务", source_file: "resource/order-export-tech-design.md", locator: heading}]
-  pasted_excerpt_file: ""     # 例: resource/technical-plan-excerpt.md；selection_mode=pasted_excerpt 时必须归档
-  ignored_source_policy: out_of_scope
-  repository_scan_required: true
-  repository_scan_status: pending # pending | in_progress | ready | blocked；一致性索引，不是唯一事实源
-  selected_scope_ac_confirmation:
-    status: pending           # pending | confirmed | blocked
-    confirmed_ac_ids: []
-    user_sign_off: ""
-    confirmed_at: ""
-    source_summary: ""
-
-# 各阶段摘要状态（由 orchestrator 维护；与文档冲突时以文档 frontmatter 为准）
 stages:
   ship-discover:
-    status: pending           # pending | in_progress | ready | skipped | completed
-    discovery_mode: ""         # greenfield | evolve（场景 B 时为空，status=skipped）
-    rounds: 0                  # 已完成的发现/澄清轮次
-    fact_check_done: false     # 涉及具体产品时是否完成 Fact Verification
-  ship-shape:
-    status: pending           # pending | in_progress | ready | skipped | completed
-    activation_mode: ""       # default_discover_shape | uiux_material_gate_insert
-    uiux_gate_user_sign_off: ""
-    uiux_gate_signed_at: ""
-    browser_verified: false
-    browser_verified_at: ""
-    direction: ""              # 选定的设计方向名（无 UI 或场景 B 时为空）
-    variations: 0              # 已产出的变体数量
-    asset_protocol_invoked: false  # 是否走了 Core Asset Protocol
+    status: pending              # pending | in_progress | ready | blocked | completed | skipped
+    artifact: intent.md
+    blocking_gaps: []
   ship-define:
-    status: pending           # pending | in_progress | ready | blocked | completed
-    generation_mode: ""       # interview | prd_direct | technical_plan（technical_plan 用于场景 E 的 derived requirements index 或兼容手动整理）
-    block_reason: ""          # awaiting_materials 表示已创建目录但等待用户补 PRD/原型/设计稿等资料
-    evidence_complete: false
-  ship-define-review:
-    status: pending           # pending | in_progress | approved | rejected | revision_needed | skipped
-    approved: false           # 由 review_status 派生的便捷索引
-    approved_at: ""
+    status: pending
+    artifact: brief.md
+    acceptance_criteria: []
+    blocking_gaps: []
   ship-tech-discovery:
-    status: pending           # pending | in_progress | ready | blocked | completed
-    evidence_complete: false
-    current_part: research    # research | selection
+    status: pending
+    artifact: context-map.md
+    evidence_paths: []
+    blocking_gaps: []
   ship-contract:
-    status: pending           # pending | in_progress | ready | blocked | completed
-    evidence_complete: false
-  ship-frontend-design:
-    status: pending           # pending | in_progress | ready | blocked | completed
-    evidence_complete: false
-  ship-backend-design:
-    status: pending           # pending | in_progress | ready | blocked | completed
-    evidence_complete: false
-  ship-design-review:
-    status: pending           # pending | in_progress | approved | rejected | revision_needed | skipped
-    approved: false           # 由 review_status 派生的便捷索引
-    approved_at: ""
+    status: pending
+    artifact: contract.md
+    contract_forms: []           # http | event | cli | ui-state | data | invariant | none
+    blocking_gaps: []
   ship-delivery-plan:
-    status: pending           # pending | in_progress | ready | blocked | completed
-    evidence_complete: false
-    current_part: frontend    # fullstack: frontend|backend|sync; backend_only: backend; frontend_only: frontend
-    frontend_task_count: 0
-    backend_task_count: 0
-    total_task_count: 0
-  ship-plan-review:
-    status: pending           # pending | in_progress | approved | rejected | revision_needed | skipped
-    approved: false           # 由 review_status 派生的便捷索引
-    approved_at: ""
+    status: pending
+    artifact: plan.md
+    slices_total: 0
+    slices_done: 0
+    current_slice_id: ""
+    blocking_gaps: []
   ship-build:
-    status: pending           # pending | in_progress | blocked | completed
-    tasks_done: 0
-    tasks_total: 0
-    current_task_id: ""        # DOING 状态的任务 ID，唯一性约束
+    status: pending
+    artifact: build-log.md
+    current_slice_id: ""
+    changed_files: []
+    blocking_gaps: []
   ship-verify:
-    status: pending           # pending | in_progress | ready | blocked | completed
-    coverage_frontend: 0
-    coverage_backend: 0
+    status: pending
+    artifact: verification.md
+    commands: []
+    evidence: []
+    blocking_gaps: []
   ship-handoff:
-    status: pending           # pending | in_progress | blocked | completed
-    all_ac_verified: false
+    status: pending
+    artifact: handoff.md
+    open_followups: []
+    blocking_gaps: []
 
-# AC ID 索引（所有 AC 的快速查找表，避免重复扫 requirements.md）
-ac_index: []
-# 示例:
-# - id: AC-TODO-001
-#   domain: D-TODO-001
-#   summary: "用户能创建一条 TODO"
+support_skills:
+  ship-shape:
+    used: false
+    outputs: []
+  ship-frontend-design:
+    used: false
+    outputs: []
+  ship-backend-design:
+    used: false
+    outputs: []
+  ship-define-review:
+    used: false
+    outputs: []
+  ship-design-review:
+    used: false
+    outputs: []
+  ship-plan-review:
+    used: false
+    outputs: []
+  ship-grill-me:
+    used: false
+    decisions: []
+  ship-spec:
+    used: false
+    referenced_spec_ids: []
 
-# Domain ID 索引（业务域快速查找表）
-domain_index: []
+slices: []
 # 示例:
-# - id: D-TODO-001
-#   name: "TODO 管理"
-#   description: "TODO 的增删改查"
-
-# 风险登记
-risks: []
-# 示例:
-# - id: R-001
-#   stage: ship-tech-discovery
-#   description: "Prisma 在 SQLite 下不支持 enum"
-#   severity: minor
-#   mitigation: "用 string + zod 校验替代"
+# - id: S-001
+#   title: "Add validation for empty email"
+#   status: TODO                 # TODO | DOING | DONE | BLOCKED
+#   allowed_files:
+#     - src/auth/validate.ts
+#     - src/auth/validate.test.ts
+#   ac_refs:
+#     - AC-001
+#   verification_command: "pnpm test src/auth/validate.test.ts"
+#   evidence: []

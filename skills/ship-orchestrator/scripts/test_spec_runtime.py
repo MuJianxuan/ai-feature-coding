@@ -785,12 +785,12 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
         self.assertEqual(saved["scenario"], "technical_plan_provided")
         self.assertEqual(saved["project_context"], "existing_project")
         self.assertEqual(saved["current_stage"], "ship-tech-discovery")
-        self.assertEqual(saved["macro_stage"]["current"], "design")
+        self.assertEqual(saved["macro_stage"]["current"], "understand")
         self.assertEqual(saved["stages"]["ship-discover"]["status"], "skipped")
-        self.assertEqual(saved["stages"]["ship-shape"]["status"], "skipped")
+        self.assertFalse(saved["support_skills"]["ship-shape"]["used"])
         self.assertEqual(saved["stages"]["ship-define"]["status"], "skipped")
         self.assertEqual(saved["stages"]["ship-define"]["generation_mode"], "technical_plan")
-        self.assertEqual(saved["stages"]["ship-define-review"]["status"], "skipped")
+        self.assertFalse(saved["support_skills"]["ship-define-review"]["used"])
         self.assertEqual(saved["stages"]["ship-tech-discovery"]["status"], "pending")
         self.assertEqual(saved["stages"]["ship-tech-discovery"]["current_part"], "research")
         self.assertEqual(saved["technical_plan_source"]["repository_scan_required"], True)
@@ -892,9 +892,9 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
         saved = yaml.safe_load(meta_path.read_text(encoding="utf-8"))
         self.assertEqual(saved["scenario"], "technical_plan_provided")
         self.assertEqual(saved["current_stage"], "ship-tech-discovery")
-        self.assertEqual(saved["macro_stage"]["current"], "design")
+        self.assertEqual(saved["macro_stage"]["current"], "understand")
         self.assertEqual(saved["stages"]["ship-define"]["status"], "skipped")
-        self.assertEqual(saved["stages"]["ship-define-review"]["status"], "skipped")
+        self.assertFalse(saved["support_skills"]["ship-define-review"]["used"])
         self.assertEqual(saved["stages"]["ship-define"]["generation_mode"], "technical_plan")
         self.assertEqual(saved["technical_plan_source"]["selected_scope"][0]["label"], "3.2 Order export async task")
         self.assertFalse((meta_path.parent / "requirements.md").exists())
@@ -996,8 +996,8 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
         )
 
         saved = self.load_meta(feature_dir)
-        self.assertEqual(saved["stages"]["ship-shape"]["status"], "skipped")
-        self.assertEqual(saved["stages"]["ship-frontend-design"]["status"], "skipped")
+        self.assertFalse(saved["support_skills"]["ship-shape"]["used"])
+        self.assertFalse(saved["support_skills"]["ship-frontend-design"]["used"])
         self.assertEqual(saved["stages"]["ship-delivery-plan"]["current_part"], "backend")
 
     def test_create_feature_meta_backend_only_greenfield_skips_shape(self) -> None:
@@ -1015,8 +1015,8 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
         saved = self.load_meta(feature_dir)
         self.assertEqual(saved["current_stage"], "ship-discover")
         self.assertEqual(saved["stages"]["ship-discover"]["status"], "pending")
-        self.assertEqual(saved["stages"]["ship-shape"]["status"], "skipped")
-        self.assertEqual(saved["stages"]["ship-frontend-design"]["status"], "skipped")
+        self.assertFalse(saved["support_skills"]["ship-shape"]["used"])
+        self.assertFalse(saved["support_skills"]["ship-frontend-design"]["used"])
 
     def test_create_feature_meta_backend_only_evolve_skips_shape(self) -> None:
         feature_dir = self.root / "backend-only-evolve"
@@ -1033,8 +1033,8 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
         saved = self.load_meta(feature_dir)
         self.assertEqual(saved["current_stage"], "ship-discover")
         self.assertEqual(saved["stages"]["ship-discover"]["status"], "pending")
-        self.assertEqual(saved["stages"]["ship-shape"]["status"], "skipped")
-        self.assertEqual(saved["stages"]["ship-frontend-design"]["status"], "skipped")
+        self.assertFalse(saved["support_skills"]["ship-shape"]["used"])
+        self.assertFalse(saved["support_skills"]["ship-frontend-design"]["used"])
 
     def test_create_feature_meta_frontend_only_keeps_shape_active_for_greenfield(self) -> None:
         feature_dir = self.root / "frontend-only-greenfield"
@@ -1049,8 +1049,8 @@ class FeatureMetaRuntimeTest(unittest.TestCase):
         )
 
         saved = self.load_meta(feature_dir)
-        self.assertEqual(saved["stages"]["ship-shape"]["status"], "pending")
-        self.assertEqual(saved["stages"]["ship-backend-design"]["status"], "skipped")
+        self.assertFalse(saved["support_skills"]["ship-shape"]["used"])
+        self.assertFalse(saved["support_skills"]["ship-backend-design"]["used"])
 
     def test_create_feature_meta_backend_only_requires_scope_evidence(self) -> None:
         with self.assertRaisesRegex(ValueError, "project_scope_evidence"):
@@ -1294,19 +1294,19 @@ last_updated: "2026-05-23T10:00:00+08:00"
         self.assertEqual(saved["skip_log"][0]["reason"], "user requested direct define")
         self.assertEqual(saved["delegation"]["default_mode"], CURRENT_CONTEXT)
 
-    def test_record_skip_rejects_hard_gate(self) -> None:
-        feature_dir = self.root / "hard-gate-skip"
+    def test_record_skip_rejects_support_stage_as_runtime_stage(self) -> None:
+        feature_dir = self.root / "support-stage-skip"
         create_feature_meta(
             feature_dir=feature_dir,
-            feature_name="Hard Gate Skip",
-            feature_id="feature-hard-gate-skip",
+            feature_name="Support Stage Skip",
+            feature_id="feature-support-stage-skip",
             project_context="new_project",
             project_scope="fullstack",
             scenario="product_provided",
         )
         meta_path = feature_dir / "meta.yml"
 
-        with self.assertRaisesRegex(ValueError, "hard gates cannot be skipped"):
+        with self.assertRaisesRegex(ValueError, "invalid from_stage: ship-define-review"):
             record_skip(
                 meta_path=meta_path,
                 from_stage="ship-define-review",
@@ -1319,89 +1319,20 @@ last_updated: "2026-05-23T10:00:00+08:00"
         saved = self.load_meta(feature_dir)
         self.assertEqual(saved["skip_log"], [])
 
-    def test_advance_stage_rejects_unsigned_hard_gate(self) -> None:
-        feature_dir = self.root / "hard-gate-advance"
+    def test_review_support_skill_is_not_runtime_stage(self) -> None:
+        feature_dir = self.root / "review-support"
         create_feature_meta(
             feature_dir=feature_dir,
-            feature_name="Hard Gate Advance",
-            feature_id="feature-hard-gate-advance",
+            feature_name="Review Support",
+            feature_id="feature-review-support",
             project_context="new_project",
             project_scope="fullstack",
             scenario="product_provided",
         )
-        meta_path = feature_dir / "meta.yml"
         meta = self.load_meta(feature_dir)
-        meta["current_stage"] = "ship-define-review"
-        meta["stages"]["ship-define-review"]["status"] = "in_progress"
-        meta_path.write_text(yaml.safe_dump(meta, allow_unicode=False, sort_keys=False), encoding="utf-8")
-        (feature_dir / "review-define.md").write_text(
-            """---
-stage: ship-define-review
-gate_type: hard
-review_status: approved
-reviewer: ai
-reviewed_at: "2026-06-06T10:00:00+08:00"
-reviewed_documents: ["requirements.md"]
-revision_count: 0
-user_sign_off: ""
-signed_at: ""
-conditions: []
----
-
-# Review
-""",
-            encoding="utf-8",
-        )
-
-        with self.assertRaisesRegex(ValueError, "requires approved review_status plus user_sign_off and signed_at"):
-            advance_stage(
-                meta_path=meta_path,
-                from_stage="ship-define-review",
-                to_stage="ship-tech-discovery",
-            )
-
-    def test_advance_stage_allows_signed_hard_gate(self) -> None:
-        feature_dir = self.root / "signed-hard-gate-advance"
-        create_feature_meta(
-            feature_dir=feature_dir,
-            feature_name="Signed Hard Gate Advance",
-            feature_id="feature-signed-hard-gate-advance",
-            project_context="new_project",
-            project_scope="fullstack",
-            scenario="product_provided",
-        )
-        meta_path = feature_dir / "meta.yml"
-        meta = self.load_meta(feature_dir)
-        meta["current_stage"] = "ship-define-review"
-        meta["stages"]["ship-define-review"]["status"] = "approved"
-        meta_path.write_text(yaml.safe_dump(meta, allow_unicode=False, sort_keys=False), encoding="utf-8")
-        (feature_dir / "review-define.md").write_text(
-            """---
-stage: ship-define-review
-gate_type: hard
-review_status: approved
-reviewer: ai
-reviewed_at: "2026-06-06T10:00:00+08:00"
-reviewed_documents: ["requirements.md"]
-revision_count: 0
-user_sign_off: "approved by user"
-signed_at: "2026-06-06T10:05:00+08:00"
-conditions: []
----
-
-# Review
-""",
-            encoding="utf-8",
-        )
-
-        payload = advance_stage(
-            meta_path=meta_path,
-            from_stage="ship-define-review",
-            to_stage="ship-tech-discovery",
-            completed_status="approved",
-        )
-        self.assertEqual(payload["current_stage"], "ship-tech-discovery")
-
+        self.assertNotIn("ship-define-review", meta["stages"])
+        self.assertIn("ship-define-review", meta["support_skills"])
+        self.assertFalse(meta["support_skills"]["ship-define-review"]["used"])
 
 if __name__ == "__main__":
     unittest.main()

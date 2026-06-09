@@ -70,9 +70,9 @@ def _is_stage_complete_enough(meta: dict[str, Any], validation: dict[str, Any], 
     if stage in REVIEW_STAGES:
         artifact = artifacts[0]
         fm = artifact["frontmatter"]
-        if fm.get("review_status") == "approved" and fm.get("user_sign_off") and fm.get("signed_at"):
+        if fm.get("review_status") in {"approved", "pass"}:
             return True, []
-        return False, [_issue("error", "gate_not_approved", f"{stage} requires approved review_status plus user_sign_off and signed_at")]
+        return False, [_issue("error", "review_checklist_not_passed", f"{stage} review checklist must be pass/approved when explicitly used")]
 
     not_ready = []
     for artifact in artifacts:
@@ -116,7 +116,7 @@ def _design_review_artifact_approved(validation: dict[str, Any]) -> bool:
     if not artifact:
         return False
     fm = artifact["frontmatter"]
-    return fm.get("review_status") == "approved" and bool(fm.get("user_sign_off")) and bool(fm.get("signed_at"))
+    return fm.get("review_status") in {"approved", "pass"}
 
 
 def _scope_freeze_transition_issues(meta: dict[str, Any], validation: dict[str, Any], target_stage: str) -> list[dict[str, str]]:

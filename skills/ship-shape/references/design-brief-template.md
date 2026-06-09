@@ -1,9 +1,9 @@
 ---
 stage: ship-shape
 stage_status: draft
-activation_mode: default_discover_shape  # default_discover_shape | uiux_material_gate_insert
-uiux_gate_user_sign_off: ""
-uiux_gate_signed_at: ""
+activation_mode: default_discover_shape  # default_discover_shape | ui_shape_insert
+ui_shape_decision: ""
+ui_shape_decided_at: ""
 browser_verified: false
 browser_verified_at: ""
 design_direction: ""

@@ -71,8 +71,8 @@ def validate_handoff(feature_dir: Path) -> dict[str, Any]:
     if verification_fm.get("stage_status") == "complete" and verification_fm.get("all_ac_verified") is not True:
         issues.append(_issue("error", "complete_without_all_ac_verified", "complete verification requires all_ac_verified: true", "verification.md"))
     if any(token in verification_body.upper() for token in ("FAIL", "BLOCKED")):
-        if not ("accepted_risks_sign_off" in verification_body or "user_sign_off" in verification_body or "风险接受" in verification_body):
-            issues.append(_issue("error", "risk_acceptance_missing_signoff", "FAIL/BLOCKED closure requires accepted_risks_sign_off or user sign-off", "verification.md"))
+        if not ("accepted_risks" in verification_body or "risk accepted" in verification_body.lower() or "风险接受" in verification_body):
+            issues.append(_issue("error", "risk_acceptance_missing", "FAIL/BLOCKED closure requires explicit accepted_risks or 风险接受 record", "verification.md"))
 
     handoff_path = feature_dir / "handoff.md"
     if not handoff_path.exists():

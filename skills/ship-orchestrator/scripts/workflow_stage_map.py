@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Ship workflow stage mapping utilities.
+"""Solo-developer Ship workflow stage mapping utilities.
 
-This module is the executable source of truth for the default 5-stage view
-(Discover is conditional and only appears in scenario A / C).
-It intentionally stays dependency-free so it can be used from validation
-scripts, runtime helpers, and shell commands without extra setup.
+This module is the executable source of truth for the default lightweight
+workflow view. Review skills and design-specialist skills remain available as
+utilities, but they are not blocking runtime stages by default.
 """
 
 from __future__ import annotations
@@ -29,94 +28,66 @@ class StageView:
 
 CANONICAL_STAGE_ORDER: tuple[str, ...] = (
     "ship-discover",
-    "ship-shape",
     "ship-define",
-    "ship-define-review",
     "ship-tech-discovery",
     "ship-contract",
-    "ship-frontend-design",
-    "ship-backend-design",
-    "ship-design-review",
     "ship-delivery-plan",
-    "ship-plan-review",
     "ship-build",
     "ship-verify",
     "ship-handoff",
 )
 
-# Conditional pre-Define stages. ship-discover is A/C only; ship-shape is A/C by default and may be inserted for B/D via UIUX Material Gate.
-CONDITIONAL_STAGES: frozenset[str] = frozenset({"ship-discover", "ship-shape"})
+SUPPORT_SKILLS: tuple[str, ...] = (
+    "ship-shape",
+    "ship-frontend-design",
+    "ship-backend-design",
+    "ship-define-review",
+    "ship-design-review",
+    "ship-plan-review",
+    "ship-grill-me",
+    "ship-spec",
+)
 
 STAGE_VIEW_MAP: dict[str, StageView] = {
     "ship-discover": StageView(
         macro=MacroStage("discover", "Discover"),
-        summary="Exploring requirements through structured discovery — producing a product brief from a rough idea or change request.",
-        next_user_decision="Select an approach from the proposed alternatives and confirm the product brief.",
-    ),
-    "ship-shape": StageView(
-        macro=MacroStage("discover", "Discover"),
-        summary="Designing visual direction and producing HTML wireframe prototypes with multiple variants.",
-        next_user_decision="Choose a design direction from the presented variants.",
+        summary="Clarify the real goal, constraints, project context, and smallest useful scope.",
+        next_user_decision="Confirm the target outcome and what is intentionally out of scope.",
     ),
     "ship-define": StageView(
         macro=MacroStage("define", "Define"),
-        summary="Requirements are being structured into a verifiable feature brief.",
-        next_user_decision="Review the requirements outcome before design work starts.",
-    ),
-    "ship-define-review": StageView(
-        macro=MacroStage("define", "Define"),
-        summary="Requirements are ready and waiting for the first hard-gate review.",
-        next_user_decision="Approve or reject the requirement review result.",
+        summary="Turn the request into a brief with acceptance criteria, assumptions, and risks.",
+        next_user_decision="Confirm the brief is accurate enough to design or plan from.",
     ),
     "ship-tech-discovery": StageView(
-        macro=MacroStage("design", "Design"),
-        summary="Source-backed research and stack decisions are being consolidated into a single technical discovery stage.",
-        next_user_decision="Review whether research coverage and stack decisions are both ready before contract design starts.",
+        macro=MacroStage("understand", "Understand"),
+        summary="Read the existing code and docs before proposing changes; capture evidence-backed constraints.",
+        next_user_decision="Confirm any unresolved repository facts, dependency choices, or risk trade-offs.",
     ),
     "ship-contract": StageView(
         macro=MacroStage("design", "Design"),
-        summary="The shared API contract is being defined for frontend and backend alignment.",
-        next_user_decision="Confirm the contract once request, response, and error shapes are stable.",
-    ),
-    "ship-frontend-design": StageView(
-        macro=MacroStage("design", "Design"),
-        summary="Frontend structure is being mapped from pages and flows to components and APIs.",
-        next_user_decision="Review whether the frontend design matches the intended UI and interaction model.",
-    ),
-    "ship-backend-design": StageView(
-        macro=MacroStage("design", "Design"),
-        summary="Backend domain, data, and service boundaries are being designed against the contract.",
-        next_user_decision="Review whether the backend design covers domain logic, data shape, and operations.",
-    ),
-    "ship-design-review": StageView(
-        macro=MacroStage("design", "Design"),
-        summary="Contract, frontend, and backend designs are waiting for the design hard gate.",
-        next_user_decision="Approve or reject the design review before planning starts.",
+        summary="Define the smallest stable contract: data shapes, API/event/CLI boundaries, and behavior rules.",
+        next_user_decision="Confirm the contract is enough for implementation and not over-designed.",
     ),
     "ship-delivery-plan": StageView(
-        macro=MacroStage("build", "Build"),
-        summary="Frontend and backend implementation plans are being decomposed and cross-checked in one delivery planning stage.",
-        next_user_decision="Review whether both frontend and backend plans are ready before implementation starts.",
-    ),
-    "ship-plan-review": StageView(
-        macro=MacroStage("build", "Build"),
-        summary="Frontend and backend plans are waiting for the planning hard gate.",
-        next_user_decision="Approve or reject the plan review before implementation starts.",
+        macro=MacroStage("plan", "Plan"),
+        summary="Break the work into atomic slices with files, verification commands, and rollback notes.",
+        next_user_decision="Choose whether to start the next slice or adjust the plan.",
     ),
     "ship-build": StageView(
         macro=MacroStage("build", "Build"),
-        summary="Implementation is in progress with contract-first task execution.",
-        next_user_decision="Decide whether to continue with the next task after each verified slice.",
+        summary="Implement one slice at a time with surgical changes and local verification.",
+        next_user_decision="Review the completed slice and decide whether to continue.",
     ),
     "ship-verify": StageView(
-        macro=MacroStage("build", "Build"),
-        summary="Automated and contract-level verification are being consolidated for handoff.",
-        next_user_decision="Review the verification outcome before final acceptance and handoff.",
+        macro=MacroStage("verify", "Verify"),
+        summary="Run targeted checks, inspect diffs, and collect evidence against the acceptance criteria.",
+        next_user_decision="Decide whether failures require fixes, scope cuts, or accepted risks.",
     ),
     "ship-handoff": StageView(
         macro=MacroStage("close", "Close"),
-        summary="Acceptance mapping and delivery notes are being finalized for handoff.",
-        next_user_decision="Confirm whether the feature is acceptable to close or needs follow-up work.",
+        summary="Package the change summary, verification evidence, known risks, and next actions.",
+        next_user_decision="Confirm the work is ready to stop, ship, or continue with follow-up tasks.",
     ),
 }
 
@@ -147,7 +118,8 @@ def _print_usage() -> int:
         "Usage:\n"
         "  python3 workflow_stage_map.py <current_stage>\n"
         "  python3 workflow_stage_map.py --json <current_stage>\n"
-        "  python3 workflow_stage_map.py --list",
+        "  python3 workflow_stage_map.py --list\n"
+        "  python3 workflow_stage_map.py --support-skills",
         file=sys.stderr,
     )
     return 2
@@ -164,6 +136,11 @@ def main(argv: list[str]) -> int:
                 f"{stage}\t{stage_view.macro.current}\t{stage_view.macro.label}\t"
                 f"{stage_view.summary}\t{stage_view.next_user_decision}"
             )
+        return 0
+
+    if argv[1] == "--support-skills":
+        for skill in SUPPORT_SKILLS:
+            print(skill)
         return 0
 
     as_json = False
