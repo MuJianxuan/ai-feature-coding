@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShipKit 新技能集 - 技能介绍与开发流程</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+            background: #0a0e27;
+            color: #e0e6ed;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        /* Header */
+        header {
+            text-align: center;
+            padding: 60px 20px;
+            background: linear-gradient(135deg, #1a1f3a 0%, #0a0e27 100%);
+            border-bottom: 2px solid #2a9d8f;
+            position: relative;
+        }
+        
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, 
+                #2a9d8f 0%, 
+                #e76f51 25%, 
+                #f4a261 50%,
+                #2a9d8f 75%,
+                #264653 100%);
+        }
+        
+        h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: #2a9d8f;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            color: #8892b0;
+            font-weight: 400;
+        }
+        
+        /* Navigation */
+        nav {
+            background: #151b35;
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid #2a9d8f;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        nav ul {
+            list-style: none;
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        
+        nav a {
+            color: #8892b0;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+        }
+        
+        nav a:hover {
+            color: #2a9d8f;
+            border-color: #2a9d8f;
+            background: rgba(42, 157, 143, 0.1);
+        }
+        
+        /* Section Headers */
+        .section {
+            margin: 60px 0;
+        }
+        
+        .section-header {
+            font-size: 2rem;
+            color: #e76f51;
+            margin-bottom: 30px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #2a9d8f;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .section-header::before {
+            content: '▸';
+            color: #2a9d8f;
+        }
+        
+        /* Skill Cards */
+        .skills-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 24px;
+            margin-top: 30px;
+        }
+        
+        .skill-card {
+            background: #151b35;
+            border: 1px solid #2a4a5e;
+            border-radius: 8px;
+            padding: 24px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .skill-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, #2a9d8f, #e76f51);
+        }
+        
+        .skill-card:hover {
+            border-color: #2a9d8f;
+            box-shadow: 0 8px 24px rgba(42, 157, 143, 0.2);
+            transform: translateY(-4px);
+        }
+        
+        .skill-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .skill-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .badge-orchestrator { background: #2a9d8f; color: #fff; }
+        .badge-core { background: #e76f51; color: #fff; }
+        .badge-tool { background: #f4a261; color: #0a0e27; }
+        .badge-optional { background: #8892b0; color: #0a0e27; }
+        .badge-helper { background: #264653; color: #fff; }
+        
+        .skill-name {
+            font-size: 1.5rem;
+            color: #2a9d8f;
+            font-weight: 600;
+        }
+        
+        .skill-description {
+            color: #8892b0;
+            margin-bottom: 16px;
+            font-size: 0.95rem;
+        }
+        
+        .skill-details {
+            margin-top: 16px;
+        }
+        
+        .detail-item {
+            margin: 8px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .detail-item::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            color: #2a9d8f;
+        }
+        
+        .detail-label {
+            color: #e76f51;
+            font-weight: 600;
+        }
+        
+        /* Flow Diagram */
+        .flow-container {
+            background: #151b35;
+            border: 1px solid #2a4a5e;
+            border-radius: 8px;
+            padding: 40px;
+            margin-top: 30px;
+            overflow-x: auto;
+        }
+        
+        .flow-diagram {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 800px;
+        }
+        
+        .flow-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            justify-content: center;
+        }
+        
+        .flow-node {
+            background: #1a1f3a;
+            border: 2px solid #2a9d8f;
+            border-radius: 8px;
+            padding: 20px 30px;
+            min-width: 200px;
+            text-align: center;
+            position: relative;
+            transition: all 0.3s;
+        }
+        
+        .flow-node:hover {
+            border-color: #e76f51;
+            box-shadow: 0 0 20px rgba(42, 157, 143, 0.3);
+            transform: scale(1.05);
+        }
+        
+        .flow-node-title {
+            font-size: 1.1rem;
+            color: #2a9d8f;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .flow-node-desc {
+            font-size: 0.85rem;
+            color: #8892b0;
+        }
+        
+        .flow-arrow {
+            color: #2a9d8f;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        
+        .flow-optional {
+            border-style: dashed;
+            opacity: 0.8;
+        }
+        
+        .flow-parallel {
+            border-color: #f4a261;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>ShipKit 新技能集</h1>
+        <p class="subtitle">New ShipKit Design v1 - 技能介绍与开发流程</p>
+    </header>
+    
+    <nav>
+        <ul>
+            <li><a href="#overview">总览</a></li>
+            <li><a href="#skills">技能详解</a></li>
+            <li><a href="#flow">开发流程</a></li>
+            <li><a href="#principles">设计原则</a></li>
+        </ul>
+    </nav>
+    
+    <div class="container">
+        <!-- Overview Section -->
+        <section id="overview" class="section">
+            <h2 class="section-header">项目总览</h2>
+            <div class="skill-card">
+                <p style="margin-bottom: 16px;">这是按 <code>.docs/new-shipkit-design/</code> 从零实现的新 ShipKit 设计。它不修改、不依赖旧 <code>skills/</code> 目录；所有新技能和配套脚本都放在 <code>new-skills/</code> 下。</p>
+                <div class="detail-item"><span class="detail-label">实现根目录：</span>new-skills/</div>
+                <div class="detail-item"><span class="detail-label">版本：</span>new-shipkit-v1</div>
+                <div class="detail-item"><span class="detail-label">核心原则：</span>简化而不简陋、单一事实源 meta.yml、目标驱动交付可工作软件</div>
+            </div>
+        </section>
+        
+        <!-- Skills Section -->
+        <section id="skills" class="section">
+            <h2 class="section-header">技能详解</h2>
+            <div class="skills-grid">
+                <!-- ship-orchestrator -->
+                <div class="skill-card">
+                    <div class="skill-header">
+                        <span class="skill-badge badge-orchestrator">编排层</span>
+                        <h3 class="skill-name">ship-orchestrator</h3>
+                    </div>
+                    <p class="skill-description">新 ShipKit 统一入口。识别 feature 开发场景，路由到 split/understand/design/build，维护 meta.yml 单一事实源，并执行唯一用户确认门禁。</p>
+                    <div class="skill-details">
+                        <div class="detail-item"><span class="detail-label">职责：</span>场景识别、阶段路由、状态推进、门禁执行</div>
+                        <div class="detail-item"><span class="detail-label">场景：</span>quick_start、full_flow、prd_direct、split_first</div>
+                        <div class="detail-item"><span class="detail-label">核心门禁：</span>Design → Build 需用户确认</div>
+                        <div class="detail-item"><span class="detail-label">单一事实源：</span>.docs/feature-*/meta.yml</div>
+                    </div>
+                </div>
+                
+                <!-- ship-split -->
+                <div class="skill-card">
+                    <div class="skill-header">
+                        <span class="skill-badge badge-optional">可选前置</span>
+                        <h3 class="skill-name">ship-split</h3>
+                    </div>
+                    <p class="skill-description">把大需求拆成可独立交付的小 feature，生成 splits.yml，标注依赖，并可准备 TAPD/Jira 任务数据。</p>
+                    <div class="skill-details">
+                        <div class="detail-item"><span class="detail-label">触发时机：</span>明确要求拆分、5+ 独立功能点、预计超过 3 天</div>
+                        <div class="detail-item"><span class="detail-label">输出：</span>splits.yml + 批量 feature 目录</div>
+                        <div class="detail-item"><span class="detail-label">依赖追踪：</span>自动检查 blocked_by 状态</div>
+                        <div class="detail-item"><span class="detail-label">集成：</span>TAPD/Jira 任务同步框架</div>
+                    </div>
+                
+                <!-- ship-understand -->
+                <div class="skill-card">
+                    <div class="skill-header">
+                        <span class="skill-badge badge-core">核心阶段</span>
+                        <h3 class="skill-name">ship-understand</h3>
+                    </div>
+                    <p class="skill-description">加载 spec，解析需求/PRD/原型，必要时调用 grill-me，产出 requirements.md(status: ready)。</p>
+                    <div class="skill-details">
+                        <div class="detail-item"><span class="detail-label">目标：</span>把用户输入变成可设计、可验证的需求</div>
+                        <div class="detail-item"><span class="detail-label">输出：</span>requirements.md (功能概述、Domain 模型、AC、非功能需求、约束)</div>
+                        <div class="detail-item"><span class="detail-label">质量标准：</span>至少 1 个 AC，使用 Given/When/Then</div>
+                        <div class="detail-item"><span class="detail-label">grill-me：</span>full_flow 必须，quick_start 条件触发</div>
+                    </div>
+                </div>
+                
+                <!-- ship-design -->
+                <div class="skill-card">
+                    <div class="skill-header">
+                        <span class="skill-badge badge-core">核心阶段</span>
+                        <h3 class="skill-name">ship-design</h3>
+                    </div>
+                    <p class="skill-description">基于 requirements.md 和 spec 生成合一技术设计：API Contract、数据模型、前后端方案，并在 Build 前等待用户确认。</p>
+                    <div class="skill-details">
+                        <div class="detail-item"><span class="detail-label">输出：</span>design.md (合一设计文档)</div>
+                        <div class="detail-item"><span class="detail-label">核心章节：</span>AC 覆盖映射、API 契约、数据模型、前后端设计、性能/风险</div>
+                        <div class="detail-item"><span class="detail-label">模板引用：</span>Design Reference Template (项目级或内置)</div>
+                        <div class="detail-item"><span class="detail-label">用户确认：</span>Design → Build 唯一硬门禁</div>
+                    </div>
+                </div>
+                
+                <!-- ship-build -->
+                <div class="skill-card">
+                    <div class="skill-header">
+                        <span class="skill-badge badge-core">核心阶段</span>
+                        <h3 class="skill-name">ship-build</h3>
+                    </div>
+                    <p class="skill-description">用户确认设计后，按 design.md 生成任务清单、实现代码、运行测试、验证 AC，并生成 verification.md。</p>
+                    <div class="skill-details">
+                        <div class="detail-item"><span class="detail-label">输出：</span>build-plan.yml + verification.md + 实际代码</div>
+                        <div class="detail-item"><span class="detail-label">任务顺序：</span>数据层 → 后端 → 前端 → 集成</div>
+                        <div class="detail-item"><span class="detail-label">成功标准：</span>all_ac_passed: true + 测试通过</div>
+                        <div class="detail-item"><span class="detail-label">spec 更新：</span>更新 existing-features，按评分沉淀新规范</div>
+                    </div>
+                </div>
+                
+                <!-- ship-spec -->
+                <div class="skill-card">
+                    <div class="skill-header">
+                        <span class="skill-badge badge-tool">工具技能</span>
+                        <h3 class="skill-name">ship-spec</h3>
+                    </div>
+                    <p class="skill-description">维护 .docs/spec 知识库，按阶段和项目隔离加载规范，并在 Build 完成后更新已有功能索引。</p>
+                    <div class="skill-details">
+                        <div class="detail-item"><span class="detail-label">目录：</span>.docs/spec/ (frontend/backend/shared)</div>
+                        <div class="detail-item"><span class="detail-label">加载策略：</span>按阶段加载，多项目隔离</div>
+                        <div class="detail-item"><span class="detail-label">优先级：</span>requirements/AC > 项目 spec > 代码事实 > 模板 > AI 习惯</div>
+                        <div class="detail-item"><span class="detail-label">沉淀评分：</span>复用次数≥3(+40) + 模式稳定(+30) + 跨模块(+20) ≥60</div>
+                    </div>
+                </div>
+                
+                <!-- ship-grill-me -->
+                <div class="skill-card">
+                    <div class="skill-header">
+                        <span class="skill-badge badge-helper">质询助手</span>
+                        <h3 class="skill-name">ship-grill-me</h3>
+                    </div>
+                    <p class="skill-description">Understand/Design ready 前发现 blocking 问题，先查仓库和 spec，再一次只问用户一个关键问题。</p>
+                    <div class="skill-details">
+                        <div class="detail-item"><span class="detail-label">嵌入位置：</span>ship-understand / ship-design</div>
+                        <div class="detail-item"><span class="detail-label">blocking 判定：</span>缺 AC、冲突、边界缺失、API/数据模型问题</div>
+                        <div class="detail-item"><span class="detail-label">质询流程：</span>先查仓库/spec → 自动修正或提问 → 一次一个问题</div>
+                        <div class="detail-item"><span class="detail-label">触发矩阵：</span>full_flow 必须，quick_start 条件触发</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Flow Diagram Section -->
+        <section id="flow" class="section">
+            <h2 class="section-header">开发流程图</h2>
+            <div class="flow-container">
+                <div class="flow-diagram">
+                    <!-- Optional Split Phase -->
+                    <div class="flow-row">
+                        <div class="flow-node flow-optional">
+                            <div class="flow-node-title">[可选] ship-split</div>
+                            <div class="flow-node-desc">拆分大需求为子 feature</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-row">
+                        <div class="flow-arrow">↓</div>
+                    </div>
+                    
+                    <!-- Understand Phase -->
+                    <div class="flow-row">
+                        <div class="flow-node">
+                            <div class="flow-node-title">ship-understand</div>
+                            <div class="flow-node-desc">解析需求 → requirements.md(ready)</div>
+                        </div>
+                        <div class="flow-node flow-parallel">
+                            <div class="flow-node-title">ship-spec</div>
+                            <div class="flow-node-desc">加载 Understand 阶段 spec</div>
+                        </div>
+                        <div class="flow-node flow-optional">
+                            <div class="flow-node-title">ship-grill-me</div>
+                            <div class="flow-node-desc">质询 blocking 问题</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-row">
+                        <div class="flow-arrow">↓</div>
+                    </div>
+                    
+                    <!-- Design Phase -->
+                    <div class="flow-row">
+                        <div class="flow-node">
+                            <div class="flow-node-title">ship-design</div>
+                            <div class="flow-node-desc">技术设计 → design.md(ready)</div>
+                        </div>
+                        <div class="flow-node flow-parallel">
+                            <div class="flow-node-title">ship-spec</div>
+                            <div class="flow-node-desc">加载 Design 阶段 spec</div>
+                        </div>
+                        <div class="flow-node flow-optional">
+                            <div class="flow-node-title">ship-grill-me</div>
+                            <div class="flow-node-desc">质询 blocking 问题</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-row">
+                        <div class="flow-arrow">↓</div>
+                    </div>
+                    
+                    <!-- User Confirmation Gate -->
+                    <div class="flow-row">
+                        <div class="flow-node" style="border-color: #e76f51; background: rgba(231, 111, 81, 0.1);">
+                            <div class="flow-node-title" style="color: #e76f51;">❗ 用户确认门禁 ❗</div>
+                            <div class="flow-node-desc">唯一硬门禁：确认开始实现</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-row">
+                        <div class="flow-arrow">↓</div>
+                    </div>
+                    
+                    <!-- Build Phase -->
+                    <div class="flow-row">
+                        <div class="flow-node">
+                            <div class="flow-node-title">ship-build</div>
+                            <div class="flow-node-desc">实现 + 测试 → verification.md</div>
+                        </div>
+                        <div class="flow-node flow-parallel">
+                            <div class="flow-node-title">ship-spec</div>
+                            <div class="flow-node-desc">加载 Build 阶段 spec</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-row">
+                        <div class="flow-arrow">↓</div>
+                    </div>
+                    
+                    <!-- Done -->
+                    <div class="flow-row">
+                        <div class="flow-node" style="border-color: #2a9d8f; background: rgba(42, 157, 143, 0.2);">
+                            <div class="flow-node-title">✅ Done</div>
+                            <div class="flow-node-desc">all_ac_passed: true + spec 更新</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 40px; padding: 20px; background: rgba(42, 157, 143, 0.1); border-left: 4px solid #2a9d8f; border-radius: 4px;">
+                    <h3 style="color: #2a9d8f; margin-bottom: 12px;">流程说明</h3>
+                    <ul style="color: #8892b0; line-height: 1.8;">
+                        <li><strong>实线框</strong>：必须阶段，所有 feature 都必须经过</li>
+                        <li><strong>虚线框</strong>：可选阶段，根据场景决定是否触发</li>
+                        <li><strong>橙色边框</strong>：并行执行的辅助技能 (ship-spec 贯穿全程)</li>
+                        <li><strong>红色高亮</strong>：唯一用户确认门禁，Design → Build 必须用户明确同意</li>
+                        <li><strong>ship-grill-me</strong>：嵌入式质询，在 Understand/Design 中按场景触发</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Design Principles Section -->
+        <section id="principles" class="section">
+            <h2 class="section-header">设计原则</h2>
+            <div class="skills-grid">
+                <div class="skill-card">
+                    <h3 style="color: #2a9d8f; margin-bottom: 12px;">简化而不简陋</h3>
+                    <p style="color: #8892b0;">减少阶段数量，合并文档，但保持质量门禁。旧 ShipKit 的 14 阶段精简为 3 个核心阶段：Understand → Design → Build。</p>
+                </div>
+                
+                <div class="skill-card">
+                    <h3 style="color: #2a9d8f; margin-bottom: 12px;">单一事实源 meta.yml</h3>
+                    <p style="color: #8892b0;">所有 feature 状态、阶段、产物引用都存在 .docs/feature-*/meta.yml。不依赖对话历史或隐式记忆。</p>
+                </div>
+                
+                <div class="skill-card">
+                    <h3 style="color: #2a9d8f; margin-bottom: 12px;">目标驱动交付可工作软件</h3>
+                    <p style="color: #8892b0;">产物必须推进交付。requirements.md 必须有 AC，design.md 必须可实现，verification.md 必须证明所有 AC 通过。</p>
+                </div>
+                
+                <div class="skill-card">
+                    <h3 style="color: #2a9d8f; margin-bottom: 12px;">唯一用户确认门禁</h3>
+                    <p style="color: #8892b0;">Design → Build 是唯一需要用户明确确认的门禁。其他阶段转换由 AI 自检 + validator 验证。</p>
+                </div>
+                
+                <div class="skill-card">
+                    <h3 style="color: #2a9d8f; margin-bottom: 12px;">场景驱动的质询</h3>
+                    <p style="color: #8892b0;">quick_start 跳过多余质询，full_flow 必须质询，prd_direct 条件触发。一次只问一个问题，先查仓库/spec 再问用户。</p>
+                </div>
+                
+                <div class="skill-card">
+                    <h3 style="color: #2a9d8f; margin-bottom: 12px;">spec 优先级链</h3>
+                    <p style="color: #8892b0;">requirements/AC > 项目 spec > 现有代码事实 > 参考模板 > AI 默认习惯。模板只是梤查清单，不替代项目约束。</p>
+                </div>
+            </div>
+            
+            <div style="margin-top: 40px; padding: 24px; background: #151b35; border: 1px solid #2a4a5e; border-radius: 8px;">
+                <h3 style="color: #e76f51; margin-bottom: 16px;">核心 Validators</h3>
+                <div style="color: #8892b0; line-height: 1.8;">
+                    <div class="detail-item"><code style="color: #f4a261;">validate_requirements.py</code> - 检查 AC 格式、Domain 模型、spec 引用</div>
+                    <div class="detail-item"><code style="color: #f4a261;">validate_design.py</code> - 检查 AC 覆盖、API 契约、数据模型、模板引用、错误响应</div>
+                    <div class="detail-item"><code style="color: #f4a261;">validate_build.py</code> - 检查 AC 验证、测试结果、产出文件</div>
+                    <div class="detail-item"><code style="color: #f4a261;">validate_current_stage.py</code> - 聚合入口，根据 current_stage 调用对应 validator</div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Footer -->
+        <footer style="margin-top: 80px; padding: 40px 20px; text-align: center; border-top: 1px solid #2a4a5e; color: #8892b0;">
+            <p style="margin-bottom: 8px;">🚀 ShipKit 新技能集 v1</p>
+            <p style="font-size: 0.9rem;">设计源：.docs/new-shipkit-design/ | 实现根目录：new-skills/</p>
+            <p style="font-size: 0.85rem; margin-top: 16px; color: #6c7a8a;">生成时间：2026-06-10</p>
+        </footer>
+    </div>
+    
+    <script>
+        // Smooth scroll for navigation links
+        document.querySelectorAll('nav a').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+        
+        // Highlight active navigation item on scroll
+        const sections = document.querySelectorAll('.section');
+        const navLinks = document.querySelectorAll('nav a');
+        
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (window.pageYOffset >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+            
+            navLinks.forEach(link => {
+                link.style.color = '#8892b0';
+                link.style.borderColor = 'transparent';
+                if (link.getAttribute('href').substring(1) === current) {
+                    link.style.color = '#2a9d8f';
+                    link.style.borderColor = '#2a9d8f';
+                }
+            });
+        });
+        
+        // Add click interaction for skill cards
+        document.querySelectorAll('.skill-card').forEach(card => {
+            card.addEventListener('click', function() {
+                this.style.transform = 'translateY(-4px)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 200);
+            });
+        });
+    </script>
+</body>
+</html>
