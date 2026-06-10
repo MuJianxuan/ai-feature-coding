@@ -1,307 +1,126 @@
-# ShipKit skills — 开发工作流技能套件
+# 新 ShipKit 技能集
 
-> 一套从需求到交付的端到端开发工作流，把 PRD/原型/UI-UX 设计稿转化为可验证的可工作软件。对外默认只展示 5 个大阶段（Discover 可选），内部仍保留严格的细阶段、门禁和产物。
+这是按 `.docs/new-shipkit-design/` 从零实现的新 ShipKit 设计。它不修改、不依赖旧 `skills/` 目录；所有新技能和配套脚本都放在 `new-skills/` 下。
 
-## 默认视图
+使用时应显式引用 `new-skills/ship-orchestrator` 或该目录下的具体 skill；仓库旧 `skills/ship-*` 仍然存在时，不要混用两套 ShipKit。
 
-日常使用时，只需要记住一个入口和五个阶段：
+## 技能清单
 
-- 入口：`ship-orchestrator`
-- 大阶段：`[Discover →] Define → Design → Build → Close`
+| 技能 | 类型 | 作用 | 必需 |
+|---|---|---|---|
+| `ship-orchestrator` | 编排层 | 统一入口，识别场景，路由阶段，执行门禁 | 是 |
+| `ship-split` | 可选前置 | 拆分大需求，生成 `splits.yml`，追踪依赖 | 可选 |
+| `ship-understand` | 核心阶段 | 理解需求，加载 spec，产出 `requirements.md` | 是 |
+| `ship-design` | 核心阶段 | 技术设计，选择 Design Reference Template，产出 `design.md`，等待用户确认 | 是 |
+| `ship-build` | 核心阶段 | 实现、测试、AC 验证，产出 `build-plan.yml` 和 `verification.md` | 是 |
+| `ship-spec` | 工具技能 | 管理 `.docs/spec/` 知识库，多项目隔离加载 | 是 |
+| `ship-grill-me` | 质询助手 | 嵌入 Understand/Design，发现阻塞问题并逐个质询 | 是 |
 
-### 五阶段模型（Discover 可选）
-
-| 大阶段 | 目标 | 用户默认会看到什么 | 条件 |
-|--------|------|--------------------|------|
-| `Discover` | 把模糊想法或变更请求转化为结构化产品简报和 UIUX 原型 | 方案对比、设计方向选择、HTML 原型预览 | 默认仅场景 A/C 激活；场景 B/D 若 UIUX Material Gate 中用户显式授权生成线框，可临时插入 `ship-shape`（不执行 `ship-discover`） |
-| `Define` | 把需求整理成可验证输入，并完成首道确认 | 当前目标、需求是否已明确、下一次确认点 | 始终 |
-| `Design` | 先完成项目真实现状发现，再完成调研、选型、接口契约、前后端方案，并通过设计评审 | 方案是否成形、是否需要你批准设计 | 始终 |
-| `Build` | 完成实施计划、编码执行、自动化验证 | 是否可以开始编码、当前进展、下一次确认点 | 始终 |
-| `Close` | 完成 AC 映射验收与交付总结 | 是否已可交付、残余风险、handoff 结论 | 始终 |
-
-### 五种入口场景
-
-| 场景 | 描述 | 起点 | Discover |
-|------|------|------|----------|
-| A 零到一 | 只有一句话想法，无 PRD/原型/设计稿 | `ship-discover` (greenfield) | 激活 |
-| B 产品提供 | 已有需求/原型/UIUX 等材料，但不保证完整，允许继续澄清缺口 | `ship-define` (interview mode) | 默认跳过；UIUX Gate 可插入 `ship-shape` |
-| C 迭代增强 | 基于已有功能做修改/扩展，有旧代码但无新 PRD | `ship-discover` (evolve) | 激活 |
-| D PRD 直通 | 已有完整 PRD + 原型 + 设计稿，用户明确不需要需求录入 | `ship-define` (prd_direct mode) | 默认跳过；UIUX Gate 可插入 `ship-shape` |
-| E 技术方案选区 | 已有技术方案文件或粘贴片段，只围绕指定章节/接口/模块生成计划；仅适用于 `existing_project` | `ship-tech-discovery` (technical plan entry) | 禁止 `ship-shape` |
-
-默认原则：
-
-- 用户默认只和 `ship-orchestrator` 交互
-- orchestrator 自动识别场景（A/B/C/D/E）并路由到正确的起点
-- 状态默认显示大阶段，不要求记住内部阶段名
-- 只有在恢复断点、排查阻塞、直接调用某阶段时，才展开内部细阶段
-- `ship-spec` 作为 workflow utility 隐式接入，不作为单独阶段暴露给默认用户视图
-- `ship-spec` 只消费 workspace 的 `spec_root`；single_project 读 `.docs/spec/INDEX.md`，project_group 读 `.docs/spec/_shared/INDEX.md`，并按当前目标项目读取 `.docs/spec/<project>/INDEX.md`
-- 进入 Design 后，`ship-tech-discovery` 对已有项目必须 Project Reality First：先查真实功能、表、API、页面、服务、权限和既有 feature 文档，再做技术调研/选型
-- `technical_plan_provided` 入口直接从 `ship-tech-discovery` 开始，只计划 selected scope；不会把整份技术方案纳入计划，未选中内容默认 `out_of_scope`
-- 源码修改屏障：除 workspace `feature_root` 下的 `feature-*` 工作流产物（默认 `.docs/feature-*`）外，任何业务源码、测试、配置、迁移、脚本或构建文件修改都必须等到 `current_stage: ship-build`，且必须通过唯一入口 `implementation_preflight.py --files <paths...>`；该入口内部校验 `current_stage: ship-build`、hard gate 签字审计、stage transition、单一 DOING task 与 `allowed_files` 覆盖
-- 规范索引只区分 `frontend / backend / shared`，frontmatter schema 不新增 `spec_type`；project_group 下顶层 `.docs/spec/INDEX.md` 只做导航，具体入口在 `_shared` 和 `<project>` 目录
-- Build 任务项同时保留机器字段和执行简报；`frontend-plan.md`、`backend-plan.md` 中每个任务都必须包含 `任务目标 / 上下文 / 约束 / 验收 / 输出`
-
-## 为什么这样设计
-
-- **外部简单**：首屏只暴露 5 个阶段（Discover 可选），降低学习成本
-- **场景自适应**：orchestrator 自动识别入口场景，无需用户手动选择流程
-- **内部严格**：三道硬门禁、Contract-First、前后端分离、测试与验收都保留
-- **恢复精确**：`meta.yml.current_stage` 仍然使用 canonical stage id，便于断点恢复和诊断
-- **展示收敛**：对外使用 `macro_stage` 摘要，不把所有细阶段名直接压给用户
-
-## 启动方式
-
-### 新建 feature
-
-#### 场景 A：零到一（只有想法）
+## 核心流程
 
 ```text
-启动 ship-orchestrator，我想做一个"<功能名>"：<一句话想法>
+[可选] ship-split
+    ↓
+ship-understand  → requirements.md(status: ready)
+    ↓
+ship-design      → design.md(status: ready) → 用户确认
+    ↓
+ship-build       → verification.md(all_ac_passed: true) → done
 ```
 
-默认响应：
-- 识别为场景 A，起点 `ship-discover`（greenfield）
-- 当前处于 `Discover`
-- 系统将通过结构化提问探索需求，产出 product-brief.md
-- 若涉及 UI 且无设计稿，会进入 `ship-shape` 产出 HTML 原型
-- 下一次需要你的动作：确认产品方向和设计方向
+贯穿全程：`ship-spec` 按阶段加载规范；`ship-grill-me` 在 Understand/Design 中按场景触发。
 
-#### 场景 B：产品提供完整材料
+## 目录结构
 
 ```text
-启动 ship-orchestrator，为"<功能名>"开启完整工作流：<需求描述>
-
-附件资料：resource/<file>.md / Figma 链接 / ...
+new-skills/
+├── README.md
+├── MANIFEST.yml
+├── ACCEPTANCE.md
+├── ship-orchestrator/
+│   ├── SKILL.md
+│   ├── scripts/
+│   │   ├── _lib.py
+│   │   ├── validate_requirements.py
+│   │   ├── validate_design.py
+│   │   ├── validate_build.py
+│   │   └── validate_current_stage.py
+│   ├── templates/
+│   │   ├── meta.yml.template
+│   │   ├── requirements.md.template
+│   │   ├── design.md.template
+│   │   ├── build-plan.yml.template
+│   │   ├── verification.md.template
+│   │   ├── splits.yml.template
+│   │   └── design-reference/
+│   │       ├── INDEX.md
+│   │       ├── backend-service.md
+│   │       ├── frontend-ui.md
+│   │       ├── fullstack-feature.md
+│   │       ├── async-task.md
+│   │       ├── data-migration.md
+│   │       ├── integration.md
+│   │       └── config-change.md
+│   └── tests/
+│       └── test_validators.py
+├── ship-split/SKILL.md
+├── ship-understand/SKILL.md
+├── ship-design/SKILL.md
+├── ship-build/SKILL.md
+├── ship-spec/SKILL.md
+└── ship-grill-me/SKILL.md
 ```
 
-默认响应：
-- 识别为场景 B，起点 `ship-define`（interview mode），默认跳过 Discover
-- 若涉及 UI 且缺少 UIUX 材料，系统会先要求补材料或请求授权生成 wireframe；授权后会插入 `ship-shape`，完成后回到 `ship-define`（meta 记录 `activation_mode: uiux_material_gate_insert`）
-- 当前处于 `Define`
-- 系统正在整理需求并准备首道确认
-- 下一次需要你的动作：确认需求评审结论
+## 单一事实源
 
-#### 场景 D：PRD 直通（不需要需求录入）
+Feature 状态以 `.docs/feature-*/meta.yml` 为单一事实源：
 
-```text
-启动 ship-orchestrator，为"<功能名>"开启完整工作流，PRD 已完整不需要需求录入：<需求描述>
-
-附件资料：resource/prd.docx / resource/prototype.html / ...
+```yaml
+feature_name: "用户登录"
+current_stage: understand # understand | design | build | done
+status: in_progress       # in_progress | blocked | completed
+scenario: full_flow       # quick_start | full_flow | prd_direct | split_first
+created_at: "2026-06-09T10:00:00Z"
+updated_at: "2026-06-09T14:30:00Z"
+spec_refs: []
+requested_design_template: "" # 可选：用户显式模板意图原话
+design_template_ref: ""       # Design 阶段解析后的模板引用
+design_template_reason: ""    # Design 阶段写入的选择依据
+artifacts:
+  requirements: requirements.md
+  design: design.md
+  build_plan: build-plan.yml
+  verification: verification.md
 ```
 
-默认响应：
-- 识别为场景 D，起点 `ship-define`（prd_direct mode），默认跳过 Discover
-- 若涉及 UI 且缺少 UIUX 材料，系统会先要求补材料或请求授权生成 wireframe；授权后会插入 `ship-shape`，完成后回到 `ship-define`（meta 记录 `activation_mode: uiux_material_gate_insert`）
-- 当前处于 `Define`
-- 系统正在从 PRD 和原型中提取结构化索引（零提问）
-- 产出的 requirements.md 为索引式（引用 PRD 来源位置，不复制原文）
-- 下一次需要你的动作：确认 PRD 质量 + 提取准确性评审结论
+## Design Reference Template
 
-#### 场景 C：迭代增强
+Design 阶段支持轻量参考模板机制：
 
-```text
-启动 ship-orchestrator，基于 <target-project>/.docs/feature-20260520-old-feature/ 的现有实现，<变更需求描述>
-```
+- `ship-orchestrator` 只记录用户显式模板意图到 `requested_design_template`，不解析模板。
+- `ship-design` 选择项目级模板或内置模板，写入 `design_template_ref` 和 `design_template_reason`。
+- `design.md` 必须包含 `## 方案模板引用`；模板机器事实只存在 `meta.yml`，不写进 frontmatter。
+- `full_flow`、`prd_direct`、`split_first` 子 feature 必须记录模板引用；`quick_start` 缺模板只 warning。
+- 内置模板目录：`new-skills/ship-orchestrator/templates/design-reference/`。
+- 模板只是 checklist，项目 spec 优先；validator 只查结构和占位符，不假装自己是架构师。
 
-默认响应：
-- 识别为场景 C，起点 `ship-discover`（evolve）
-- 当前处于 `Discover`
-- 系统将扫描现有代码与文档，分析变更影响
-- 下一次需要你的动作：确认变更范围和影响分析
-
-#### 场景 E：技术方案选区
-
-```text
-启动 ship-orchestrator，基于 resource/order-export-tech-design.md 的 3.2 订单导出异步任务章节生成 delivery plan。
-```
-
-默认响应：
-- 识别为场景 E，scenario = `technical_plan_provided`，要求 `project_context: existing_project`
-- 明确技术方案来源与 selected scope；未选中内容按 `ignored_source_policy: out_of_scope` 忽略
-- 跳过 `ship-define` 执行阶段与 `ship-define-review` hard gate
-- 直接进入 `ship-tech-discovery`，先执行 repository scan，并在开头只围绕 selected scope 派生最小 `requirements.md` index / AC
-- 进入 `ship-contract` 前必须完成 `selected_scope_ac_confirmation`
-- 完成 contract 和按 scope 裁剪的 frontend/backend design
-- 进入 `ship-delivery-plan` 前必须通过 `ship-design-review`
-
-### 继续已有 feature
-
-```text
-继续 <target-project>/.docs/feature-20260522-todo-app/
-```
-
-默认返回大阶段视图；需要诊断时，再展开 `current_stage` 对应的细阶段。
-
-### 高级模式：直接调用内部阶段
-
-```text
-使用 ship-frontend-design，基于 <target-project>/.docs/feature-20260522-todo-app/api-contract.md 做前端方案
-```
-
-这类调用保留给高级用户、诊断场景和精确恢复场景，不作为默认使用路径。
-
-高级直调必须同时满足：已知 `feature_dir`、上游产物达到该阶段入口条件、且不会绕过 orchestrator 的 hard gate / source code edit barrier；缺任一条件时先回到 `ship-orchestrator` 诊断。
-
-补充说明：
-
-- `ship-contract`、`ship-frontend-design`、`ship-backend-design` 各自维护独立的 `references/` 目录
-- 这些目录中的模板属于阶段内参考资产，用于帮助 agent 产出更完整的设计文档，不属于 workflow 共享协议
-
-## 内部阶段映射
-
-对外是 5 阶段（Discover 可选），内部是 14 个 canonical stages（前 2 个条件性）：
-
-| 大阶段 | 内部阶段 | 条件 |
-|--------|----------|------|
-| `Discover` | `ship-discover`, `ship-shape` | `ship-discover` 仅 A/C；`ship-shape` 默认 A/C，B/D 可由 UIUX Material Gate 显式插入；E 禁止 |
-| `Define` | `ship-define`, `ship-define-review` | 场景 E 跳过执行阶段与 hard gate，但派生 `requirements.md` index |
-| `Design` | `ship-tech-discovery`, `ship-contract`, `ship-frontend-design`, `ship-backend-design`, `ship-design-review` | 始终 |
-| `Build` | `ship-delivery-plan`, `ship-plan-review`, `ship-build`, `ship-verify` | 始终 |
-| `Close` | `ship-handoff` | 始终 |
-
-说明：
-
-- 大阶段是展示层概念
-- 细阶段是协议层和路由层事实源
-- 三道硬门禁仍然存在：`ship-define-review`、`ship-design-review`、`ship-plan-review`；场景 E 跳过 `ship-define-review`，但仍必须通过后两道硬门禁
-
-## 核心设计原则
-
-### 1. 产物驱动而非对话驱动
-
-- 每个阶段的完成以产物文件和 frontmatter 为准
-- 阶段文档 frontmatter 是事实源
-- `meta.yml` 只做恢复、汇总和展示索引
-
-### 2. Progressive Disclosure
-
-- 首屏只讲一个入口和五个大阶段（Discover 可选）
-- 14 个细阶段（前 2 个条件性）只在高级模式或内部协议中展开
-- 用户默认看到“当前目标”和“下一次需要决策的动作”，而不是一长串阶段名
-
-### 3. 三道硬门禁
-
-| 门禁 | 所属大阶段 | 目的 |
-|------|------------|------|
-| `ship-define-review` | `Define` | 确认需求清晰、AC 可验证、无歧义 |
-| `ship-design-review` | `Design` | 交叉验证 contract ↔ frontend ↔ backend |
-| `ship-plan-review` | `Build` | 确认任务粒度合理、依赖正确、AC 全覆盖 |
-
-### 4. Contract-First Slicing
-
-实施阶段任务顺序保持不变：
-
-1. 契约层任务
-2. 前后端并行任务
-3. 集成任务
-
-这条规则仍然是内部执行顺序的硬约束。
-
-### 5. 子代理委派是执行策略，不是新阶段
-
-- 默认流程不新增 stage，也不改变 14 个 canonical stages
-- 只有 `ship-frontend-design` 与 `ship-backend-design` 是显式并行阶段
-- research 取证、计划审计、测试分轨、证据整理等可以作为辅助委派
-- `ship-grill-me` 是阶段内辅助质询 hook，用于 ready / sign-off 前逐题压力测试；它不改变 5 阶段视图，不新增 canonical stage，也不替代 review gate
-- hard gate 可由子代理起草正式 `review-*.md` 草案，但最终 `review_status`、`user_sign_off`、`signed_at` 仍由主上下文与用户完成
-- `ship-build` 正式任务推进与最终 close 决策仍由主上下文与用户完成
-
-## Feature 目录结构
-
-```text
-<target-project>/.docs/feature-YYYYMMDD-<short-name>/
-├── meta.yml
-├── product-brief.md           ← 仅场景 A/C（来自 ship-discover）
-├── design-brief.md            ← 场景 A/C 且涉及 UI，或 B/D 经 UIUX Material Gate 授权插入（来自 ship-shape）
-├── requirements.md
-├── review-define.md
-├── tech-research.md
-├── tech-selection.md
-├── api-contract.md
-├── frontend-design.md
-├── backend-design.md
-├── review-design.md
-├── frontend-plan.md
-├── backend-plan.md
-├── review-plan.md
-├── verification.md
-├── handoff.md
-└── resource/
-    ├── wireframes/            ← 仅 ship-shape 激活时（HTML 原型 + 变体）
-    │   ├── index.html
-    │   ├── variant-conservative.html
-    │   ├── variant-neutral.html
-    │   └── variant-bold.html
-    ├── brand-spec.md          ← 仅走了 Core Asset Protocol 时
-    └── (其他原始资料：PRD / Figma 链接 / 截图 / ...)
-```
-
-其中：
-
-- `current_stage` 记录内部细阶段
-- `scenario` 记录入口场景（greenfield / product_provided / evolve / prd_direct / technical_plan_provided）
-- `technical_plan_source` 记录技术方案选区入口的来源文件、selected scope、`ignored_source_policy: out_of_scope` 和仓库探索状态
-- `macro_stage` 记录默认对外展示的大阶段摘要
-- `workspace_mode` 记录当前 feature 来自 `single_project` 还是 `project_group`
-- `projects` 记录本 feature 默认关联的一级项目名列表
-- `spec_context` 记录最近一次规范解析状态、已引用规范和待沉淀 proposal
-- `spec_context.workspace_mode / workspace_name / spec_root / resolved_spec_roots / feature_root` 记录本 feature 绑定的 workspace 解析结果
-
-## Advanced
-
-以下内容属于内部实现或高级使用方式：
-
-- 完整 14 阶段路由顺序（前 2 个为条件性 Discover 前置阶段）
-- `meta.yml` 细阶段状态维护
-- `ship-spec` hook 契约与 `spec_context` 摘要字段
-- 各阶段 SKILL 的详细输入输出
-- review gate frontmatter 协议
-- `agents/openai.yaml` 的安装展示元数据
-- `ship-orchestrator/tests/regression-prompts.md` 的 workflow 回归场景
-
-这些内容以 `ship-orchestrator/_templates/protocol/workflow-protocol.md` 为准。
-
-## Workspace Spec Boundary
-
-- `ship-spec` 的显式配置源是 workspace `.docs/ship/project.yml`
-- 默认 `spec_root` 是 workspace `.docs/spec`
-- 默认 `feature_root` 是 workspace `.docs`
-- `project_group` 下 `projects` 是默认执行范围，不是硬安全边界
-- single_project 下 `.docs/spec/INDEX.md` 是人工路由入口；project_group 下 `.docs/spec/INDEX.md` 是顶层导航，具体入口为 `.docs/spec/_shared/INDEX.md` 和 `.docs/spec/<project>/INDEX.md`
-- project_group 下 `ship-build` 必须由任务 `project:` 显式提供目标项目，不从 `allowed_files` 路径反推
-- INDEX 分类只使用 `frontend / backend / shared`；runtime helper 仍用各 spec frontmatter 做 scan / resolve / 校验
-- 缺少 `spec_root` / `INDEX.md` / 匹配 spec 时只 warning；无法确定 workspace 时直接阻塞
-
-## 维护
-
-修改 SKILL.md 后：
-
-- 检查与 `ship-orchestrator/_templates/protocol/workflow-protocol.md` 的协议对齐
-- 检查与 `ship-orchestrator/_templates/meta/meta.yml.template` 的字段对齐
-- 检查与 `ship-orchestrator/_templates/review/review.md.template` 的章节对齐
-
-常用校验与诊断命令：
+## 验证命令
 
 ```bash
-python3 skills/ship-orchestrator/scripts/validate_all.py <target-project>/.docs/feature-YYYYMMDD-demo --strict
-python3 skills/ship-orchestrator/scripts/validate_workflow_docs.py
-python3 skills/ship-orchestrator/scripts/workflow_doctor.py <target-project>/.docs/feature-YYYYMMDD-demo
+python new-skills/ship-orchestrator/scripts/validate_requirements.py .docs/feature-YYYYMMDD-name
+python new-skills/ship-orchestrator/scripts/validate_design.py .docs/feature-YYYYMMDD-name
+python new-skills/ship-orchestrator/scripts/validate_build.py .docs/feature-YYYYMMDD-name
+python new-skills/ship-orchestrator/scripts/validate_current_stage.py .docs/feature-YYYYMMDD-name
 ```
-专项 validator 仍可单独运行定位问题：
+
+这些 validator 是结构和覆盖性检查，不替代项目自己的测试命令；`ship-build` 必须同时运行真实测试并把结果写入 `verification.md`。
+
+设计要求的核心 validator 是 3 个：`validate_requirements.py`、`validate_design.py`、`validate_build.py`；`validate_current_stage.py` 只是聚合入口，不算第四个核心 validator。
+
+## 自测
+
 ```bash
-python3 skills/ship-orchestrator/scripts/validate_product_brief.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_ui_artifacts.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_requirements.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_contract.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_tech_discovery.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_frontend_design.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_backend_design.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_design_alignment.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_delivery_plan.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_traceability.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/build_task_preflight.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_verification.py <target-project>/.docs/feature-YYYYMMDD-demo
-python3 skills/ship-orchestrator/scripts/validate_handoff.py <target-project>/.docs/feature-YYYYMMDD-demo
+python3 new-skills/ship-orchestrator/tests/test_validators.py
 ```
+
+该脚本覆盖 happy path 和负向样例：缺 AC、AC 格式错误、design 未覆盖 AC、design 缺错误响应、project 模板 fragment 解析、full_flow 缺模板引用、模板不存在、非 quick_start 缺 `方案模板引用`、基础章节必须是 `##` 顶层、ready 含 TBD、async-task 缺必填子章节、quick_start 缺模板 warning、build 未覆盖 AC、测试失败、passed 与 failed 混合出现。
