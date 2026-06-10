@@ -1,0 +1,29 @@
+---
+status: draft
+updated_at: "{{ISO_TIMESTAMP}}"
+spec_refs: []
+---
+
+# 需求：{{FEATURE_NAME}}
+
+## 功能概述
+{{SUMMARY}}
+
+## Domain 模型
+- {{DOMAIN_ID}}: {{DOMAIN_DESCRIPTION}}
+
+## 验收标准 (AC)
+
+### AC-1: {{AC_TITLE}}
+**Given** {{GIVEN}}  
+**When** {{WHEN}}  
+**Then** {{THEN}}
+
+## 非功能需求
+- {{METRIC_NAME}}：{{METRIC_VALUE}}
+
+## 约束
+- {{CONSTRAINT}}
+
+## 假设和风险
+- {{RISK_OR_ASSUMPTION}}

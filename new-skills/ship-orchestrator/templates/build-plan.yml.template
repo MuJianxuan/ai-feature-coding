@@ -1,0 +1,10 @@
+tasks:
+  - id: T-001
+    name: "{{TASK_NAME}}"
+    type: database # database | backend | frontend | integration
+    priority: high
+    files: []
+    dependencies: []
+    ac_refs: ["AC-1"]
+    estimated_minutes: 30
+    status: pending

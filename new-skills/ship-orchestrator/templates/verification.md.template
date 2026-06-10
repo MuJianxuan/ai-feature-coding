@@ -1,0 +1,25 @@
+---
+status: draft
+updated_at: "{{ISO_TIMESTAMP}}"
+all_ac_passed: false
+---
+
+# 验证报告
+
+## AC 验证状态
+- ⬜ AC-1: {{AC_TITLE}} (covered by: {{TEST_OR_EVIDENCE}})
+
+## 测试覆盖
+- Unit: not run
+- Integration: not run
+- E2E: not run
+
+## 代码质量
+- Lint: not run
+- Typecheck: not run
+
+## 产出文件
+- {{OUTPUT_FILE}}
+
+## 未覆盖项
+- AC-1

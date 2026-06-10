@@ -1,0 +1,19 @@
+feature_name: "{{FEATURE_NAME}}"
+current_stage: understand
+status: in_progress
+scenario: full_flow
+created_at: "{{ISO_TIMESTAMP}}"
+updated_at: "{{ISO_TIMESTAMP}}"
+spec_refs: []
+requested_design_template: ""
+design_template_ref: ""
+design_template_reason: ""
+artifacts:
+  requirements: requirements.md
+  design: design.md
+  build_plan: build-plan.yml
+  verification: verification.md
+# blocked_reason: ""
+# parent_split_id: ""
+# split_id: ""
+# split_dependency: []

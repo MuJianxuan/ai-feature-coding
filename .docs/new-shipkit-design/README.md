@@ -95,6 +95,12 @@ Done（完成交付）
 - **多项目 spec 隔离**（加载规则）
 - 性能和安全考量
 
+#### [13-design-reference-template-plan.md](./13-design-reference-template-plan.md)
+- **ship-design 技术方案参考模板机制**
+- 模板选择、引用、偏离说明和 validator 增强
+- 与 `.docs/技术方案模版.md` 的 adapter 关系
+- 对抗式审查修正记录
+
 ---
 
 ### 3. 案例和审查文档

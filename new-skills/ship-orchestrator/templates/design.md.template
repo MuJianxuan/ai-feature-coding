@@ -1,0 +1,64 @@
+---
+status: draft
+updated_at: "{{ISO_TIMESTAMP}}"
+spec_refs: []
+---
+
+# 技术设计：{{FEATURE_NAME}}
+
+## 方案模板引用
+
+- 主模板：`{{DESIGN_TEMPLATE_REF}}`
+- 选择依据：{{DESIGN_TEMPLATE_REASON}}
+- 候选模板：{{DESIGN_TEMPLATE_CANDIDATES}}
+- 未选原因：{{DESIGN_TEMPLATE_NOT_SELECTED_REASON}}
+- 项目 spec 优先级：模板与 spec 冲突时，以已引用 spec 为准。
+
+### 模板偏离
+
+| 偏离项 | 原因 | 影响 | 替代设计 |
+|---|---|---|---|
+| 无 | 不涉及 | 无 | 不涉及 |
+
+## AC 覆盖映射
+| AC | 设计位置 | 测试建议 |
+|---|---|---|
+| AC-1 | {{DESIGN_LOCATION}} | {{TEST_SUGGESTION}} |
+
+## API 契约
+### {{METHOD}} {{PATH}}
+**AC refs**: AC-1
+
+**Request**
+```json
+{}
+```
+
+**Response - 200 OK**
+```json
+{}
+```
+
+**Error Responses**
+- 400 `BAD_REQUEST`: 请求参数错误
+
+## 数据模型
+{{DATA_MODEL}}
+
+## 前端设计
+{{FRONTEND_DESIGN}}
+
+## 后端设计
+{{BACKEND_DESIGN}}
+
+## 性能考量
+{{PERFORMANCE}}
+
+## 风险和回滚
+{{RISKS_AND_ROLLBACK}}
+
+## 设计审查记录
+
+| Round | Reviewer | Blocking findings | 处理结果 |
+|---|---|---:|---|
+| 1 | ship-grill-me | {{BLOCKING_FINDINGS}} | {{REVIEW_RESULT}} |

@@ -1,0 +1,13 @@
+parent_requirement: "{{PARENT_REQUIREMENT}}"
+split_strategy: "by_user_story"
+estimated_total_days: 0
+splits:
+  - id: REQ-001
+    name: "{{SPLIT_NAME}}"
+    priority: high
+    estimated_days: 1
+    dependencies: []
+    feature_dir: ".docs/feature-{{DATE}}-{{SLUG}}"
+    status: pending
+    blocked_by: []
+    tapd_id: ""

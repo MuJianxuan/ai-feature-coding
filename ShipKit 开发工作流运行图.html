@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShipKit 开发工作流运行图</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+            background: linear-gradient(135deg, #1e3a8a 0%, #7c3aed 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: #1a202c;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 50px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            font-size: 42px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #718096;
+            font-size: 18px;
+            margin-bottom: 50px;
+        }
+        
+        /* 场景选择 */
+        .scenarios {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 50px;
+        }
+        
+        .scenario-card {
+            padding: 24px;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border-radius: 12px;
+            border: 3px solid #e2e8f0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .scenario-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .scenario-card.quick-start {
+            border-color: #10b981;
+        }
+        
+        .scenario-card.full-flow {
+            border-color: #3b82f6;
+        }
+        
+        .scenario-card.prd-direct {
+            border-color: #f59e0b;
+        }
+        
+        .scenario-card.split-first {
+            border-color: #ef4444;
+        }
+        
+        .scenario-name {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #1a202c;
+        }
+        
+        .scenario-desc {
+            font-size: 13px;
+            color: #4a5568;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+        
+        .scenario-trigger {
+            font-size: 12px;
+            color: #718096;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        /* 主流程图 */
+        .main-flow {
+            position: relative;
+            margin-bottom: 50px;
+            padding: 40px;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-radius: 16px;
+        }
+        
+        .flow-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #92400e;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .flow-stages {
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+            position: relative;
+        }
+        
+        .stage {
+            flex: 1;
+            position: relative;
+            background: white;
+            border-radius: 12px;
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .stage-optional {
+            opacity: 0.7;
+            border: 2px dashed #ed8936;
+        }
+        
+        .stage-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+        
+        .stage-optional .stage-number {
+            background: linear-gradient(135deg, #ed8936 0%, #f6ad55 100%);
+        }
+        
+        .stage-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        
+        .stage-skill {
+            font-size: 14px;
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding: 6px 12px;
+            background: #eef2ff;
+            border-radius: 6px;
+        }
+        
+        .stage-output {
+            font-size: 13px;
+            color: #4a5568;
+            text-align: center;
+            margin-top: auto;
+            padding: 12px;
+            background: #f7fafc;
+            border-radius: 6px;
+            width: 100%;
+        }
+        
+        .stage-output strong {
+            display: block;
+            color: #2d3748;
+            margin-bottom: 6px;
+        }
+        
+        .arrow-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 20px;
+        }
+        
+        .arrow {
+            font-size: 36px;
+            color: #667eea;
+            font-weight: bold;
+        }
+        
+        .arrow-optional {
+            color: #ed8936;
+        }
+        
+        /* 用户确认门禁 */
+        .gate {
+            margin: 30px 0;
+            padding: 30px;
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            border-radius: 12px;
+            border: 3px solid #ef4444;
+            position: relative;
+        }
+        
+        .gate::before {
+            content: "🚦";
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 40px;
+        }
+        
+        .gate-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #991b1b;
+            text-align: center;
+            margin-bottom: 16px;
+            margin-top: 10px;
+        }
+        
+        .gate-desc {
+            font-size: 16px;
+            color: #7f1d1d;
+            text-align: center;
+            line-height: 1.6;
+        }
+        
+        /* 详细流程表 */
+        .detailed-flow {
+            margin-top: 50px;
+        }
+        
+        .detailed-flow h2 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 30px;
+            color: #1a202c;
+        }
+        
+        .stage-detail {
+            margin-bottom: 40px;
+            padding: 30px;
+            background: #f7fafc;
+            border-radius: 12px;
+            border-left: 6px solid #667eea;
+        }
+        
+        .stage-detail.optional {
+            border-left-color: #ed8936;
+        }
+        
+        .detail-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .detail-number {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 24px;
+        }
+        
+        .stage-detail.optional .detail-number {
+            background: linear-gradient(135deg, #ed8936 0%, #f6ad55 100%);
+        }
+        
+        .detail-title {
+            flex: 1;
+        }
+        
+        .detail-title h3 {
+            font-size: 24px;
+            color: #1a202c;
+            margin-bottom: 4px;
+        }
+        
+        .detail-title .skill-name {
+            font-size: 14px;
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .detail-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        
+        .detail-section h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+        
+        .detail-list {
+            list-style: none;
+        }
+        
+        .detail-list li {
+            font-size: 14px;
+            color: #4a5568;
+            line-height: 1.8;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .detail-list li::before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+        }
+        
+        /* grill-me 矩阵 */
+        .grill-matrix {
+            margin-top: 50px;
+            padding: 30px;
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+            border-radius: 12px;
+        }
+        
+        .grill-matrix h2 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #1e1b4b;
+        }
+        
+        .matrix-table {
+            width: 100%;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .matrix-table th,
+        .matrix-table td {
+            padding: 16px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .matrix-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .matrix-table td {
+            font-size: 14px;
+            color: #4a5568;
+        }
+        
+        .matrix-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .trigger-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .trigger-required {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .trigger-conditional {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .trigger-skip {
+            background: #d1fae5;
+            color: #065f46;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ShipKit 开发工作流运行图</h1>
+        <p class="subtitle">从需求识别到交付完成的完整开发流程 · 4 种场景路由策略</p>
+        
+        <!-- 四种场景 -->
+        <div class="scenarios">
+            <div class="scenario-card quick-start">
+                <div class="scenario-name">🚀 Quick Start</div>
+                <div class="scenario-desc">小功能、熟悉技术栈、低风险</div>
+                <div class="scenario-trigger"><strong>触发条件：</strong>明确需求、小改动、无跨模块依赖</div>
+            </div>
+            
+            <div class="scenario-card full-flow">
+                <div class="scenario-name">🔄 Full Flow</div>
+                <div class="scenario-desc">中等复杂度、跨模块、风险不明</div>
+                <div class="scenario-trigger"><strong>触发条件：</strong>标准开发流程、需要完整质询</div>
+            </div>
+            
+            <div class="scenario-card prd-direct">
+                <div class="scenario-name">📋 PRD Direct</div>
+                <div class="scenario-desc">有完整 PRD/原型/明确 AC</div>
+                <div class="scenario-trigger"><strong>触发条件：</strong>已有完整产品文档、需求明确</div>
+            </div>
+            
+            <div class="scenario-card split-first">
+                <div class="scenario-name">🔀 Split First</div>
+                <div class="scenario-desc">大需求含 5+ 独立功能或显式要求拆分</div>
+                <div class="scenario-trigger"><strong>触发条件：</strong>复杂需求、需要拆分子任务</div>
+            </div>
+        </div>
+        
+        <!-- 主流程图 -->
+        <div class="main-flow">
+            <div class="flow-title">核心开发流程</div>
+            
+            <div class="flow-stages">
+                <div class="stage stage-optional">
+                    <div class="stage-number">0</div>
+                    <div class="stage-name">Split</div>
+                    <div class="stage-skill">ship-split</div>
+                    <div class="stage-output">
+                        <strong>产出</strong>
+                        splits.yml<br>
+                        依赖关系图
+                    </div>
+                </div>
+                
+                <div class="arrow-container">
+                    <div class="arrow arrow-optional">→</div>
+                </div>
+                
+                <div class="stage">
+                    <div class="stage-number">1</div>
+                    <div class="stage-name">Understand</div>
+                    <div class="stage-skill">ship-understand</div>
+                    <div class="stage-output">
+                        <strong>产出</strong>
+                        requirements.md<br>
+                        (status: ready)
+                    </div>
+                </div>
+                
+                <div class="arrow-container">
+                    <div class="arrow">→</div>
+                </div>
+                
+                <div class="stage">
+                    <div class="stage-number">2</div>
+                    <div class="stage-name">Design</div>
+                    <div class="stage-skill">ship-design</div>
+                    <div class="stage-output">
+                        <strong>产出</strong>
+                        design.md<br>
+                        (status: ready)
+                    </div>
+                </div>
+                
+                <div class="arrow-container">
+                    <div class="arrow">→</div>
+                </div>
+                
+                <div class="stage">
+                    <div class="stage-number">3</div>
+                    <div class="stage-name">Build</div>
+                    <div class="stage-skill">ship-build</div>
+                    <div class="stage-output">
+                        <strong>产出</strong>
+                        verification.md<br>
+                        (all_ac_passed: true)
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 用户确认门禁 -->
+        <div class="gate">
+            <div class="gate-title">唯一用户确认门禁：Design → Build</div>
+            <div class="gate-desc">
+                Design 阶段完成后，必须明确询问用户是否开始实现。<br>
+                这是整个流程中唯一需要用户显式确认的关键节点。<br>
+                <strong>确认方式：</strong>用户回复 [yes/开始/确认实现] 后，orchestrator 才能将 current_stage 改为 build。
+            </div>
+        </div>
+        
+        <!-- 详细流程 -->
+        <div class="detailed-flow">
+            <h2>各阶段详细流程</h2>
+            
+            <!-- Split 阶段 -->
+            <div class="stage-detail optional">
+                <div class="detail-header">
+                    <div class="detail-number">0</div>
+                    <div class="detail-title">
+                        <h3>Split - 需求拆分</h3>
+                        <div class="skill-name">ship-split (可选前置)</div>
+                    </div>
+                </div>
+                <div class="detail-grid">
+                    <div class="detail-section">
+                        <h4>输入</h4>
+                        <ul class="detail-list">
+                            <li>大型需求描述</li>
+                            <li>用户显式拆分请求</li>
+                            <li>5+ 独立功能点</li>
+                        </ul>
+                    </div>
+                    <div class="detail-section">
+                        <h4>产出</h4>
+                        <ul class="detail-list">
+                            <li>splits.yml (子需求清单)</li>
+                            <li>依赖关系图</li>
+                            <li>TAPD/Jira 任务映射</li>
+                        </ul>
+                    </div>
+                    <div class="detail-section">
+                        <h4>核心职责</h4>
+                        <ul class="detail-list">
+                            <li>识别独立可交付子功能</li>
+                            <li>建立依赖关系</li>
+                            <li>生成 split_id 追踪</li>
+                            <li>为每个子需求创建 feature 目录</li>
+                        </ul>
+                    </div>
+                    <div class="detail-section">
+                        <h4>完成标准</h4>
+                        <ul class="detail-list">
+                            <li>每个子需求有明确边界</li>
+                            <li>依赖关系清晰</li>
+                            <li>可独立交付</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Understand 阶段 -->
+            <div class="stage-detail">
+                <div class="detail-header">
+                    <div class="detail-number">1</div>
+                    <div class="detail-title">
+                        <h3>Understand - 需求理解</h3>
+                        <div class="skill-name">ship-understand (必需)</div>
+                    </div>
+                </div>
+                <div class="detail-grid">
+                    <div class="detail-section">
+                        <h4>输入</h4>
+                        <ul class="detail-list">
+                            <li>口头/文字需求</li>
+                            <li>PRD、原型、图片</li>
+                            <li>meta.yml.scenario</li>
+                            <li>ship-spec 加载的上下文</li>
+                        </ul>
+                    </div>
+                    <div class="detail-section">
+                        <h4>产出</h4>
+                        <ul class="detail-list">
+                            <li>requirements.md (status: ready)</li>
+                            <li>至少 1 个可测试 AC</li>
+                            <li>Domain 模型</li>
+                            <li>非功能需求</li>
+                        </ul>
+                    </div>
+                    <div class="detail-section">
+                        <h4>核心职责</h4>
+                        <ul class="detail-list">
+                            <li>加载 spec 上下文</li>
+                            <li>解析需求/PRD/原型</li>
+                            <li>生成 Given/When/Then AC</li>
+                            <li>调用 grill-me 质询 (按场景)</li>
+                            <li>运行 validate_requirements.py</li>
+                        </ul>
+                    </div>
+                    <div class="detail-section">
+                        <h4>完成标准</h4>
+                        <ul class="detail-list">
+                            <li>所有 AC 使用 Given/When/Then</li>
+                            <li>Domain 模型明确</li>
+                            <li>无 blocking 问题</li>
+                            <li>validator 无 errors</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Design 阶段 -->
+            <div class="stage-detail">
+                <div class="detail-header">
+                    <div class="detail-number">2</div>
+                    <div class="detail-title">
+                        <h3>Design - 技术设计</h3>
+                        <div class="skill-name">ship-design (必需)</div>
+                    </div>
+                </div>
+                <div class="detail-grid">
+                    <div class="detail-section">
+                        <h4>输入</h4>
+                        <ul class="detail-list">
+                            <li>requirements.md (status: ready)</li>
+                            <li>meta.yml.requested_design_template</li>
+                            <li>Design 阶段 spec</li>
+                            <li>Design Reference Template</li>
+                        </ul>
+                    </div>
+                    <div class="detail-section">
+                        <h4>产出</h4>
+                        <ul class="detail-list">
+                            <li>design.md (status: ready)</li>
+                            <li>API Contract (Request/Response/Error)</li>
+                            <li>数据模型</li>
+                            <li>前后端方案合一</li>
+                            <li>AC 覆盖映射</li>
+                        </ul>
+                    </div>
+                    <div class="detail-section">
+                        <h4>核心职责</h4>
+                        <ul class="detail-list">
+                            <li>选择并引用 Design Reference Template</li>
+                            <li>生成合一技术设计</li>
+                            <li>调用 grill-me 设计审查 (按场景)</li>
+                            <li>记录模板偏离</li>
+                            <li>运行 validate_design.py</li>
+                            <li>等待用户确认</li>
+                        </ul>
+                    </div>
+                    <div class="detail-section">
+                        <h4>完成标准</h4>
+                        <ul class="detail-list">
+                            <li>API 契约完整 (含错误响应)</li>
+                            <li>每个 AC 可追踪</li>
+                            <li>模板引用已记录</li>
+                            <li>无 TBD/待补充</li>
+                            <li>validator 无 errors</li>
+                            <li>用户明确确认</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Build 阶段 -->
+            <div class="stage-detail">
+                <div class="detail-header">
+                    <div class="detail-number">3</div>
+                    <div class="detail-title">
+                        <h3>Build - 实现与测试</h3>
+                        <div class="skill-name">ship-build (必需)</div>
+                    </div>
+                </div>
+                <div class="detail-grid">
+                    <div class="detail-section">
+                        <h4>输入</h4>
+                        <ul class="detail-list">
+                            <li>design.md (status: ready)</li>
+                            <li>用户确认进入 Build</li>
+                            <li>Build 阶段 spec</li>
+                        </ul>
+                    </div>
+                    <div class="detail-section">
+                        <h4>产出</h4>
+                        <ul class="detail-list">
+                            <li>build-plan.yml (任务清单)</li>
+                            <li>实现代码</li>
+                            <li>自动化测试</li>
+                            <li>verification.md (AC 验证报告)</li>
+                            <li>更新 existing-features</li>
+                        </ul>
+                    </div>
+                    <div class="detail-section">
+                        <h4>核心职责</h4>
+                        <ul class="detail-list">
+                            <li>生成任务清单 (按依赖顺序)</li>
+                            <li>实现：数据层 → 后端 → 前端 → 集成</li>
+                            <li>运行真实测试</li>
+                            <li>验证 AC 覆盖</li>
+                            <li>运行 validate_build.py</li>
+                            <li>调用 ship-spec 更新知识库</li>
+                        </ul>
+                    </div>
+                    <div class="detail-section">
+                        <h4>完成标准</h4>
+                        <ul class="detail-list">
+                            <li>所有 AC 有测试覆盖</li>
+                            <li>真实测试通过</li>
+                            <li>verification.md 完整</li>
+                            <li>validator 无 errors</li>
+                            <li>可交付软件</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- grill-me 触发矩阵 -->
+        <div class="grill-matrix">
+            <h2>ship-grill-me 触发矩阵</h2>
+            <table class="matrix-table">
+                <thead>
+                    <tr>
+                        <th>场景</th>
+                        <th>Understand 阶段</th>
+                        <th>Design 阶段</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>quick_start</strong></td>
+                        <td><span class="trigger-badge trigger-conditional">条件触发</span></td>
+                        <td><span class="trigger-badge trigger-skip">默认跳过</span></td>
+                        <td>仅在发现 blocking 问题时触发 Understand；Design 跳过</td>
+                    </tr>
+                    <tr>
+                        <td><strong>full_flow</strong></td>
+                        <td><span class="trigger-badge trigger-required">必须触发</span></td>
+                        <td><span class="trigger-badge trigger-required">必须触发</span></td>
+                        <td>标准完整流程，Understand 和 Design 都必须质询</td>
+                    </tr>
+                    <tr>
+                        <td><strong>prd_direct</strong></td>
+                        <td><span class="trigger-badge trigger-skip">默认跳过</span></td>
+                        <td><span class="trigger-badge trigger-conditional">条件触发</span></td>
+                        <td>Understand 只做提取；Design 有技术风险时触发</td>
+                    </tr>
+                    <tr>
+                        <td><strong>split_first</strong></td>
+                        <td><span class="trigger-badge trigger-required">必须触发</span></td>
+                        <td><span class="trigger-badge trigger-required">必须触发</span></td>
+                        <td>拆分后每个子需求按 full_flow 处理</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

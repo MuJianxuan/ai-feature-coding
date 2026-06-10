@@ -1,0 +1,105 @@
+shipkit_design_source: .docs/new-shipkit-design/
+implementation_root: new-skills
+version: new-shipkit-v1
+principles:
+  - 简化而不简陋
+  - 单一事实源 meta.yml
+  - 目标驱动交付可工作软件
+  - 只有 Design -> Build 需要用户确认
+skills:
+  - name: ship-orchestrator
+    path: ship-orchestrator/SKILL.md
+    type: orchestrator
+    required: true
+    covers:
+      - 统一入口和路由
+      - 4 种场景识别
+      - 状态推进和阻塞恢复
+      - Design 到 Build 用户确认门禁
+      - Design 模板意图传递
+  - name: ship-split
+    path: ship-split/SKILL.md
+    type: optional_pre_stage
+    required: false
+    covers:
+      - 大需求拆分
+      - splits.yml
+      - TAPD/Jira 集成框架
+      - 依赖追踪
+  - name: ship-understand
+    path: ship-understand/SKILL.md
+    type: core_stage
+    required: true
+    covers:
+      - spec 上下文加载
+      - 需求解析
+      - requirements.md
+      - Understand 阶段 grill-me
+  - name: ship-design
+    path: ship-design/SKILL.md
+    type: core_stage
+    required: true
+    covers:
+      - API Contract
+      - 数据模型
+      - 前后端方案合一
+      - Design 阶段 grill-me
+      - 用户确认前置
+      - Design Reference Template 选择与引用
+      - 模板偏离记录
+  - name: ship-build
+    path: ship-build/SKILL.md
+    type: core_stage
+    required: true
+    covers:
+      - build-plan.yml
+      - 实现顺序
+      - 自动化测试
+      - AC 验证报告
+      - spec 完成后更新
+  - name: ship-spec
+    path: ship-spec/SKILL.md
+    type: tool
+    required: true
+    covers:
+      - .docs/spec 知识库
+      - stage hooks
+      - 多项目隔离
+      - 规范沉淀评分
+      - spec 与模板边界
+  - name: ship-grill-me
+    path: ship-grill-me/SKILL.md
+    type: embedded_helper
+    required: true
+    covers:
+      - 精确触发矩阵
+      - 阻塞问题识别
+      - 先查仓库/spec 再问用户
+      - 一次只问一个问题
+      - Design 模板 blocking 审查
+validators:
+  core:
+    - ship-orchestrator/scripts/validate_requirements.py
+    - ship-orchestrator/scripts/validate_design.py
+    - ship-orchestrator/scripts/validate_build.py
+  aggregate:
+    - ship-orchestrator/scripts/validate_current_stage.py
+templates:
+  - ship-orchestrator/templates/meta.yml.template
+  - ship-orchestrator/templates/requirements.md.template
+  - ship-orchestrator/templates/design.md.template
+  - ship-orchestrator/templates/build-plan.yml.template
+  - ship-orchestrator/templates/verification.md.template
+  - ship-orchestrator/templates/splits.yml.template
+  - ship-orchestrator/templates/design-reference/INDEX.md
+  - ship-orchestrator/templates/design-reference/backend-service.md
+  - ship-orchestrator/templates/design-reference/frontend-ui.md
+  - ship-orchestrator/templates/design-reference/fullstack-feature.md
+  - ship-orchestrator/templates/design-reference/async-task.md
+  - ship-orchestrator/templates/design-reference/data-migration.md
+  - ship-orchestrator/templates/design-reference/integration.md
+  - ship-orchestrator/templates/design-reference/config-change.md
+tests:
+  - ship-orchestrator/tests/test_validators.py
+acceptance:
+  - ACCEPTANCE.md
