@@ -1,19 +1,37 @@
 feature_name: "{{FEATURE_NAME}}"
-current_stage: understand
-status: in_progress
-scenario: full_flow
+workflow: full_flow
+workspace_mode: single_project # single_project | project_group
+workspace_name: "{{WORKSPACE_NAME}}"
+projects: []
+current_stage: understand # understand | design | build | done
+status: in_progress # in_progress | blocked | completed
 created_at: "{{ISO_TIMESTAMP}}"
 updated_at: "{{ISO_TIMESTAMP}}"
+
+source_refs:
+  - id: SRC-001
+    type: prd # prd | uiux | link | issue | meeting | note | screenshot | other
+    title: "{{SOURCE_TITLE}}"
+    path_or_url: "resource/prd.md"
+    role: primary # primary | supporting | constraint
+    status: available # available | inaccessible | stale | needs_user
+    notes: ""
+
 spec_refs: []
 requested_design_template: ""
 design_template_ref: ""
 design_template_reason: ""
+
 artifacts:
   requirements: requirements.md
   design: design.md
   build_plan: build-plan.yml
   verification: verification.md
-# blocked_reason: ""
+
+# blocked_reason: awaiting_grill_answers | awaiting_user_confirmation | test_failures | missing_feature_dir | missing_source | missing_workspace_scope
 # parent_split_id: ""
 # split_id: ""
 # split_dependency: []
+# build_approved_at: ""
+# build_approved_by: "" # user | product_owner | tech_lead | other
+# build_approval_note: ""

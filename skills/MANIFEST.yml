@@ -1,57 +1,65 @@
-shipkit_design_source: .docs/new-shipkit-design/
-implementation_root: new-skills
-version: new-shipkit-v1
+shipkit_design_source: .docs/shipkit-skills-refactor-design.md
+implementation_root: skills
+version: shipkit-full-flow-v2
 principles:
-  - 简化而不简陋
-  - 单一事实源 meta.yml
-  - 目标驱动交付可工作软件
-  - 只有 Design -> Build 需要用户确认
+  - 单一完整推进 workflow: full_flow
+  - meta.yml 是跨窗口单一事实源
+  - 阶段技能必须显式接收 feature_dir
+  - TODO preflight 保证会话内任务保真
+  - 只有 orchestrator 能创建初始 feature 目录和持久化 Build approval
+  - workspace scope 限定探索和 spec 加载范围
 skills:
   - name: ship-orchestrator
     path: ship-orchestrator/SKILL.md
     type: orchestrator
     required: true
     covers:
-      - 统一入口和路由
-      - 4 种场景识别
+      - 是否进入 ShipKit feature flow 的入口判断
+      - 读取 .docs/ship/project.yml 并确认 workspace scope
+      - 创建或恢复 feature 目录与 meta.yml
+      - 登记 source_refs
       - 状态推进和阻塞恢复
-      - Design 到 Build 用户确认门禁
-      - Design 模板意图传递
+      - Design 到 Build 用户确认门禁与 build_approved_* 持久化
+      - 下一阶段 handoff
   - name: ship-split
     path: ship-split/SKILL.md
     type: optional_pre_stage
     required: false
     covers:
-      - 大需求拆分
+      - 大需求拆分建议
       - splits.yml
-      - TAPD/Jira 集成框架
+      - suggested_slug/suggested_feature_name
       - 依赖追踪
+      - handoff 回 orchestrator 批量创建 feature
   - name: ship-understand
     path: ship-understand/SKILL.md
     type: core_stage
     required: true
     covers:
-      - spec 上下文加载
-      - 需求解析
+      - feature_dir 硬前置
+      - source_refs 读取
+      - workspace scope 限定探索
       - requirements.md
-      - Understand 阶段 grill-me
+      - Understand 阶段 blocking review
   - name: ship-design
     path: ship-design/SKILL.md
     type: core_stage
     required: true
     covers:
+      - feature_dir 硬前置
+      - Design Reference Template 选择与引用
       - API Contract
       - 数据模型
       - 前后端方案合一
-      - Design 阶段 grill-me
-      - 用户确认前置
-      - Design Reference Template 选择与引用
-      - 模板偏离记录
+      - Design 阶段 blocking review
+      - handoff 回 orchestrator 处理 Build approval
   - name: ship-build
     path: ship-build/SKILL.md
     type: core_stage
     required: true
     covers:
+      - feature_dir 硬前置
+      - build_approved_at 校验
       - build-plan.yml
       - 实现顺序
       - 自动化测试
@@ -64,7 +72,8 @@ skills:
     covers:
       - .docs/spec 知识库
       - stage hooks
-      - 多项目隔离
+      - workspace/projects 隔离加载
+      - source_refs 与 spec 边界
       - 规范沉淀评分
       - spec 与模板边界
   - name: ship-grill-me
@@ -72,10 +81,10 @@ skills:
     type: embedded_helper
     required: true
     covers:
-      - 精确触发矩阵
-      - 阻塞问题识别
-      - 先查仓库/spec 再问用户
+      - Understand/Design blocking review
+      - 先查仓库/spec/source_refs 再问用户
       - 一次只问一个问题
+      - 证据、推荐答案、影响
       - Design 模板 blocking 审查
 validators:
   core:

@@ -1,22 +1,34 @@
 ---
 name: ship-grill-me
-description: "新 ShipKit 嵌入式质询助手。Understand/Design ready 前发现 blocking 问题，先查仓库和 spec，再一次只问用户一个关键问题。"
+description: "ShipKit 嵌入式质询助手。Understand/Design ready 前必须执行 blocking review，先查证据，再一次只问用户一个关键阻塞问题。"
 ---
 
 # ship-grill-me
 
 ## 目标
 
-在文档标记 `status: ready` 前，把会阻塞实现或导致返工的问题挖出来。它不是独立阶段；只嵌入 `ship-understand` 和 `ship-design`。
+在 `requirements.md` 或 `design.md` 标记 `status: ready` 前，把会阻塞实现或导致返工的问题挖出来。
 
-## 触发矩阵
+它通常嵌入 `ship-understand` 和 `ship-design`，不是独立阶段；但如果用户单独调用，也必须按 TODO preflight 创建自己的审查 TODO。
 
-| 场景 | Understand | Design |
-|---|---|---|
-| `quick_start` | 条件触发：有 blocking 问题 | 跳过 |
-| `full_flow` | 必须触发 | 必须触发 |
-| `prd_direct` | 跳过 | 条件触发：有技术风险 |
-| `split_first` | 子 feature 按 full_flow | 子 feature 按 full_flow |
+## TODO preflight
+
+- 嵌入调用时：不要创建新的独立 TODO，但必须更新父阶段 TODO 和审查记录。
+- 单独调用时：必须调用可用 TODO 工具（例如 `TaskCreate`/agent todo 工具）创建或恢复 Grill TODO：
+  1. 加载 `feature_dir`、`meta.yml` 和当前阶段文档。
+  2. 加载相关 spec、source_refs、参考模板和已有代码证据。
+  3. 列出 blocking 问题。
+  4. 先从仓库/spec/来源材料找答案。
+  5. 一次只向用户提出一个最关键问题。
+  6. 把答案写回父阶段文档或审查记录。
+  7. 重新运行对应 validator。
+
+## 必须触发的位置
+
+- Understand 阶段 ready 前必须执行 blocking review。
+- Design 阶段 ready 前必须执行 blocking review。
+
+不存在按流程模式跳过的例外。PRD、UI/UX、link、split 子需求都只是来源或元数据形态，不改变 full flow 审查要求。
 
 ## blocking 判定
 
@@ -27,6 +39,8 @@ Understand blocking：
 - 需求互相冲突。
 - 引用不存在或未定义的现有功能。
 - 边界条件缺失会改变数据模型/API。
+- primary `source_refs` 不可读或状态为 `inaccessible/needs_user`。
+- project group 下 `projects` 缺失或与 `.docs/ship/project.yml` 不一致。
 
 Design blocking：
 
@@ -37,30 +51,27 @@ Design blocking：
 - 前后端责任边界不清。
 - 设计未覆盖某个 AC。
 - 模板选择明显不匹配需求类型。
-- `full_flow`、`prd_direct`、`split_first` 子 feature 缺少模板引用事实或正文 `## 方案模板引用`。
+- 缺少 `meta.yml.design_template_ref` 或正文 `## 方案模板引用`。
 - 模板必填项缺失且无“不涉及 + 原因”或模板偏离说明。
 - 偏离项目 spec、现有代码事实或 AC，且没有解释影响与替代设计。
 - `status: ready` 仍包含未替换模板变量、`TBD`、`待补充`、`后续再说`、无解释的“视情况而定”。
-warning 不阻塞 ready，但必须记录在文档风险里。
 
-Design 模板 warning：
-
-- `quick_start` 未使用模板，但已说明低风险原因。
-- 模板要求项与本需求无关，且已写“不涉及 + 原因”。
-- 有模板但未充分说明候选模板评分；不影响实现时只记录风险。
+warning 不阻塞 ready，但必须记录到文档风险或审查记录里。
 
 ## 质询流程
 
-1. 扫描 draft doc、`meta.yml`、requirements、spec 引用和参考模板。
+1. 扫描当前 draft、`meta.yml`、`requirements.md`、`design.md`、`source_refs`、spec 引用和参考模板。
 2. 列出所有问题，只保留 blocking 问题。
-3. 对每个问题，先从仓库、`.docs/spec/`、已有 feature 文档和模板文件找答案。
+3. 对每个问题，先从仓库、`.docs/spec/`、已有 feature 文档、来源材料和模板文件找答案。
 4. 找到答案：自动修正文档，并记录依据。
-5. 找不到答案：一次只问用户一个问题。
-6. 用户回答后立刻更新 draft。
-7. 重新运行 `validate_design.py` 或对应 validator。
-8. 无 blocking 后返回 `ready`；仍有阻塞则更新 `meta.yml.status: blocked`。
+5. 找不到答案：一次只问用户一个最关键问题。
+6. 用户回答后立刻更新 draft 或审查记录。
+7. 重新运行对应 validator。
+8. 无 blocking 后返回 `ready`；仍有阻塞则更新 `meta.yml.status: blocked` 和 `blocked_reason: awaiting_grill_answers`。
 
 ## 问题格式
+
+每个问题必须包含四个部分：当前阻塞、已检查证据、推荐答案、影响。
 
 ```text
 问题 1/3：导出范围
@@ -88,9 +99,9 @@ Design 模板问题示例：
 
 ## 提问规则
 
-- 一次只问一个问题。不要把 5 个问题糊成一坨。
+- 一次只问一个问题。不要把多个阻塞问题糊成一坨。
 - 必须给推荐答案和证据；没有证据就说没有。
-- 能从仓库/spec 得到答案就不要问用户。
+- 能从仓库/spec/source_refs 得到答案就不要问用户。
 - 不问偏好型废话，只问会影响实现的决策。
 - 用户回答模糊时，追问最小必要信息。
 
@@ -104,7 +115,7 @@ resolved:
     summary: 使用现有订单查询时间范围规则
 pending: []
 warnings:
-  - 性能目标未量化，quick_start 下记录为风险
+  - 性能目标未量化，已记录为 Design 风险
 ```
 
 ## 不做什么
@@ -113,3 +124,4 @@ warnings:
 - 不做泛泛 code review。
 - 不把 non-blocking warning 升级成形式主义门禁。
 - 不把 `review_checklist` 变成 validator 的硬语义门禁；语义问题只在会导致返工时 blocking。
+- 不绕过父阶段 TODO 或审查记录。

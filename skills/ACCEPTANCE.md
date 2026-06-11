@@ -1,53 +1,31 @@
-# 新 ShipKit 交付验收清单
+# ShipKit Skills 重构验收清单
 
-本清单把 `.docs/new-shipkit-design/` 的显式要求映射到 `new-skills/` 实际交付物。它用于交付审查，不是额外流程文档。
+本清单把 `.docs/shipkit-skills-refactor-design.md` 的 AC-1 到 AC-15 映射到 `skills/` 实际工件。它用于交付审查，不是额外流程文档。
 
-## 目标拆解
+## 验收映射
 
-| 目标要求 | 交付证据 | 状态 |
+| AC | 要求 | 证据 |
 |---|---|---|
-| 所有新设计技能放到 `new-skills/` | `new-skills/ship-*/SKILL.md` 共 7 个；旧 `skills/` 未作为本次实现目录 | ✅ |
-| 全新设计，不沿用旧 14 阶段 ShipKit | `ship-orchestrator/SKILL.md` 明确 4 阶段、单一 `meta.yml`、不创建旧细阶段 | ✅ |
-| 按 `.docs/new-shipkit-design/` 完成技能创建 | `MANIFEST.yml` 映射设计职责；7 个技能覆盖 orchestrator/split/understand/design/build/spec/grill-me | ✅ |
-| 确保技能完整性 | 每个 `SKILL.md` 包含触发、输入、流程、输出、门禁/阻塞、不做什么 | ✅ |
-| 持续对抗性审查直到可交付 | validator 编译、happy path、负向测试；本清单记录覆盖关系 | ✅ |
-| Design 参考模板机制按 `13-design-reference-template-plan.md` 实施 | `ship-design/SKILL.md`、`ship-orchestrator/SKILL.md`、`ship-grill-me/SKILL.md`、`ship-spec/SKILL.md`、`templates/design-reference/`、`validate_design.py`、`test_validators.py` | ✅ |
-
-## 技能覆盖矩阵
-
-| 设计文档要求 | 实施文件 | 覆盖点 |
-|---|---|---|
-| 技能清单：`ship-orchestrator`、`ship-split`、`ship-understand`、`ship-design`、`ship-build`、`ship-spec`、`ship-grill-me` | `MANIFEST.yml`、7 个 `SKILL.md` | 7 个技能全部存在 |
-| 4 阶段 + 1 辅助技能 | `ship-orchestrator/SKILL.md`、`README.md` | `[Split] → Understand → Design → Build`，Spec 贯穿 |
-| 4 种场景：quick_start/full_flow/prd_direct/split_first | `ship-orchestrator/SKILL.md`、`ship-grill-me/SKILL.md` | 场景识别和 grill-me 策略矩阵 |
-| `meta.yml` 单一事实源和 feature 目录结构 | `ship-orchestrator/SKILL.md`、`templates/meta.yml.template`、`README.md` | current_stage/status/scenario/spec_refs/artifacts 等核心字段 |
-| Understand 阶段 spec 加载、需求解析、requirements.md | `ship-understand/SKILL.md`、`templates/requirements.md.template`、`validate_requirements.py` | Domain、AC、NFR、约束、grill-me 触发 |
-| Design 阶段 API Contract + 前后端方案合一 | `ship-design/SKILL.md`、`templates/design.md.template`、`validate_design.py` | API、数据模型、前端、后端、AC 覆盖、性能 |
-| Design Reference Template 机制 | `ship-design/SKILL.md`、`ship-orchestrator/SKILL.md`、`ship-grill-me/SKILL.md`、`ship-spec/SKILL.md`、`templates/design-reference/`、`validate_design.py` | orchestrator 只记录模板意图；design 选择并记录 `design_template_ref/reason`；grill-me 审查错选/漏项/偏离；spec 优先于模板；validator 校验引用、存在性、正文一致、章节、占位符 |
-| Design → Build 唯一用户确认门禁 | `ship-orchestrator/SKILL.md`、`ship-design/SKILL.md` | ready 后停止并询问 `[yes]/[modify]/[review]` |
-| Build 阶段任务生成、实现顺序、验证报告 | `ship-build/SKILL.md`、`templates/build-plan.yml.template`、`templates/verification.md.template`、`validate_build.py` | 数据层→后端→前端→集成；AC 验证 |
-| Split 依赖追踪和 TAPD/Jira 框架 | `ship-split/SKILL.md`、`templates/splits.yml.template` | `splits.yml`、`dependencies`、`blocked_by`、API 成功才写远程 id |
-| spec 知识库、多项目隔离、规范沉淀 | `ship-spec/SKILL.md` | `.docs/spec`、`_shared` + project、60 分沉淀规则 |
-| grill-me 精确触发、一次一个问题、先查仓库/spec | `ship-grill-me/SKILL.md` | blocking 判定、证据、推荐答案、输出给阶段技能 |
-| 3 个核心 validator | `validate_requirements.py`、`validate_design.py`、`validate_build.py` | requirements/design/build 三类核心验证 |
-| 当前阶段聚合验证 | `validate_current_stage.py` | 按 `meta.yml.current_stage` 调用对应核心 validator；不是第四个核心 validator |
-| 性能和安全考量 | `ship-spec/SKILL.md`、`ship-build/SKILL.md`、`ship-orchestrator/SKILL.md` | 按阶段加载、避免敏感信息进入 spec、真实测试不被 validator 替代 |
+| AC-1 | `skills/` 内不再保留多流程模式语义 | `ship-orchestrator/SKILL.md`、`ship-understand/SKILL.md`、`ship-design/SKILL.md`、`ship-grill-me/SKILL.md` 均写成 `workflow: full_flow` 单一完整推进；全文 grep 验证无旧多模式关键词 |
+| AC-2 | 不再引用不存在的执行路径 | `README.md`、`MANIFEST.yml`、测试脚本均使用 `skills/`；全文 grep 验证无旧实现根路径字符串 |
+| AC-3 | `meta.yml.template` 新 schema | `ship-orchestrator/templates/meta.yml.template` 包含 `workflow`、`workspace_mode`、`workspace_name`、`projects`、`source_refs`、`build_approved_*`，不包含旧流程分支字段 |
+| AC-4 | orchestrator 创建前读取 project.yml | `ship-orchestrator/SKILL.md` 的职责、TODO preflight、固定访谈均要求先读 `.docs/ship/project.yml` 并给推荐答案让用户确认 |
+| AC-5 | workspace scope 校验与阶段隔离 | `validate_requirements.py` 校验 project group projects 和 project.yml 子集；`ship-understand/design/build/spec` 均要求按 `meta.yml.projects` 限定范围 |
+| AC-6 | 阶段技能必须提供 feature_dir | `ship-understand/SKILL.md`、`ship-design/SKILL.md`、`ship-build/SKILL.md` 的“硬前置”均明确要求用户提供 `feature_dir` |
+| AC-7 | 只有 orchestrator 创建 feature 目录 | `ship-orchestrator/SKILL.md` 负责创建；`ship-understand/design/split` 均明确不创建目录 |
+| AC-8 | split 模板不默认写实际目录 | `templates/splits.yml.template` 使用 `suggested_slug`/`suggested_feature_name`，`created_feature_dir: ""` 默认空 |
+| AC-9 | 独立技能都有 TODO preflight | 7 个 `ship-*` 技能均包含 `## TODO preflight`；`ship-grill-me` 区分嵌入调用和单独调用 |
+| AC-10 | Design 对所有 feature 要求模板引用 | `validate_design.py` 无条件要求 `meta.yml.design_template_ref` 和 `## 方案模板引用`；测试覆盖缺模板失败 |
+| AC-11 | Design → Build 确认持久化 | `ship-orchestrator/SKILL.md` 写入 `build_approved_*`；`ship-design/SKILL.md` handoff 回 orchestrator；`ship-build/SKILL.md` 和 `validate_build.py` 要求 `build_approved_at/build_approved_by/build_approval_note` |
+| AC-12 | requirements validator 校验 source_refs/workspace | `validate_requirements.py` 校验缺 source_refs、primary 不可用、project group 缺 projects、projects 不属于 project.yml；测试覆盖正负样例 |
+| AC-13 | validator 测试通过 | `python3 skills/ship-orchestrator/tests/test_validators.py` 通过 |
+| AC-14 | README/MANIFEST/ACCEPTANCE 路径一致 | `README.md`、`MANIFEST.yml`、`ACCEPTANCE.md` 均使用当前 `skills/` 根路径 |
+| AC-15 | handoff 包含 feature_dir、阶段技能、workspace、projects | `ship-orchestrator/SKILL.md`、`ship-understand/SKILL.md`、`ship-design/SKILL.md` 的输出 handoff 示例包含这些字段 |
 
 ## 已执行验证
 
 ```bash
-python3 - <<'PY'
-from pathlib import Path
-for path in list(Path('new-skills/ship-orchestrator/scripts').glob('*.py')) + list(Path('new-skills/ship-orchestrator/tests').glob('*.py')):
-    compile(path.read_text(encoding='utf-8'), str(path), 'exec')
-print('all validator and test scripts compile')
-PY
-```
-
-结果：`all validator and test scripts compile`（本次实现另以完整测试脚本覆盖编译路径）
-
-```bash
-python3 new-skills/ship-orchestrator/tests/test_validators.py
+python3 skills/ship-orchestrator/tests/test_validators.py
 ```
 
 结果：
@@ -57,28 +35,37 @@ PASS: valid requirements
 PASS: valid design with template
 PASS: valid build
 PASS: valid current stage
+PASS: meta YAML parser reads workflow/workspace/source_refs/build approval
 PASS: loose YAML preserves quoted project template fragment
 PASS: project template ref with fragment
 PASS: requirements missing AC
 PASS: requirements bad AC format
+PASS: requirements missing source_refs
+PASS: requirements primary source unavailable
+PASS: project_group missing projects
+PASS: valid project.yml subset scope
+PASS: projects outside project.yml fail
 PASS: design uncovered AC
 PASS: design missing error response
-PASS: full_flow missing template ref
+PASS: missing template ref fails
 PASS: template id does not exist
-PASS: non quick_start missing template section
+PASS: missing template section
 PASS: design base sections must be top-level
 PASS: ready design contains TBD
 PASS: async-task missing required subsection
-PASS: quick_start missing template only warns
 PASS: build uncovered AC
 PASS: build tests failed
 PASS: build mixed passed and failed
+PASS: build missing approval fails
+PASS: build missing approval by fails
+PASS: build missing approval note fails
+PASS: build wrong stage fails
 All validator smoke tests passed.
 ```
 
 ## 已知边界
 
-- 这是一套 skill 指令和验证脚本，不是独立 CLI 产品。
-- 旧 `skills/ship-*` 仍存在；使用新设计时必须显式引用 `new-skills/`，避免加载旧技能。
+- 这是 skill 指令和验证脚本，不是独立 CLI 产品。
 - validator 做结构和覆盖性检查，不替代项目真实测试；`ship-build` 必须运行仓库自己的 test/lint/typecheck 并写入 `verification.md`。
+- TODO preflight 是 agent 行为约束，无法由 Python validator 证明真实工具调用；本次交付用技能文本和执行审查约束。
 - Design Reference Template 是 Design 阶段护栏，不是新阶段；内置模板 checklist 不替代项目 spec，也不替代 `ship-grill-me` 语义审查。

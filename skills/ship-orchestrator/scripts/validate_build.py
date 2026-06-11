@@ -7,7 +7,7 @@ import re
 import sys
 from pathlib import Path
 
-from _lib import Check, extract_ac_ids, feature_path, read_text, require_frontmatter, section_text, summarize
+from _lib import Check, extract_ac_ids, feature_path, parse_meta_yaml, read_text, require_frontmatter, section_text, summarize
 
 
 def validate_build(feature_dir: Path) -> list[Check]:
@@ -16,6 +16,13 @@ def validate_build(feature_dir: Path) -> list[Check]:
     build_plan_file = feature_dir / "build-plan.yml"
 
     checks, fm, body = require_frontmatter(verification_file)
+
+    meta = parse_meta_yaml(feature_dir / "meta.yml")
+    current_stage = str(meta.get("current_stage") or "")
+    checks.append(Check("Build stage", current_stage in {"build", "done"}, "meta.yml.current_stage 必须是 build 或 done 才能验证 Build"))
+    approval_fields = ["build_approved_at", "build_approved_by", "build_approval_note"]
+    missing_approval = [field for field in approval_fields if not meta.get(field)]
+    checks.append(Check("Build approval", not missing_approval, "缺少 meta.yml Build approval 字段: " + ", ".join(missing_approval) if missing_approval else ""))
 
     checks.append(Check("build-plan.yml 存在", build_plan_file.exists(), "缺少 build-plan.yml"))
     if build_plan_file.exists():

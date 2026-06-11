@@ -15,7 +15,7 @@ from _lib import (
     has_section,
     has_top_section,
     parse_frontmatter,
-    parse_loose_yaml,
+    parse_meta_yaml,
     read_text,
     require_frontmatter,
     section_text,
@@ -32,7 +32,6 @@ BASE_SECTIONS = [
     "风险和回滚",
 ]
 
-TEMPLATE_REQUIRED_SCENARIOS = {"full_flow", "prd_direct", "split_first"}
 FORBIDDEN_READY_PATTERNS = [
     ("{{", "存在未替换占位符 '{{'"),
     ("}}", "存在未替换占位符 '}}'"),
@@ -145,32 +144,23 @@ def validate_design(feature_dir: Path) -> list[Check]:
     requirements_file = feature_dir / "requirements.md"
     checks, fm, body = require_frontmatter(design_file)
 
-    meta = parse_loose_yaml(feature_dir / "meta.yml")
-    scenario = str(meta.get("scenario") or "")
+    meta = parse_meta_yaml(feature_dir / "meta.yml")
     template_ref = str(meta.get("design_template_ref") or "").strip()
     template_fm: dict[str, Any] = {}
-    must_have_template = scenario in TEMPLATE_REQUIRED_SCENARIOS
 
     if template_ref:
         ok, message, template_fm = check_template_ref(template_ref)
         checks.append(Check("模板存在性", ok, message))
-    elif must_have_template:
-        checks.append(Check("模板引用", False, f"{scenario} 必须在 meta.yml 记录 design_template_ref"))
     else:
-        checks.append(Check("模板引用", True, "quick_start 缺少模板引用可接受", warning=True))
+        checks.append(Check("模板引用", False, "所有 ShipKit feature 都必须在 meta.yml 记录 design_template_ref"))
 
     template_section = section_text(body, ["方案模板引用"])
-    if template_ref or must_have_template:
-        checks.append(Check("方案模板引用章节", bool(template_section), "非 quick_start 或已选模板时必须包含 ## 方案模板引用"))
-    elif not template_section:
-        checks.append(Check("方案模板引用章节", True, "quick_start 缺少 ## 方案模板引用可接受", warning=True))
+    checks.append(Check("方案模板引用章节", bool(template_section), "design.md 必须包含 ## 方案模板引用"))
 
     if template_ref and template_section:
         checks.append(Check("正文模板引用一致", template_ref in template_section, f"design.md 方案模板引用未包含 meta.yml.design_template_ref: {template_ref}"))
 
-    top_sections = list(BASE_SECTIONS)
-    if template_ref or must_have_template:
-        top_sections = ["方案模板引用"] + top_sections
+    top_sections = ["方案模板引用"] + list(BASE_SECTIONS)
     for section in top_sections:
         checks.append(Check(f"顶层章节: {section}", has_top_section(body, [section]), f"design.md 缺少顶层章节 ## {section}"))
 
@@ -210,7 +200,7 @@ def validate_design(feature_dir: Path) -> list[Check]:
 
     spec_refs = fm.get("spec_refs") or meta.get("spec_refs") or []
     if not spec_refs:
-        checks.append(Check("规范引用", True, "未引用任何 spec，quick_start 可接受但 full_flow 应补充", warning=True))
+        checks.append(Check("规范引用", True, "未引用任何 spec；full_flow 应在 requirements/design 中记录缺失影响", warning=True))
     else:
         checks.append(Check("规范引用", True))
 

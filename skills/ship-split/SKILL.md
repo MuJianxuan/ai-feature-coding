@@ -1,13 +1,27 @@
 ---
 name: ship-split
-description: "新 ShipKit 可选前置技能。把大需求拆成可独立交付的小 feature，生成 splits.yml，标注依赖，并可准备 TAPD/Jira 任务数据。"
+description: "ShipKit 可选前置分析技能。把大需求拆成可独立交付的小 feature 建议，只生成 splits.yml，不直接创建 feature 目录。"
 ---
 
 # ship-split
 
 ## 目标
 
-把大需求拆成多个小需求。每个子需求必须能独立测试、独立交付，并有清楚依赖。
+把大需求拆成多个小需求建议。每个子需求必须能独立测试、独立交付，并有清楚依赖。
+
+`ship-split` 是独立前置分析技能，不是 ShipKit feature flow 内部模式。它只产出拆分建议；用户确认后的 feature 目录创建统一交回 `ship-orchestrator` 执行。
+
+## TODO preflight
+
+开始拆分前，必须调用可用 TODO 工具（例如 `TaskCreate`/agent todo 工具）创建或恢复 Split TODO：
+
+1. 加载大需求来源和已有 feature 上下文。
+2. 加载 spec：已有功能、业务域、项目边界。
+3. 识别独立功能模块或用户故事。
+4. 标注依赖、优先级、预计工期。
+5. 生成 `splits.yml`。
+6. 让用户确认拆分方案。
+7. 输出给 `ship-orchestrator` 的批量创建 handoff。
 
 ## 何时使用
 
@@ -23,6 +37,7 @@ description: "新 ShipKit 可选前置技能。把大需求拆成可独立交付
 - 大需求描述、PRD、会议纪要、用户故事。
 - TAPD/Jira 链接或导出数据（如果有）。
 - `ship-spec` 加载的现有功能、业务域、技术栈。
+- 可选 workspace scope；若不确定，只在拆分建议中记录待 orchestrator 确认。
 
 ## 流程
 
@@ -31,8 +46,8 @@ description: "新 ShipKit 可选前置技能。把大需求拆成可独立交付
 3. 按业务价值和技术依赖排序。
 4. 控制粒度：单个子需求 `estimated_days <= 3`。
 5. 生成 `splits.yml`。
-6. 让用户确认拆分方案：`[yes] 批量创建`、`[modify] 修改`、`[tapd] 同步任务`。
-7. 用户确认后，为每个 split 创建 `.docs/feature-*` 的 `meta.yml`。
+6. 让用户确认拆分方案：`[yes] 交给 orchestrator 批量创建`、`[modify] 修改`、`[tapd] 同步任务`。
+7. 用户确认后，输出 handoff；不得自己创建 `.docs/feature-*` 或初始 `meta.yml`。
 
 ## 拆分原则
 
@@ -51,45 +66,41 @@ estimated_total_days: 12
 splits:
   - id: REQ-001
     name: 用户注册
+    suggested_slug: user-register
+    suggested_feature_name: 用户注册
     priority: high
     estimated_days: 2
     dependencies: []
-    feature_dir: .docs/feature-20260609-user-register
+    created_feature_dir: ""
     status: pending
     blocked_by: []
     tapd_id: ""
   - id: REQ-002
     name: 用户登录
+    suggested_slug: user-login
+    suggested_feature_name: 用户登录
     priority: high
     estimated_days: 1
     dependencies: [REQ-001]
-    feature_dir: .docs/feature-20260609-user-login
+    created_feature_dir: ""
     status: blocked
     blocked_by: [REQ-001]
 ```
 
-## 批量创建 feature
+`created_feature_dir` 默认必须为空；只有 `ship-orchestrator` 批量创建子 feature 后才能回填实际目录。
 
-用户确认后，每个 split 创建：
+## 批量创建 handoff
 
-```yaml
-feature_name: "用户登录"
-current_stage: understand
-status: blocked # 若依赖未完成；否则 in_progress
-scenario: split_first
-created_at: "..."
-updated_at: "..."
-spec_refs: []
-artifacts:
-  requirements: requirements.md
-  design: design.md
-  build_plan: build-plan.yml
-  verification: verification.md
-parent_split_id: "用户管理系统"
-split_id: REQ-002
-split_dependency: [REQ-001]
-blocked_reason: "等待依赖: REQ-001"
+用户确认拆分方案后，输出给 orchestrator 的创建请求：
+
+```text
+拆分方案已确认，但 ship-split 不创建 feature 目录。
+请调用 ship-orchestrator 批量创建以下子 feature，并为每个目录写入 workflow: full_flow：
+1. REQ-001 用户注册，suggested_slug=user-register，dependencies=[]
+2. REQ-002 用户登录，suggested_slug=user-login，dependencies=[REQ-001]
 ```
+
+orchestrator 为每个子 feature 创建目录和 `meta.yml`，统一写入 `parent_split_id/split_id/split_dependency`。
 
 ## 依赖检查
 
@@ -99,6 +110,8 @@ blocked_reason: "等待依赖: REQ-001"
 2. 对每个未完成 split，检查 `dependencies` 指向的 split 是否 `status: completed`。
 3. 未完成则写入 `blocked_by`，并同步对应 feature `meta.yml.status: blocked`。
 4. 已解除依赖则清空 `blocked_by`，同步 `status: in_progress`。
+
+依赖状态更新可以辅助 orchestrator 恢复，但不得越权创建或删除 feature 目录。
 
 ## TAPD/Jira 集成边界
 
@@ -116,8 +129,15 @@ blocked_reason: "等待依赖: REQ-001"
 1. REQ-001 用户注册（无依赖）
 2. REQ-002 用户登录（依赖 REQ-001）
 
-是否批量创建 feature？
-[yes] 批量创建
+是否交给 ship-orchestrator 批量创建 feature？
+[yes] 交给 orchestrator
 [modify] 修改拆分
 [tapd] 准备/同步 TAPD 任务
 ```
+
+## 不做什么
+
+- 不直接创建 `.docs/feature-*`。
+- 不写初始 `meta.yml`。
+- 不把实际目录写进 `created_feature_dir`，除非 orchestrator 已创建并回填。
+- 不替代 Understand/Design/Build 阶段。

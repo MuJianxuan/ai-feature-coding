@@ -1,15 +1,28 @@
 ---
 name: ship-spec
-description: "新 ShipKit 规范管理技能。维护 .docs/spec 知识库，按阶段和项目隔离加载规范，并在 Build 完成后更新已有功能索引。"
+description: "ShipKit 规范管理技能。维护 .docs/spec 知识库，按 meta.yml workspace/projects 隔离加载规范，并在 Build 完成后更新已有功能索引。"
 ---
 
 # ship-spec
 
 ## 目标
 
-维护项目知识库，让 Understand、Design、Build 读到正确上下文。spec 是现实约束，不是摆设。
+维护项目知识库，让 Understand、Design、Build 读到正确上下文。spec 是项目现实约束，不是摆设。
 
 参考模板不是 spec。spec 是项目现实约束；模板只是 Design 阶段的检查清单。两者冲突时，优先级永远是：`requirements/AC > 项目 spec > 现有代码事实 > 参考模板 > AI 默认习惯`。
+
+## TODO preflight
+
+独立调用 `ship-spec` 时，必须调用可用 TODO 工具（例如 `TaskCreate`/agent todo 工具）创建或恢复 Spec TODO：
+
+1. 读取 `.docs/ship/project.yml`（若存在）。
+2. 读取调用方传入的 `feature_dir/meta.yml`（若有）。
+3. 根据 `workspace_mode/projects` 确定加载范围。
+4. 加载当前阶段需要的 spec。
+5. 返回引用列表、warning 和缺失影响。
+6. Build 完成后更新 existing-features 或给出规范沉淀建议。
+
+嵌入阶段调用时，更新父阶段 TODO 即可。
 
 ## 默认目录
 
@@ -54,6 +67,15 @@ projects:
   - api
 ```
 
+`project.yml` 是仓库默认 workspace 配置；具体 feature 的实际范围以 `feature_dir/meta.yml.workspace_mode/workspace_name/projects` 为准。
+
+## 与 source_refs 的边界
+
+- `source_refs` 是需求输入：PRD、UI/UX、link、issue、meeting、note、screenshot 等。
+- spec 是项目约束：API 标准、命名、数据类型、安全要求、前端模式、既有功能索引。
+- 不把 PRD 正文塞进 `.docs/spec/`。
+- 不把项目规范当作用户需求；spec 只能约束实现方式，不能新增 AC。
+
 ## 加载规则
 
 按阶段加载，不要一股脑吞全库：
@@ -70,7 +92,8 @@ projects:
 1. 永远加载 `_shared`。
 2. 只加载 `meta.yml.projects` 指定项目的 spec。
 3. project spec 与 shared 同名时，project 优先，记录 warning。
-4. 不让 web 的 frontend 规范污染 api 后端实现。
+4. 不让未涉及项目的 spec 污染需求、设计或实现。
+5. 如果 `.docs/ship/project.yml` 存在，`meta.yml.projects` 应是配置项目子集；否则由 validator 或 orchestrator 阻塞修正。
 
 ## INDEX.md 建议格式
 
@@ -96,12 +119,18 @@ Build 完成后追加或更新：
   - 关键测试：tests/e2e/login.spec.ts
 ```
 
+多项目组下：
+
+- 通用能力写 `_shared/existing-features.md`。
+- 项目专属能力写对应项目 spec。
+- 不更新 `meta.yml.projects` 之外的项目。
+
 不要把敏感信息写进 spec：密码、token、生产密钥、内部部署地址都禁止。
 
 ## 与 Design Reference Template 的边界
 
 - 不把模板文件放进 `.docs/spec/`，除非它已经成为项目长期规范。
-- 不把 `.docs/技术方案模版.md` 当成全局 spec；它最多是项目级 `backend-enterprise` 参考模板候选。
+- 不把 `.docs/技术方案模版.md` 当成全局 spec；它最多是项目级参考模板候选。
 - `ship-spec` 只提供项目约束：API 标准、命名、数据类型、安全要求、前端模式。
 - `ship-design` 负责选择模板，并在模板与 spec 冲突时写明“以 spec 为准”。
 - 模板不得诱导写入密码、token、生产密钥、内部部署地址等敏感信息；只允许描述 secret 来源，例如“从环境变量读取”。
@@ -119,7 +148,7 @@ Build 完成后追加或更新：
 
 ## 失败降级
 
-- 没有 `.docs/spec`：返回空上下文 + warning，不阻塞 quick_start。
+- 没有 `.docs/spec`：返回空上下文 + warning；full flow 需要在 requirements/design 中记录缺失影响。
 - INDEX 缺失：扫描少量常见文件，但提示补 INDEX。
 - 规范冲突：project 优先，shared fallback，报告冲突。
 - 文件权限/解析失败：记录 warning，并让阶段技能决定是否阻塞。
@@ -130,3 +159,4 @@ Build 完成后追加或更新：
 - 不把每次实现都沉淀成规范。
 - 不把旧 ShipKit 的复杂状态字段加回来。
 - 不把参考模板和项目规范混成一锅粥。
+- 不让未涉及项目的 spec 污染当前 feature。

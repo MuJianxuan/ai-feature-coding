@@ -1,44 +1,79 @@
 ---
 name: ship-understand
-description: "新 ShipKit Understand 阶段。加载 spec，解析需求/PRD/原型，必要时调用 grill-me，产出 requirements.md(status: ready)。"
+description: "ShipKit Understand 阶段。必须接收 feature_dir，读取 meta/source_refs/spec，做 blocking review，产出 requirements.md(status: ready)。"
 ---
 
 # ship-understand
 
 ## 目标
 
-把用户输入变成可设计、可验证的 `requirements.md`。它是后续设计和实现的唯一需求源。
+把 `feature_dir` 中登记的需求来源变成可设计、可验证的 `requirements.md`。它是后续 Design 和 Build 的唯一需求源。
+
+## 硬前置
+
+必须同时满足：
+
+- 用户明确提供 `feature_dir`。
+- `feature_dir/meta.yml` 存在且可读取。
+- `meta.yml.source_refs` 至少包含一个 primary 来源。
+- primary 来源可读或状态为 `available`；不可读时先阻塞质询。
+
+缺 `feature_dir` 时停止，不自动扫描 `.docs/feature-*`，不创建新目录。
+
+## TODO preflight
+
+开始阶段工作前，必须调用可用 TODO 工具（例如 `TaskCreate`/agent todo 工具）创建或恢复 Understand 阶段 TODO：
+
+1. 加载 `feature_dir` 与 `meta.yml`。
+2. 读取 `source_refs` 与 `resource/` 来源材料。
+3. 根据 `workspace_mode/projects` 限定仓库探索范围。
+4. 加载 Understand 阶段 spec。
+5. 探索仓库中相关现有功能。
+6. 提取目标、边界、Domain、AC、NFR、约束。
+7. 调用 `ship-grill-me` 做 blocking 质询。
+8. 写入 `requirements.md(status: ready)`。
+9. 运行 `validate_requirements.py <feature_dir>`。
+10. 更新 `meta.yml.current_stage: design`。
 
 ## 输入
 
-- 口头/文字需求。
-- PRD、原型、图片、会议纪要。
-- `meta.yml.scenario`。
-- `ship-spec` 加载的 existing-features、domain glossary、naming conventions。
+- `feature_dir/meta.yml`。
+- `meta.yml.source_refs` 指向的 PRD、UI/UX、link、issue、meeting、note、screenshot 或 other。
+- `resource/` 下的可读快照。
+- `ship-spec` 按 workspace scope 加载的 existing-features、domain glossary、naming conventions。
+
+`source_refs.type` 是输入形态，不是流程分支；所有 ShipKit feature 都走完整推进。
+
+## Workspace scope
+
+- `workspace_mode: single_project`：默认只探索当前项目；`projects` 若非空，用作项目名记录。
+- `workspace_mode: project_group`：只探索 `meta.yml.projects` 指定项目和必要 `_shared` 内容。
+- 需要扩大范围时先向用户说明证据和影响，得到确认后再更新 `meta.yml.projects`。
 
 ## 流程
 
-1. 读取或创建 feature 目录和 `meta.yml`。
-2. 调用 `ship-spec` 加载 Understand 阶段上下文。
-3. 按输入类型解析需求：
-   - 口头描述：澄清核心目标、用户、边界、AC。
-   - PRD：提取功能点、AC、约束，并保留章节引用。
-   - 原型：提取页面流程、状态、交互规则。
-4. 生成 `requirements.md` 草稿。
-5. 按场景决定是否调用 `ship-grill-me`。
-6. 通过 `validate_requirements.py`。
-7. 标记 `requirements.md status: ready`，更新 `meta.yml.current_stage: design`。
+1. 校验 `feature_dir`、`meta.yml`、`source_refs`。
+2. 读取来源材料；外部链接不可访问时，更新 `meta.yml.status: blocked`、`blocked_reason: missing_source`，请用户提供可读快照。
+3. 调用 `ship-spec` 加载 Understand 阶段上下文。
+4. 按 workspace scope 探索相关现有功能，不读取无关项目。
+5. 提取功能目标、用户、边界、Domain、AC、NFR、约束和风险。
+6. 调用 `ship-grill-me` 做 blocking review；只问会阻塞实现的决策。
+7. 生成或更新 `requirements.md`。
+8. 运行 `validate_requirements.py <feature_dir>`；有 error 不得 ready。
+9. 标记 `requirements.md status: ready`，更新 `meta.yml.current_stage: design`、`status: in_progress`。
+10. 输出 handoff，要求新窗口调用 `ship-design <feature_dir>`。
 
-## grill-me 触发
+## blocking review
 
-| 场景 | Understand 触发策略 |
-|---|---|
-| `quick_start` | 只有发现 blocking 问题才触发 |
-| `full_flow` | 必须触发 |
-| `prd_direct` | 默认跳过；只做提取，不扩写需求 |
-| `split_first` | 子 feature 按 `full_flow` 处理 |
+Understand 阶段必须执行 `ship-grill-me`。blocking 问题包括：
 
-blocking 问题包括：没有可测试 AC、需求互相冲突、引用未定义功能、边界条件缺失且会影响实现。
+- 没有可测试 AC。
+- AC 缺 Given/When/Then 且会影响实现。
+- 需求互相冲突。
+- 引用不存在或未定义的现有功能。
+- 边界条件缺失会改变数据模型/API。
+- primary source 不可读或来源状态为 `inaccessible/needs_user`。
+- project group 下 `projects` 缺失或与 `.docs/ship/project.yml` 不一致。
 
 ## requirements.md 结构
 
@@ -84,8 +119,9 @@ spec_refs: ["auth-flow", "user-domain"]
 - 至少 1 个 AC。
 - 每个 AC 使用 Given/When/Then。
 - 有 Domain 模型或明确说明不涉及业务域。
-- 非功能需求若存在，尽量量化；小功能可缺省但要接受 warning。
+- 非功能需求若存在，尽量量化。
 - 与现有功能冲突必须解决或写入风险。
+- 引用来源必须能追溯到 `meta.yml.source_refs`。
 
 ## 状态更新
 
@@ -103,11 +139,24 @@ artifacts:
 ```yaml
 current_stage: understand
 status: blocked
-blocked_reason: awaiting_grill_answers
+blocked_reason: awaiting_grill_answers # 或 missing_source / missing_workspace_scope
+```
+
+## 输出 handoff
+
+```text
+requirements.md 已 ready，并通过 validate_requirements.py。
+当前阶段：design
+workspace：project_group
+涉及项目：web, api
+下一步请在新窗口调用 ship-design，并明确传入 feature_dir：
+.docs/feature-20260610-user-login
 ```
 
 ## 不做什么
 
+- 不创建 feature 目录。
+- 不自动猜测 `feature_dir`。
 - 不做技术方案细节；那是 `ship-design`。
 - 不写业务代码。
 - 不为了填模板编造需求；无法确定就质询。

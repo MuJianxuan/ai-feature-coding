@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke and negative tests for new ShipKit validators.
+"""Smoke and negative tests for ShipKit validators.
 
 The tests create temporary feature fixtures under /tmp and intentionally leave them
 there for inspection. They do not touch repository feature data.
@@ -14,9 +14,9 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-SCRIPTS = ROOT / "new-skills" / "ship-orchestrator" / "scripts"
+SCRIPTS = ROOT / "skills" / "ship-orchestrator" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
-from _lib import parse_loose_yaml  # noqa: E402
+from _lib import parse_loose_yaml, parse_meta_yaml  # noqa: E402
 
 
 def run(script: str, feature_dir: Path) -> subprocess.CompletedProcess[str]:
@@ -29,20 +29,61 @@ def run(script: str, feature_dir: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
-def meta_text(scenario: str = "full_flow", template_ref: str = "builtin:fullstack-feature@1") -> str:
+def meta_text(
+    *,
+    workflow: str = "full_flow",
+    workspace_mode: str = "single_project",
+    projects: list[str] | None = None,
+    source_refs: str | None = None,
+    template_ref: str = "builtin:fullstack-feature@1",
+    current_stage: str = "done",
+    status: str = "completed",
+    build_approved_at: str = "2026-06-09T16:00:00Z",
+    build_approved_by: str = "user",
+    build_approval_note: str = "用户确认进入 Build",
+) -> str:
+    projects_text = "[" + ", ".join(f'"{project}"' for project in (projects or [])) + "]"
+    if source_refs is None:
+        source_refs = """source_refs:
+  - id: SRC-001
+    type: prd
+    title: 示例 PRD
+    path_or_url: resource/prd.md
+    role: primary
+    status: available
+    notes: ""
+"""
+
     template_fields = ""
     if template_ref:
         template_fields = (
             f"design_template_ref: \"{template_ref}\"\n"
             "design_template_reason: \"AC-1/AC-2 同时涉及 API、状态和后端服务\"\n"
         )
+
+    approval_fields = ""
+    if build_approved_at:
+        approval_fields += f"build_approved_at: \"{build_approved_at}\"\n"
+    if build_approved_by:
+        approval_fields += f"build_approved_by: {build_approved_by}\n"
+    if build_approval_note:
+        approval_fields += f"build_approval_note: \"{build_approval_note}\"\n"
+
     return (
         "feature_name: \"示例\"\n"
-        "current_stage: done\n"
-        "status: completed\n"
-        f"scenario: {scenario}\n"
+        f"workflow: {workflow}\n"
+        f"workspace_mode: {workspace_mode}\n"
+        "workspace_name: \"示例工作区\"\n"
+        f"projects: {projects_text}\n"
+        f"current_stage: {current_stage}\n"
+        f"status: {status}\n"
+        "created_at: \"2026-06-09T10:00:00Z\"\n"
+        "updated_at: \"2026-06-09T18:00:00Z\"\n"
+        f"{source_refs}"
         "spec_refs: [\"rest-api-standard\"]\n"
+        "requested_design_template: \"\"\n"
         f"{template_fields}"
+        f"{approval_fields}"
         "artifacts:\n"
         "  requirements: requirements.md\n"
         "  design: design.md\n"
@@ -194,13 +235,27 @@ def expect(script: str, feature: Path, should_pass: bool, label: str) -> None:
 
 
 def main() -> int:
-    base = Path(tempfile.mkdtemp(prefix="new-shipkit-validator-tests-", dir="/tmp"))
+    base = Path(tempfile.mkdtemp(prefix="shipkit-validator-tests-", dir="/tmp"))
     valid = write_valid_feature(base)
 
     expect("validate_requirements.py", valid, True, "valid requirements")
     expect("validate_design.py", valid, True, "valid design with template")
     expect("validate_build.py", valid, True, "valid build")
     expect("validate_current_stage.py", valid, True, "valid current stage")
+
+    parsed_meta = parse_meta_yaml(valid / "meta.yml")
+    first_source = parsed_meta["source_refs"][0]
+    if (
+        parsed_meta["workflow"] != "full_flow"
+        or parsed_meta["workspace_mode"] != "single_project"
+        or parsed_meta["projects"] != []
+        or first_source["role"] != "primary"
+        or first_source["status"] != "available"
+        or parsed_meta["build_approved_at"] != "2026-06-09T16:00:00Z"
+    ):
+        print("FAIL: parse_meta_yaml must read workflow/workspace/projects/source_refs/build approval")
+        raise SystemExit(1)
+    print("PASS: meta YAML parser reads workflow/workspace/source_refs/build approval")
 
     parse_probe = base / "parse-project-ref.yml"
     project_ref = "project:.docs/技术方案模版.md#backend-enterprise@1"
@@ -210,9 +265,12 @@ def main() -> int:
         raise SystemExit(1)
     print("PASS: loose YAML preserves quoted project template fragment")
 
+    project_doc = base / "技术方案模版.md"
+    project_doc.write_text("# template\n", encoding="utf-8")
+    abs_project_ref = f"project:{project_doc}#backend-enterprise@1"
     project_template = clone_feature(valid, base / "project-template-ref")
-    (project_template / "meta.yml").write_text(meta_text(template_ref=project_ref), encoding="utf-8")
-    (project_template / "design.md").write_text(valid_design_text(project_ref), encoding="utf-8")
+    (project_template / "meta.yml").write_text(meta_text(template_ref=abs_project_ref), encoding="utf-8")
+    (project_template / "design.md").write_text(valid_design_text(abs_project_ref), encoding="utf-8")
     expect("validate_design.py", project_template, True, "project template ref with fragment")
 
     missing_ac = clone_feature(valid, base / "missing-ac")
@@ -228,6 +286,48 @@ def main() -> int:
         encoding="utf-8",
     )
     expect("validate_requirements.py", bad_ac, False, "requirements bad AC format")
+
+    no_sources = clone_feature(valid, base / "missing-source-refs")
+    (no_sources / "meta.yml").write_text(meta_text(source_refs="source_refs: []\n"), encoding="utf-8")
+    expect("validate_requirements.py", no_sources, False, "requirements missing source_refs")
+
+    unavailable_primary = clone_feature(valid, base / "unavailable-primary-source")
+    (unavailable_primary / "meta.yml").write_text(
+        meta_text(source_refs="""source_refs:
+  - id: SRC-001
+    type: prd
+    title: 示例 PRD
+    path_or_url: resource/prd.md
+    role: primary
+    status: needs_user
+"""),
+        encoding="utf-8",
+    )
+    expect("validate_requirements.py", unavailable_primary, False, "requirements primary source unavailable")
+
+    project_group_missing_projects = clone_feature(valid, base / "project-group-missing-projects")
+    (project_group_missing_projects / "meta.yml").write_text(meta_text(workspace_mode="project_group", projects=[]), encoding="utf-8")
+    expect("validate_requirements.py", project_group_missing_projects, False, "project_group missing projects")
+
+    ship_config = base / "ship"
+    ship_config.mkdir(exist_ok=True)
+    (ship_config / "project.yml").write_text(
+        """workspace_mode: project_group
+workspace_name: repo-group
+projects:
+  - web
+  - api
+""",
+        encoding="utf-8",
+    )
+
+    valid_project_scope = clone_feature(valid, base / "valid-project-scope")
+    (valid_project_scope / "meta.yml").write_text(meta_text(workspace_mode="project_group", projects=["web"]), encoding="utf-8")
+    expect("validate_requirements.py", valid_project_scope, True, "valid project.yml subset scope")
+
+    invalid_project_scope = clone_feature(valid, base / "invalid-project-scope")
+    (invalid_project_scope / "meta.yml").write_text(meta_text(workspace_mode="project_group", projects=["mobile"]), encoding="utf-8")
+    expect("validate_requirements.py", invalid_project_scope, False, "projects outside project.yml fail")
 
     design_uncovered = clone_feature(valid, base / "design-uncovered-ac")
     (design_uncovered / "design.md").write_text(
@@ -245,7 +345,7 @@ def main() -> int:
 
     design_missing_template = clone_feature(valid, base / "design-missing-template")
     (design_missing_template / "meta.yml").write_text(meta_text(template_ref=""), encoding="utf-8")
-    expect("validate_design.py", design_missing_template, False, "full_flow missing template ref")
+    expect("validate_design.py", design_missing_template, False, "missing template ref fails")
 
     design_unknown_template = clone_feature(valid, base / "design-unknown-template")
     (design_unknown_template / "meta.yml").write_text(meta_text(template_ref="builtin:no-such-template@1"), encoding="utf-8")
@@ -257,7 +357,7 @@ def main() -> int:
         (design_missing_template_section / "design.md").read_text(encoding="utf-8").replace("## 方案模板引用", "## 模板说明"),
         encoding="utf-8",
     )
-    expect("validate_design.py", design_missing_template_section, False, "non quick_start missing template section")
+    expect("validate_design.py", design_missing_template_section, False, "missing template section")
 
     design_nested_top_section = clone_feature(valid, base / "design-nested-top-section")
     (design_nested_top_section / "design.md").write_text(
@@ -277,12 +377,6 @@ def main() -> int:
     (async_missing_subsection / "meta.yml").write_text(meta_text(template_ref="builtin:async-task@1"), encoding="utf-8")
     (async_missing_subsection / "design.md").write_text(valid_design_text("builtin:async-task@1"), encoding="utf-8")
     expect("validate_design.py", async_missing_subsection, False, "async-task missing required subsection")
-
-    quick_without_template = clone_feature(valid, base / "quick-without-template")
-    (quick_without_template / "meta.yml").write_text(meta_text(scenario="quick_start", template_ref=""), encoding="utf-8")
-    design_without_ref = valid_design_text().replace("## 方案模板引用\n", "").replace("builtin:fullstack-feature@1", "未使用")
-    (quick_without_template / "design.md").write_text(design_without_ref, encoding="utf-8")
-    expect("validate_design.py", quick_without_template, True, "quick_start missing template only warns")
 
     build_uncovered = clone_feature(valid, base / "build-uncovered-ac")
     (build_uncovered / "verification.md").write_text(
@@ -304,6 +398,22 @@ def main() -> int:
         encoding="utf-8",
     )
     expect("validate_build.py", build_mixed_failed, False, "build mixed passed and failed")
+
+    build_missing_approval = clone_feature(valid, base / "build-missing-approval")
+    (build_missing_approval / "meta.yml").write_text(meta_text(build_approved_at=""), encoding="utf-8")
+    expect("validate_build.py", build_missing_approval, False, "build missing approval fails")
+
+    build_missing_approval_by = clone_feature(valid, base / "build-missing-approval-by")
+    (build_missing_approval_by / "meta.yml").write_text(meta_text(build_approved_by=""), encoding="utf-8")
+    expect("validate_build.py", build_missing_approval_by, False, "build missing approval by fails")
+
+    build_missing_approval_note = clone_feature(valid, base / "build-missing-approval-note")
+    (build_missing_approval_note / "meta.yml").write_text(meta_text(build_approval_note=""), encoding="utf-8")
+    expect("validate_build.py", build_missing_approval_note, False, "build missing approval note fails")
+
+    build_wrong_stage = clone_feature(valid, base / "build-wrong-stage")
+    (build_wrong_stage / "meta.yml").write_text(meta_text(current_stage="design"), encoding="utf-8")
+    expect("validate_build.py", build_wrong_stage, False, "build wrong stage fails")
 
     print(f"All validator smoke tests passed. Fixtures left at: {base}")
     return 0

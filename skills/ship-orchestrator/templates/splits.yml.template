@@ -4,10 +4,12 @@ estimated_total_days: 0
 splits:
   - id: REQ-001
     name: "{{SPLIT_NAME}}"
+    suggested_slug: "{{SLUG}}"
+    suggested_feature_name: "{{SPLIT_NAME}}"
     priority: high
     estimated_days: 1
     dependencies: []
-    feature_dir: ".docs/feature-{{DATE}}-{{SLUG}}"
+    created_feature_dir: ""
     status: pending
     blocked_by: []
     tapd_id: ""

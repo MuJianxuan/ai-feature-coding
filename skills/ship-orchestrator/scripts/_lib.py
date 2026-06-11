@@ -75,19 +75,87 @@ def strip_inline_comment(value: str) -> str:
     return value
 
 
-def parse_loose_yaml(path: Path) -> dict[str, Any]:
-    if not path.exists():
-        return {}
+def parse_block_value(lines: list[str]) -> Any:
+    """Parse the small YAML subset used by ShipKit meta/project files."""
+    entries = [line.strip() for line in lines if line.strip() and not line.strip().startswith("#")]
+    if not entries:
+        return []
+
+    if any(entry.startswith("- ") for entry in entries):
+        items: list[Any] = []
+        current: dict[str, Any] | None = None
+        for entry in entries:
+            if entry.startswith("- "):
+                raw_item = entry[2:].strip()
+                if not raw_item:
+                    current = {}
+                    items.append(current)
+                    continue
+                if ":" in raw_item:
+                    key, value = raw_item.split(":", 1)
+                    current = {key.strip(): parse_value(strip_inline_comment(value))}
+                    items.append(current)
+                else:
+                    current = None
+                    items.append(parse_value(strip_inline_comment(raw_item)))
+                continue
+            if current is not None and ":" in entry:
+                key, value = entry.split(":", 1)
+                current[key.strip()] = parse_value(strip_inline_comment(value))
+        return items
+
     data: dict[str, Any] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#") or ":" not in stripped:
+    for entry in entries:
+        if ":" not in entry:
             continue
-        if line.startswith(" ") or line.startswith("\t"):
-            continue
-        key, value = stripped.split(":", 1)
+        key, value = entry.split(":", 1)
         data[key.strip()] = parse_value(strip_inline_comment(value))
     return data
+
+
+def parse_meta_yaml(path: Path) -> dict[str, Any]:
+    """Parse ShipKit meta/project YAML without external dependencies.
+
+    Supported subset: top-level scalars, inline lists, nested maps, lists of
+    scalars, and lists of maps. This intentionally avoids pretending to be a
+    full YAML parser while covering meta.yml and .docs/ship/project.yml.
+    """
+    if not path.exists():
+        return {}
+
+    raw_lines = path.read_text(encoding="utf-8").splitlines()
+    data: dict[str, Any] = {}
+    idx = 0
+    while idx < len(raw_lines):
+        line = raw_lines[idx]
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or line.startswith((" ", "\t")) or ":" not in stripped:
+            idx += 1
+            continue
+
+        key, value = stripped.split(":", 1)
+        key = key.strip()
+        value = strip_inline_comment(value)
+        if value.strip():
+            data[key] = parse_value(value)
+            idx += 1
+            continue
+
+        block: list[str] = []
+        idx += 1
+        while idx < len(raw_lines):
+            child = raw_lines[idx]
+            child_stripped = child.strip()
+            if child_stripped and not child.startswith((" ", "\t")):
+                break
+            block.append(child)
+            idx += 1
+        data[key] = parse_block_value(block)
+    return data
+
+
+def parse_loose_yaml(path: Path) -> dict[str, Any]:
+    return parse_meta_yaml(path)
 
 
 def extract_ac_ids(content: str) -> list[str]:
