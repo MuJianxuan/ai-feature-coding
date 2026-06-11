@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ShipKit 新技能集 - 技能介绍与开发流程</title>
+    <title>ShipKit 技能集 - 技能介绍与开发流程</title>
     <style>
         * {
             margin: 0;
@@ -276,12 +276,57 @@
         .flow-parallel {
             border-color: #f4a261;
         }
+
+        /* Mechanism Cards */
+        .mechanism-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 24px;
+            margin-top: 30px;
+        }
+
+        .mechanism-card {
+            background: #151b35;
+            border: 1px solid #2a4a5e;
+            border-radius: 8px;
+            padding: 24px;
+            transition: all 0.3s;
+        }
+
+        .mechanism-card:hover {
+            border-color: #f4a261;
+            box-shadow: 0 4px 16px rgba(244, 162, 97, 0.15);
+        }
+
+        .mechanism-title {
+            color: #f4a261;
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mechanism-title::before {
+            content: '⬡';
+            color: #2a9d8f;
+            font-size: 0.9rem;
+        }
+
+        .code-inline {
+            background: rgba(42, 157, 143, 0.15);
+            color: #2a9d8f;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.85rem;
+        }
     </style>
 </head>
 <body>
     <header>
-        <h1>ShipKit 新技能集</h1>
-        <p class="subtitle">New ShipKit Design v1 - 技能介绍与开发流程</p>
+        <h1>ShipKit 技能集</h1>
+        <p class="subtitle">shipkit-full-flow-v2 — 单一完整推进 Feature Flow</p>
     </header>
     
     <nav>
@@ -289,6 +334,7 @@
             <li><a href="#overview">总览</a></li>
             <li><a href="#skills">技能详解</a></li>
             <li><a href="#flow">开发流程</a></li>
+            <li><a href="#mechanisms">核心机制</a></li>
             <li><a href="#principles">设计原则</a></li>
         </ul>
     </nav>
@@ -298,10 +344,12 @@
         <section id="overview" class="section">
             <h2 class="section-header">项目总览</h2>
             <div class="skill-card">
-                <p style="margin-bottom: 16px;">这是按 <code>.docs/new-shipkit-design/</code> 从零实现的新 ShipKit 设计。它不修改、不依赖旧 <code>skills/</code> 目录；所有新技能和配套脚本都放在 <code>new-skills/</code> 下。</p>
-                <div class="detail-item"><span class="detail-label">实现根目录：</span>new-skills/</div>
-                <div class="detail-item"><span class="detail-label">版本：</span>new-shipkit-v1</div>
-                <div class="detail-item"><span class="detail-label">核心原则：</span>简化而不简陋、单一事实源 meta.yml、目标驱动交付可工作软件</div>
+                <p style="margin-bottom: 16px;">这套技能把 <code class="code-inline">skills/</code> 重构为单一完整推进的 ShipKit feature flow。它不覆盖普通问答或小修 bug；一旦进入 ShipKit feature flow，就按完整流程推进：Understand → Design → Build → Done。</p>
+                <div class="detail-item"><span class="detail-label">实现根目录：</span>skills/</div>
+                <div class="detail-item"><span class="detail-label">版本：</span>shipkit-full-flow-v2</div>
+                <div class="detail-item"><span class="detail-label">设计源：</span>.docs/shipkit-skills-refactor-design.md</div>
+                <div class="detail-item"><span class="detail-label">单一事实源：</span>.docs/feature-*/meta.yml（跨窗口持久化）</div>
+                <div class="detail-item"><span class="detail-label">核心 Workflow：</span>full_flow — 单一完整推进，无分叉场景</div>
             </div>
         </section>
         
@@ -315,12 +363,14 @@
                         <span class="skill-badge badge-orchestrator">编排层</span>
                         <h3 class="skill-name">ship-orchestrator</h3>
                     </div>
-                    <p class="skill-description">新 ShipKit 统一入口。识别 feature 开发场景，路由到 split/understand/design/build，维护 meta.yml 单一事实源，并执行唯一用户确认门禁。</p>
+                    <p class="skill-description">ShipKit feature flow 的统一入口。负责访谈、创建/恢复 feature 目录、维护 meta.yml、路由阶段，并持久化 Design → Build 用户确认。</p>
                     <div class="skill-details">
-                        <div class="detail-item"><span class="detail-label">职责：</span>场景识别、阶段路由、状态推进、门禁执行</div>
-                        <div class="detail-item"><span class="detail-label">场景：</span>quick_start、full_flow、prd_direct、split_first</div>
-                        <div class="detail-item"><span class="detail-label">核心门禁：</span>Design → Build 需用户确认</div>
-                        <div class="detail-item"><span class="detail-label">单一事实源：</span>.docs/feature-*/meta.yml</div>
+                        <div class="detail-item"><span class="detail-label">入口判断：</span>区分 feature 开发 vs 普通问答/小 bug，只有 feature 进入 flow</div>
+                        <div class="detail-item"><span class="detail-label">固定访谈：</span>确认目录名、读取 project.yml 确认 workspace scope、收集需求来源(source_refs)</div>
+                        <div class="detail-item"><span class="detail-label">目录管理：</span>创建/恢复 .docs/feature-* 目录与 meta.yml，唯一能创建 feature 目录的技能</div>
+                        <div class="detail-item"><span class="detail-label">Build 门禁：</span>唯一硬用户确认门禁，持久化 build_approved_at/by/note 三字段</div>
+                        <div class="detail-item"><span class="detail-label">阻塞恢复：</span>6 种 blocked_reason 处理策略（包括 grill-me pending、validation failed 等）</div>
+                        <div class="detail-item"><span class="detail-label">Handoff：</span>含 feature_dir 路径、下一阶段技能名、workspace mode、projects</div>
                     </div>
                 </div>
                 
@@ -330,13 +380,15 @@
                         <span class="skill-badge badge-optional">可选前置</span>
                         <h3 class="skill-name">ship-split</h3>
                     </div>
-                    <p class="skill-description">把大需求拆成可独立交付的小 feature，生成 splits.yml，标注依赖，并可准备 TAPD/Jira 任务数据。</p>
+                    <p class="skill-description">把大需求拆成可独立交付的小 feature 建议，只产出 splits.yml，不直接创建 feature 目录——创建权属于 orchestrator。</p>
                     <div class="skill-details">
-                        <div class="detail-item"><span class="detail-label">触发时机：</span>明确要求拆分、5+ 独立功能点、预计超过 3 天</div>
-                        <div class="detail-item"><span class="detail-label">输出：</span>splits.yml + 批量 feature 目录</div>
-                        <div class="detail-item"><span class="detail-label">依赖追踪：</span>自动检查 blocked_by 状态</div>
-                        <div class="detail-item"><span class="detail-label">集成：</span>TAPD/Jira 任务同步框架</div>
+                        <div class="detail-item"><span class="detail-label">触发时机：</span>用户说"拆分"、需求含 5+ 独立功能点、单需求预计超 3 天</div>
+                        <div class="detail-item"><span class="detail-label">粒度控制：</span>单个子需求 ≤ 3 天</div>
+                        <div class="detail-item"><span class="detail-label">输出：</span>splits.yml（id/name/slug/priority/estimated_days/dependencies/blocked_by）</div>
+                        <div class="detail-item"><span class="detail-label">Handoff：</span>输出批量创建 handoff 给 orchestrator，不写 meta.yml、不创建 .docs/feature-*</div>
+                        <div class="detail-item"><span class="detail-label">集成：</span>TAPD/Jira 可导入字段（无凭证不调接口）</div>
                     </div>
+                </div>
                 
                 <!-- ship-understand -->
                 <div class="skill-card">
@@ -344,12 +396,14 @@
                         <span class="skill-badge badge-core">核心阶段</span>
                         <h3 class="skill-name">ship-understand</h3>
                     </div>
-                    <p class="skill-description">加载 spec，解析需求/PRD/原型，必要时调用 grill-me，产出 requirements.md(status: ready)。</p>
+                    <p class="skill-description">把 feature_dir 中登记的需求来源变成可设计、可验证的 requirements.md，作为后续 Design/Build 的唯一需求源。</p>
                     <div class="skill-details">
-                        <div class="detail-item"><span class="detail-label">目标：</span>把用户输入变成可设计、可验证的需求</div>
-                        <div class="detail-item"><span class="detail-label">输出：</span>requirements.md (功能概述、Domain 模型、AC、非功能需求、约束)</div>
-                        <div class="detail-item"><span class="detail-label">质量标准：</span>至少 1 个 AC，使用 Given/When/Then</div>
-                        <div class="detail-item"><span class="detail-label">grill-me：</span>full_flow 必须，quick_start 条件触发</div>
+                        <div class="detail-item"><span class="detail-label">硬前置：</span>必须接收 feature_dir，meta.yml 存在可读，source_refs 至少 1 个 primary 且可读</div>
+                        <div class="detail-item"><span class="detail-label">探索范围：</span>按 workspace scope 限定既有功能探索</div>
+                        <div class="detail-item"><span class="detail-label">输出：</span>requirements.md（功能概述 / Domain 模型 / AC(Given-When-Then) / NFR / 约束 / 风险）</div>
+                        <div class="detail-item"><span class="detail-label">质量标准：</span>至少 1 个 AC，必须使用 Given/When/Then 格式</div>
+                        <div class="detail-item"><span class="detail-label">Blocking Review：</span>ready 前必须调用 ship-grill-me，无例外</div>
+                        <div class="detail-item"><span class="detail-label">约束：</span>不创建目录、不猜 feature_dir、不做技术方案、不写业务代码</div>
                     </div>
                 </div>
                 
@@ -359,12 +413,13 @@
                         <span class="skill-badge badge-core">核心阶段</span>
                         <h3 class="skill-name">ship-design</h3>
                     </div>
-                    <p class="skill-description">基于 requirements.md 和 spec 生成合一技术设计：API Contract、数据模型、前后端方案，并在 Build 前等待用户确认。</p>
+                    <p class="skill-description">基于 ready requirements 选择 Design Reference Template，产出统一 design.md（API 契约 / 数据模型 / 前后端设计 / AC 覆盖映射），完成后 handoff 回 orchestrator。</p>
                     <div class="skill-details">
-                        <div class="detail-item"><span class="detail-label">输出：</span>design.md (合一设计文档)</div>
-                        <div class="detail-item"><span class="detail-label">核心章节：</span>AC 覆盖映射、API 契约、数据模型、前后端设计、性能/风险</div>
-                        <div class="detail-item"><span class="detail-label">模板引用：</span>Design Reference Template (项目级或内置)</div>
-                        <div class="detail-item"><span class="detail-label">用户确认：</span>Design → Build 唯一硬门禁</div>
+                        <div class="detail-item"><span class="detail-label">硬前置：</span>feature_dir 明确、requirements.md status: ready、validate_requirements.py 无 errors</div>
+                        <div class="detail-item"><span class="detail-label">模板选择：</span>7 种内置模板（backend-service / frontend-ui / fullstack-feature / async-task / data-migration / integration / config-change）</div>
+                        <div class="detail-item"><span class="detail-label">输出：</span>design.md（方案模板引用 / AC 覆盖映射 / API 契约 / 数据模型 / 前后端设计 / 性能 / 风险 / 审查记录）</div>
+                        <div class="detail-item"><span class="detail-label">Blocking Review：</span>ready 前必须调用 ship-grill-me 做对抗式设计审查</div>
+                        <div class="detail-item"><span class="detail-label">关键约束：</span>不得把 current_stage 改为 build；不直接启动 ship-build；handoff 回 orchestrator 处理 Build approval</div>
                     </div>
                 </div>
                 
@@ -374,12 +429,14 @@
                         <span class="skill-badge badge-core">核心阶段</span>
                         <h3 class="skill-name">ship-build</h3>
                     </div>
-                    <p class="skill-description">用户确认设计后，按 design.md 生成任务清单、实现代码、运行测试、验证 AC，并生成 verification.md。</p>
+                    <p class="skill-description">把 ready design 变成可工作的代码，成功标准是"可交付"而非"写完代码"——所有 AC 必须被测试/验证覆盖。</p>
                     <div class="skill-details">
-                        <div class="detail-item"><span class="detail-label">输出：</span>build-plan.yml + verification.md + 实际代码</div>
-                        <div class="detail-item"><span class="detail-label">任务顺序：</span>数据层 → 后端 → 前端 → 集成</div>
-                        <div class="detail-item"><span class="detail-label">成功标准：</span>all_ac_passed: true + 测试通过</div>
-                        <div class="detail-item"><span class="detail-label">spec 更新：</span>更新 existing-features，按评分沉淀新规范</div>
+                        <div class="detail-item"><span class="detail-label">硬前置：</span>build_approved_at/by/note 三字段已由 orchestrator 写入；design.md status: ready</div>
+                        <div class="detail-item"><span class="detail-label">输出：</span>build-plan.yml（单任务 ≤ 60min）+ 业务代码 + verification.md（AC→测试逐项映射）</div>
+                        <div class="detail-item"><span class="detail-label">实现顺序：</span>数据层 → 后端 → 前端 → 集成</div>
+                        <div class="detail-item"><span class="detail-label">测试要求：</span>每任务运行相关测试 + 项目真实 test/lint/typecheck</div>
+                        <div class="detail-item"><span class="detail-label">成功标准：</span>all_ac_passed: true + 测试通过 + validate_build.py 无 errors</div>
+                        <div class="detail-item"><span class="detail-label">Spec 更新：</span>Build 完成后更新 existing-features 或提出沉淀建议</div>
                     </div>
                 </div>
                 
@@ -389,27 +446,30 @@
                         <span class="skill-badge badge-tool">工具技能</span>
                         <h3 class="skill-name">ship-spec</h3>
                     </div>
-                    <p class="skill-description">维护 .docs/spec 知识库，按阶段和项目隔离加载规范，并在 Build 完成后更新已有功能索引。</p>
+                    <p class="skill-description">维护 .docs/spec 知识库，按 meta.yml workspace/projects 隔离加载规范，在 Build 完成后更新 existing-features 索引。</p>
                     <div class="skill-details">
-                        <div class="detail-item"><span class="detail-label">目录：</span>.docs/spec/ (frontend/backend/shared)</div>
-                        <div class="detail-item"><span class="detail-label">加载策略：</span>按阶段加载，多项目隔离</div>
-                        <div class="detail-item"><span class="detail-label">优先级：</span>requirements/AC > 项目 spec > 代码事实 > 模板 > AI 习惯</div>
-                        <div class="detail-item"><span class="detail-label">沉淀评分：</span>复用次数≥3(+40) + 模式稳定(+30) + 跨模块(+20) ≥60</div>
+                        <div class="detail-item"><span class="detail-label">阶段分类加载：</span>Understand(existing-features/domain) → Design(API/frontend/backend/database) → Build(coding/test/deployment)</div>
+                        <div class="detail-item"><span class="detail-label">项目隔离：</span>永远加载 _shared + 仅 meta.yml.projects 指定项目</div>
+                        <div class="detail-item"><span class="detail-label">优先级链：</span>requirements/AC > 项目 spec > 现有代码事实 > 参考模板 > AI 默认习惯</div>
+                        <div class="detail-item"><span class="detail-label">沉淀评分：</span>复用次数≥3(+40) + 模式稳定(+30) + 跨模块(+20) ≥ 60 分才沉淀</div>
+                        <div class="detail-item"><span class="detail-label">关键边界：</span>spec ≠ 参考模板（模板是 checklist，spec 是项目约束）；spec ≠ source_refs（PRD 不塞 spec）</div>
                     </div>
                 </div>
                 
                 <!-- ship-grill-me -->
                 <div class="skill-card">
                     <div class="skill-header">
-                        <span class="skill-badge badge-helper">质询助手</span>
+                        <span class="skill-badge badge-helper">Blocking Review</span>
                         <h3 class="skill-name">ship-grill-me</h3>
                     </div>
-                    <p class="skill-description">Understand/Design ready 前发现 blocking 问题，先查仓库和 spec，再一次只问用户一个关键问题。</p>
+                    <p class="skill-description">Understand/Design ready 前必须执行的 blocking review：先查证据自答，再一次只问用户一个关键阻塞问题——无例外。</p>
                     <div class="skill-details">
-                        <div class="detail-item"><span class="detail-label">嵌入位置：</span>ship-understand / ship-design</div>
-                        <div class="detail-item"><span class="detail-label">blocking 判定：</span>缺 AC、冲突、边界缺失、API/数据模型问题</div>
-                        <div class="detail-item"><span class="detail-label">质询流程：</span>先查仓库/spec → 自动修正或提问 → 一次一个问题</div>
-                        <div class="detail-item"><span class="detail-label">触发矩阵：</span>full_flow 必须，quick_start 条件触发</div>
+                        <div class="detail-item"><span class="detail-label">触发位置：</span>Understand ready 前 + Design ready 前，必须执行，无场景豁免</div>
+                        <div class="detail-item"><span class="detail-label">审查流程：</span>扫描 blocking 问题 → 从仓库/spec/source_refs 查证据 → 能自答就自动修正 → 不能则只问用户 1 个</div>
+                        <div class="detail-item"><span class="detail-label">提问格式：</span>阻塞说明 + 已检查证据 + 推荐答案 + 影响分析</div>
+                        <div class="detail-item"><span class="detail-label">Understand blocking：</span>无可测 AC、AC 缺 GWT、需求冲突、引用未定义功能、边界缺失影响 DB/API</div>
+                        <div class="detail-item"><span class="detail-label">Design blocking：</span>API 缺 Req/Res/Error、数据模型冲突、AC 未覆盖、模板必填缺失、含 TBD/待补充</div>
+                        <div class="detail-item"><span class="detail-label">输出：</span>result: ready|blocked + resolved/pending/warnings 列表</div>
                     </div>
                 </div>
             </div>
@@ -424,87 +484,104 @@
                     <div class="flow-row">
                         <div class="flow-node flow-optional">
                             <div class="flow-node-title">[可选] ship-split</div>
-                            <div class="flow-node-desc">拆分大需求为子 feature</div>
+                            <div class="flow-node-desc">拆分大需求 → splits.yml</div>
                         </div>
                     </div>
                     
                     <div class="flow-row">
                         <div class="flow-arrow">↓</div>
+                    </div>
+                    
+                    <!-- Orchestrator Entry -->
+                    <div class="flow-row">
+                        <div class="flow-node" style="border-color: #2a9d8f; border-width: 3px;">
+                            <div class="flow-node-title">ship-orchestrator</div>
+                            <div class="flow-node-desc">访谈 → 读 project.yml → 创建/恢复 feature_dir<br>收集 source_refs → meta.yml(workflow: full_flow)</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-row">
+                        <div class="flow-arrow">↓</div>
+                        <div style="color: #8892b0; font-size: 0.85rem;">handoff: feature_dir + workspace scope + projects</div>
                     </div>
                     
                     <!-- Understand Phase -->
                     <div class="flow-row">
                         <div class="flow-node">
                             <div class="flow-node-title">ship-understand</div>
-                            <div class="flow-node-desc">解析需求 → requirements.md(ready)</div>
+                            <div class="flow-node-desc">读取 source_refs → 按 workspace scope 探索<br>→ requirements.md(status: ready)</div>
                         </div>
                         <div class="flow-node flow-parallel">
                             <div class="flow-node-title">ship-spec</div>
-                            <div class="flow-node-desc">加载 Understand 阶段 spec</div>
+                            <div class="flow-node-desc">加载 existing-features<br>+ domain glossary</div>
                         </div>
-                        <div class="flow-node flow-optional">
+                        <div class="flow-node" style="border-color: #264653; border-width: 2px;">
                             <div class="flow-node-title">ship-grill-me</div>
-                            <div class="flow-node-desc">质询 blocking 问题</div>
+                            <div class="flow-node-desc">Understand blocking review<br><strong style="color:#e76f51;">必须执行</strong></div>
                         </div>
                     </div>
                     
                     <div class="flow-row">
                         <div class="flow-arrow">↓</div>
+                        <div style="color: #8892b0; font-size: 0.85rem;">validate_requirements.py 通过</div>
                     </div>
                     
                     <!-- Design Phase -->
                     <div class="flow-row">
                         <div class="flow-node">
                             <div class="flow-node-title">ship-design</div>
-                            <div class="flow-node-desc">技术设计 → design.md(ready)</div>
+                            <div class="flow-node-desc">选择 Design Reference Template<br>→ design.md(status: ready)</div>
                         </div>
                         <div class="flow-node flow-parallel">
                             <div class="flow-node-title">ship-spec</div>
-                            <div class="flow-node-desc">加载 Design 阶段 spec</div>
+                            <div class="flow-node-desc">加载 API / frontend<br>/ backend / database</div>
                         </div>
-                        <div class="flow-node flow-optional">
+                        <div class="flow-node" style="border-color: #264653; border-width: 2px;">
                             <div class="flow-node-title">ship-grill-me</div>
-                            <div class="flow-node-desc">质询 blocking 问题</div>
+                            <div class="flow-node-desc">Design blocking review<br><strong style="color:#e76f51;">必须执行</strong></div>
                         </div>
                     </div>
                     
                     <div class="flow-row">
                         <div class="flow-arrow">↓</div>
+                        <div style="color: #8892b0; font-size: 0.85rem;">validate_design.py 通过 → handoff 回 orchestrator</div>
                     </div>
                     
                     <!-- User Confirmation Gate -->
                     <div class="flow-row">
                         <div class="flow-node" style="border-color: #e76f51; background: rgba(231, 111, 81, 0.1);">
                             <div class="flow-node-title" style="color: #e76f51;">❗ 用户确认门禁 ❗</div>
-                            <div class="flow-node-desc">唯一硬门禁：确认开始实现</div>
+                            <div class="flow-node-desc">orchestrator 持久化<br>build_approved_at / by / note</div>
                         </div>
                     </div>
                     
                     <div class="flow-row">
                         <div class="flow-arrow">↓</div>
+                        <div style="color: #8892b0; font-size: 0.85rem;">handoff: feature_dir + Build approval 字段</div>
                     </div>
                     
                     <!-- Build Phase -->
                     <div class="flow-row">
                         <div class="flow-node">
                             <div class="flow-node-title">ship-build</div>
-                            <div class="flow-node-desc">实现 + 测试 → verification.md</div>
+                            <div class="flow-node-desc">校验 approval → build-plan.yml<br>→ 实现 + 测试 → verification.md</div>
                         </div>
                         <div class="flow-node flow-parallel">
                             <div class="flow-node-title">ship-spec</div>
-                            <div class="flow-node-desc">加载 Build 阶段 spec</div>
+                            <div class="flow-node-desc">加载 coding conventions<br>/ test standards</div>
                         </div>
                     </div>
                     
                     <div class="flow-row">
                         <div class="flow-arrow">↓</div>
+                        <div style="color: #8892b0; font-size: 0.85rem;">validate_build.py 通过 + all_ac_passed: true</div>
                     </div>
                     
                     <!-- Done -->
                     <div class="flow-row">
                         <div class="flow-node" style="border-color: #2a9d8f; background: rgba(42, 157, 143, 0.2);">
                             <div class="flow-node-title">✅ Done</div>
-                            <div class="flow-node-desc">all_ac_passed: true + spec 更新</div>
+                            <div class="flow-node-desc">current_stage: done + status: completed<br>更新 existing-features + spec 沉淀建议</div>
                         </div>
                     </div>
                 </div>
@@ -512,12 +589,69 @@
                 <div style="margin-top: 40px; padding: 20px; background: rgba(42, 157, 143, 0.1); border-left: 4px solid #2a9d8f; border-radius: 4px;">
                     <h3 style="color: #2a9d8f; margin-bottom: 12px;">流程说明</h3>
                     <ul style="color: #8892b0; line-height: 1.8;">
-                        <li><strong>实线框</strong>：必须阶段，所有 feature 都必须经过</li>
-                        <li><strong>虚线框</strong>：可选阶段，根据场景决定是否触发</li>
-                        <li><strong>橙色边框</strong>：并行执行的辅助技能 (ship-spec 贯穿全程)</li>
-                        <li><strong>红色高亮</strong>：唯一用户确认门禁，Design → Build 必须用户明确同意</li>
-                        <li><strong>ship-grill-me</strong>：嵌入式质询，在 Understand/Design 中按场景触发</li>
+                        <li><strong>粗实线框（orchestrator）</strong>：统一入口，管理 feature 生命周期和阶段路由</li>
+                        <li><strong>实线框</strong>：核心阶段技能，所有 feature 必须经过</li>
+                        <li><strong>虚线框</strong>：可选阶段，根据需求规模决定是否触发</li>
+                        <li><strong>橙色边框（ship-spec）</strong>：按阶段分类加载，贯穿 Understand/Design/Build</li>
+                        <li><strong>深蓝边框（ship-grill-me）</strong>：必须执行的 blocking review，Understand/Design 阶段无例外</li>
+                        <li><strong>红色高亮</strong>：唯一用户确认门禁，由 orchestrator 持久化 Build approval 三字段</li>
+                        <li><strong>灰色标注</strong>：阶段间 handoff 携带的关键信息和 validator 检查点</li>
                     </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Core Mechanisms Section -->
+        <section id="mechanisms" class="section">
+            <h2 class="section-header">核心机制</h2>
+            <div class="mechanism-grid">
+                <div class="mechanism-card">
+                    <div class="mechanism-title">Workspace Scope 机制</div>
+                    <p style="color: #8892b0; margin-bottom: 12px;"><code class="code-inline">.docs/ship/project.yml</code> 定义仓库默认配置，<code class="code-inline">meta.yml</code> 定义 feature 实际范围。所有阶段技能按此隔离探索/加载/实现。</p>
+                    <div class="detail-item"><span class="detail-label">workspace_mode：</span>single_project | project_group</div>
+                    <div class="detail-item"><span class="detail-label">projects 列表：</span>限定 spec 加载和代码探索的项目范围</div>
+                    <div class="detail-item"><span class="detail-label">隔离加载：</span>永远加载 _shared + 仅指定项目的 spec</div>
+                </div>
+
+                <div class="mechanism-card">
+                    <div class="mechanism-title">Design Reference Template</div>
+                    <p style="color: #8892b0; margin-bottom: 12px;">轻量参考模板机制：orchestrator 记录用户意图，ship-design 选择并引用模板，模板只是 checklist，不替代项目约束。</p>
+                    <div class="detail-item"><span class="detail-label">7 种内置模板：</span>backend-service / frontend-ui / fullstack-feature / async-task / data-migration / integration / config-change</div>
+                    <div class="detail-item"><span class="detail-label">优先级：</span>用户指定 > 项目级模板 > 内置模板</div>
+                    <div class="detail-item"><span class="detail-label">记录位置：</span>meta.yml 的 design_template_ref + design_template_reason</div>
+                </div>
+
+                <div class="mechanism-card">
+                    <div class="mechanism-title">Source Refs 来源追踪</div>
+                    <p style="color: #8892b0; margin-bottom: 12px;">需求来源在 orchestrator 阶段登记到 <code class="code-inline">meta.yml.source_refs</code>，贯穿全流程作为需求可追溯依据。</p>
+                    <div class="detail-item"><span class="detail-label">登记内容：</span>id / type(prd/ui-ux/link/issue) / title / path_or_url / role(primary/secondary) / status</div>
+                    <div class="detail-item"><span class="detail-label">Understand 使用：</span>读取来源材料提取需求</div>
+                    <div class="detail-item"><span class="detail-label">Grill-me 使用：</span>查证据自答阻塞问题</div>
+                </div>
+
+                <div class="mechanism-card">
+                    <div class="mechanism-title">Build Approval 持久化</div>
+                    <p style="color: #8892b0; margin-bottom: 12px;">Design → Build 是唯一硬门禁。用户确认后由 orchestrator 写入三个字段到 meta.yml，ship-build 启动时校验。</p>
+                    <div class="detail-item"><span class="detail-label">build_approved_at：</span>确认时间戳</div>
+                    <div class="detail-item"><span class="detail-label">build_approved_by：</span>确认人标识</div>
+                    <div class="detail-item"><span class="detail-label">build_approval_note：</span>确认备注（如"按设计执行"或附加要求）</div>
+                </div>
+
+                <div class="mechanism-card">
+                    <div class="mechanism-title">Spec 沉淀评分</div>
+                    <p style="color: #8892b0; margin-bottom: 12px;">Build 完成后自动评估是否值得将新模式沉淀为 spec，避免无意义膨胀。</p>
+                    <div class="detail-item"><span class="detail-label">评分标准：</span>复用次数≥3(+40) + 模式稳定(+30) + 跨模块(+20)</div>
+                    <div class="detail-item"><span class="detail-label">沉淀门槛：</span>≥ 60 分才建议沉淀为 spec</div>
+                    <div class="detail-item"><span class="detail-label">更新范围：</span>existing-features.md（表/API/页面/关键测试）</div>
+                </div>
+
+                <div class="mechanism-card">
+                    <div class="mechanism-title">Validator 验证体系</div>
+                    <p style="color: #8892b0; margin-bottom: 12px;">结构和覆盖性检查，贯穿每个阶段。不替代项目自身测试。</p>
+                    <div class="detail-item"><span class="detail-label">validate_requirements.py：</span>AC 格式、Domain 模型、spec 引用、source_refs</div>
+                    <div class="detail-item"><span class="detail-label">validate_design.py：</span>AC 覆盖、API 契约、数据模型、模板引用、错误响应</div>
+                    <div class="detail-item"><span class="detail-label">validate_build.py：</span>AC 验证、测试结果、产出文件</div>
+                    <div class="detail-item"><span class="detail-label">validate_current_stage.py：</span>聚合入口，根据 current_stage 调用对应 validator</div>
                 </div>
             </div>
         </section>
@@ -527,52 +661,42 @@
             <h2 class="section-header">设计原则</h2>
             <div class="skills-grid">
                 <div class="skill-card">
-                    <h3 style="color: #2a9d8f; margin-bottom: 12px;">简化而不简陋</h3>
-                    <p style="color: #8892b0;">减少阶段数量，合并文档，但保持质量门禁。旧 ShipKit 的 14 阶段精简为 3 个核心阶段：Understand → Design → Build。</p>
+                    <h3 style="color: #2a9d8f; margin-bottom: 12px;">单一完整推进 full_flow</h3>
+                    <p style="color: #8892b0;">不分叉、不跳阶段。每个 feature 都走 Understand → Design → Build → Done 完整链路，阶段间通过 validator 保证质量。</p>
                 </div>
                 
                 <div class="skill-card">
-                    <h3 style="color: #2a9d8f; margin-bottom: 12px;">单一事实源 meta.yml</h3>
-                    <p style="color: #8892b0;">所有 feature 状态、阶段、产物引用都存在 .docs/feature-*/meta.yml。不依赖对话历史或隐式记忆。</p>
+                    <h3 style="color: #2a9d8f; margin-bottom: 12px;">meta.yml 跨窗口单一事实源</h3>
+                    <p style="color: #8892b0;">所有 feature 状态、阶段、产物引用、Build approval 都存在 .docs/feature-*/meta.yml。不依赖对话历史或隐式记忆。恢复 feature 必须读 meta.yml。</p>
                 </div>
                 
                 <div class="skill-card">
-                    <h3 style="color: #2a9d8f; margin-bottom: 12px;">目标驱动交付可工作软件</h3>
-                    <p style="color: #8892b0;">产物必须推进交付。requirements.md 必须有 AC，design.md 必须可实现，verification.md 必须证明所有 AC 通过。</p>
+                    <h3 style="color: #2a9d8f; margin-bottom: 12px;">阶段技能必须显式接收 feature_dir</h3>
+                    <p style="color: #8892b0;">所有核心阶段技能（Understand/Design/Build）都必须通过 handoff 显式接收 feature_dir。缺 feature_dir 直接停止，不猜测。</p>
                 </div>
                 
                 <div class="skill-card">
                     <h3 style="color: #2a9d8f; margin-bottom: 12px;">唯一用户确认门禁</h3>
-                    <p style="color: #8892b0;">Design → Build 是唯一需要用户明确确认的门禁。其他阶段转换由 AI 自检 + validator 验证。</p>
+                    <p style="color: #8892b0;">Design → Build 是唯一需要用户明确确认的门禁，由 orchestrator 持久化 build_approved_* 三字段。其他阶段转换由 AI 自检 + validator 验证。</p>
                 </div>
                 
                 <div class="skill-card">
-                    <h3 style="color: #2a9d8f; margin-bottom: 12px;">场景驱动的质询</h3>
-                    <p style="color: #8892b0;">quick_start 跳过多余质询，full_flow 必须质询，prd_direct 条件触发。一次只问一个问题，先查仓库/spec 再问用户。</p>
+                    <h3 style="color: #2a9d8f; margin-bottom: 12px;">只有 orchestrator 创建 feature 目录</h3>
+                    <p style="color: #8892b0;">ship-split 只产出建议，阶段技能只操作已有目录。feature 目录和初始 meta.yml 的创建权唯一属于 orchestrator，保证目录结构一致性。</p>
                 </div>
                 
                 <div class="skill-card">
-                    <h3 style="color: #2a9d8f; margin-bottom: 12px;">spec 优先级链</h3>
-                    <p style="color: #8892b0;">requirements/AC > 项目 spec > 现有代码事实 > 参考模板 > AI 默认习惯。模板只是梤查清单，不替代项目约束。</p>
-                </div>
-            </div>
-            
-            <div style="margin-top: 40px; padding: 24px; background: #151b35; border: 1px solid #2a4a5e; border-radius: 8px;">
-                <h3 style="color: #e76f51; margin-bottom: 16px;">核心 Validators</h3>
-                <div style="color: #8892b0; line-height: 1.8;">
-                    <div class="detail-item"><code style="color: #f4a261;">validate_requirements.py</code> - 检查 AC 格式、Domain 模型、spec 引用</div>
-                    <div class="detail-item"><code style="color: #f4a261;">validate_design.py</code> - 检查 AC 覆盖、API 契约、数据模型、模板引用、错误响应</div>
-                    <div class="detail-item"><code style="color: #f4a261;">validate_build.py</code> - 检查 AC 验证、测试结果、产出文件</div>
-                    <div class="detail-item"><code style="color: #f4a261;">validate_current_stage.py</code> - 聚合入口，根据 current_stage 调用对应 validator</div>
+                    <h3 style="color: #2a9d8f; margin-bottom: 12px;">workspace scope 限定范围</h3>
+                    <p style="color: #8892b0;">project.yml 定义默认配置，meta.yml.projects 定义 feature 实际范围。所有技能按此隔离：spec 加载、代码探索、实现范围都不超出 projects。</p>
                 </div>
             </div>
         </section>
         
         <!-- Footer -->
         <footer style="margin-top: 80px; padding: 40px 20px; text-align: center; border-top: 1px solid #2a4a5e; color: #8892b0;">
-            <p style="margin-bottom: 8px;">🚀 ShipKit 新技能集 v1</p>
-            <p style="font-size: 0.9rem;">设计源：.docs/new-shipkit-design/ | 实现根目录：new-skills/</p>
-            <p style="font-size: 0.85rem; margin-top: 16px; color: #6c7a8a;">生成时间：2026-06-10</p>
+            <p style="margin-bottom: 8px;">🚀 ShipKit 技能集 — shipkit-full-flow-v2</p>
+            <p style="font-size: 0.9rem;">设计源：.docs/shipkit-skills-refactor-design.md | 实现根目录：skills/</p>
+            <p style="font-size: 0.85rem; margin-top: 16px; color: #6c7a8a;">更新时间：2026-06-11</p>
         </footer>
     </div>
     
@@ -614,7 +738,7 @@
         });
         
         // Add click interaction for skill cards
-        document.querySelectorAll('.skill-card').forEach(card => {
+        document.querySelectorAll('.skill-card, .mechanism-card').forEach(card => {
             card.addEventListener('click', function() {
                 this.style.transform = 'translateY(-4px)';
                 setTimeout(() => {
