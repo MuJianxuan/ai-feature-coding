@@ -1,162 +1,468 @@
 ---
 name: ship-spec
-description: "ShipKit 规范管理技能。维护 .docs/spec 知识库，按 meta.yml workspace/projects 隔离加载规范，并在 Build 完成后更新已有功能索引。"
+description: "ShipKit 规范管理技能。引导安装和使用 ship-spec CLI 工具，管理 .docs/spec 知识库，定义规范采集和沉淀标准。"
 ---
 
 # ship-spec
 
 ## 目标
 
-维护项目知识库，让 Understand、Design、Build 读到正确上下文。spec 是项目现实约束，不是摆设。
+管理和维护 .docs/spec/ 知识库。spec 是项目约束，不是摆设。
 
-参考模板不是 spec。spec 是项目现实约束；模板只是 Design 阶段的检查清单。两者冲突时，优先级永远是：`requirements/AC > 项目 spec > 现有代码事实 > 参考模板 > AI 默认习惯`。
+---
 
-## TODO preflight
+## ship-spec CLI 工具
 
-独立调用 `ship-spec` 时，必须调用可用 TODO 工具（例如 `TaskCreate`/agent todo 工具）创建或恢复 Spec TODO：
+### 安装
+```bash
+# 全局安装
+npm install -g @shipkit/spec-cli
 
-1. 读取 `.docs/ship/project.yml`（若存在）。
-2. 读取调用方传入的 `feature_dir/meta.yml`（若有）。
-3. 根据 `workspace_mode/projects` 确定加载范围。
-4. 加载当前阶段需要的 spec。
-5. 返回引用列表、warning 和缺失影响。
-6. Build 完成后更新 existing-features 或给出规范沉淀建议。
-
-嵌入阶段调用时，更新父阶段 TODO 即可。
-
-## 默认目录
-
-单项目：
-
-```text
-.docs/spec/
-├── INDEX.md
-├── frontend/
-├── backend/
-└── shared/
-    ├── tech-stack.md
-    ├── existing-features.md
-    └── error-codes.md
+# 验证安装
+ship-spec -h
+ship-spec --version
 ```
 
-多项目：
-
-```text
-.docs/ship/project.yml
-.docs/spec/
-├── INDEX.md
-├── _shared/
-│   ├── INDEX.md
-│   ├── tech-stack.md
-│   └── error-codes.md
-├── web/
-│   ├── INDEX.md
-│   └── frontend/
-└── api/
-    ├── INDEX.md
-    └── backend/
+### 基本命令
+```bash
+ship-spec init              # 初始化目录
+ship-spec create <spec-id>  # 创建规范
+ship-spec list              # 列出规范
+ship-spec load <spec-id>    # 加载规范
+ship-spec validate          # 验证规范
+ship-spec sync-index        # 同步索引
 ```
 
-## project.yml
+### 命令帮助
+```bash
+ship-spec -h          # 查看所有命令和示例
+ship-spec create -h   # 查看具体命令帮助
+```
 
+---
+
+## 工作空间模式
+
+### 单项目（single_project）
+- **定义**：一个仓库只有一个项目
+- **规范适用**：所有规范 `projects: [all]`
+- **目录结构**：`frontend/`, `backend/`, `shared/`
+
+**何时使用**：独立应用、单体项目、小型服务
+
+### 多项目（project_group）
+- **定义**：一个仓库有多个项目（web, api, mobile 等）
+- **规范适用**：可指定 `projects: [web, api]` 或 `[all]`
+- **目录结构**：`_shared/`, `web/`, `api/`, `mobile/`
+
+**何时使用**：monorepo、微服务、多端应用
+
+### 配置文件：.docs/ship/project.yml
 ```yaml
-workspace_mode: single_project # single_project | project_group
+workspace_mode: single_project  # single_project | project_group
 workspace_name: my-workspace
-projects:
+projects:                       # 多项目模式下的项目列表
   - web
   - api
+  - mobile
 ```
 
-`project.yml` 是仓库默认 workspace 配置；具体 feature 的实际范围以 `feature_dir/meta.yml.workspace_mode/workspace_name/projects` 为准。
+**初始化**：
+```bash
+# 单项目
+ship-spec init --template standard
 
-## 与 source_refs 的边界
-
-- `source_refs` 是需求输入：PRD、UI/UX、link、issue、meeting、note、screenshot 等。
-- spec 是项目约束：API 标准、命名、数据类型、安全要求、前端模式、既有功能索引。
-- 不把 PRD 正文塞进 `.docs/spec/`。
-- 不把项目规范当作用户需求；spec 只能约束实现方式，不能新增 AC。
-
-## 加载规则
-
-按阶段加载，不要一股脑吞全库：
-
-| 阶段 | 加载内容 |
-|---|---|
-| Understand | existing-features、domain glossary、naming conventions |
-| Design | API standards、frontend patterns、data model、tech-stack |
-| Build | coding conventions、test standards、deployment constraints |
-| Done | existing-features 更新、新规范沉淀建议 |
-
-多项目隔离：
-
-1. 永远加载 `_shared`。
-2. 只加载 `meta.yml.projects` 指定项目的 spec。
-3. project spec 与 shared 同名时，project 优先，记录 warning。
-4. 不让未涉及项目的 spec 污染需求、设计或实现。
-5. 如果 `.docs/ship/project.yml` 存在，`meta.yml.projects` 应是配置项目子集；否则由 validator 或 orchestrator 阻塞修正。
-
-## INDEX.md 建议格式
-
-```markdown
-# Spec Index
-
-| spec_id | file | stages | projects | description |
-|---|---|---|---|---|
-| rest-api-standard | backend/rest-api-standard.md | design,build | api | REST API 规范 |
-| existing-features | shared/existing-features.md | understand,done | all | 已有功能索引 |
+# 多项目
+ship-spec init --workspace multi --projects web,api,mobile
 ```
 
-## existing-features 更新
+---
 
-Build 完成后追加或更新：
+## 目录结构
+
+### 单项目
+```
+.docs/spec/
+├── INDEX.md                    # 自动维护，不要手动编辑
+├── frontend/                   # 前端规范
+├── backend/                    # 后端规范
+└── shared/                     # 通用规范
+    ├── tech-stack.md
+    ├── existing-features.md
+    └── naming-conventions.md
+```
+
+### 多项目
+```
+.docs/spec/
+├── INDEX.md                    # 自动维护
+├── _shared/                    # 跨项目通用规范
+│   ├── tech-stack.md
+│   └── error-codes.md
+├── web/                        # web 项目规范
+│   ├── frontend/
+│   └── existing-features.md
+└── api/                        # api 项目规范
+    ├── backend/
+    └── existing-features.md
+```
+
+### INDEX.md
+- **作用**：记录所有规范的元数据（spec_id, file, stages, projects, tags, status, description）
+- **维护**：由 `ship-spec` CLI 自动维护
+- **禁止**：不要手动编辑（使用 CLI 命令）
+
+---
+
+## 规范采集和沉淀标准 ⭐️
+
+### 何时沉淀规范？
+
+**评分标准**（≥ 60 分才建议新增）：
+- 复用次数 ≥ 3：+40 分
+- 模式稳定：+30 分
+- 跨模块使用：+20 分
+- 中高复杂度：+10 分
+
+**示例**：
+- ✅ REST API 标准（复用 10 次，稳定，跨模块）→ 90 分，值得沉淀
+- ❌ 某个页面的布局（只用 1 次）→ 40 分，不值得
+- ⚠️ 错误码定义（复用 2 次，但可能增长）→ 50 分，观察中
+
+**原则**：低分就别污染知识库。现实里最烂的规范库就是没人敢删、没人会读。
+
+### 规范质量要求
+
+#### 内容要求
+- ✅ **简明扼要**：不超过 200 行
+- ✅ **聚焦约束**：说清楚"做什么"、"不做什么"
+- ✅ **可执行**：有具体示例
+- ✅ **可验证**：有检查点
+
+#### 禁止事项
+- ❌ 不写大而全的百科全书
+- ❌ 不重复写已有内容
+- ❌ 不写一次性的实现细节
+- ❌ 不写敏感信息（密码、token、密钥、内部地址）
+
+### spec 模板结构
 
 ```markdown
+---
+spec_id: rest-api-standard
+description: REST API 设计规范
+stages: [design, build]
+projects: [all]
+tags: [api, rest, backend]
+status: active
+---
+
+# REST API 设计规范
+
+## 适用场景
+（什么时候用这个规范）
+- 设计新的 REST API
+- 审查现有 API
+
+## 核心约束
+
+### 必须做
+- 使用 RESTful 资源命名
+- 统一错误格式
+- 版本化（/api/v1/）
+
+### 禁止做
+- 不在 URL 中使用动词
+- 不返回裸数据（必须包装）
+
+## 示例
+
+### 正确
+GET /api/v1/users/123
+POST /api/v1/orders
+
+### 错误
+GET /api/v1/getUser?id=123
+POST /api/v1/createOrder
+
+## 检查点
+- [ ] URL 使用名词复数
+- [ ] 错误响应包含 code/message
+- [ ] 有版本号
+```
+
+### 规范命名规范
+
+**格式**：`<scope>-<topic>[-<detail>]`
+
+**规则**：
+- 全小写，用连字符分隔
+- 描述性强，一看就懂
+- 不超过 4 个单词
+
+**示例**：
+- ✅ `rest-api-standard`
+- ✅ `naming-conventions`
+- ✅ `error-handling`
+- ✅ `web-component-patterns`
+- ❌ `api` (太泛)
+- ❌ `myProjectRestApiDesignStandardV2` (太长)
+
+---
+
+## 规范对抗式审查清单 ⭐️
+
+新规范创建后，使用此清单进行对抗式审查，确保规范可交付。
+
+### 审查流程
+
+```bash
+# 1. 创建规范
+ship-spec create <spec-id> -t <type> -d "<description>"
+vim .docs/spec/<type>/<spec-id>.md
+
+# 2. 对抗式审查
+# 使用下面的检查清单逐项验证
+
+# 3. 修复问题
+# 根据审查结果修改规范
+
+# 4. 验证通过
+ship-spec validate <spec-id>
+```
+
+### 检查清单
+
+#### ✅ 必要性检查（60 分评分）
+- [ ] **复用次数**：这个规范会被复用 ≥ 3 次吗？
+- [ ] **模式稳定**：这个约束在未来 6 个月内会变化吗？
+- [ ] **跨模块使用**：是否被多个模块/团队使用？
+- [ ] **复杂度**：是否有一定复杂度（不是显而易见的）？
+
+**评判**：如果总分 < 60，❌ **不应该沉淀为规范**
+
+#### ✅ 完整性检查
+- [ ] **frontmatter 完整**：spec_id, description, stages, projects, status 都填写了吗？
+- [ ] **有适用场景**：说明了何时使用这个规范吗？
+- [ ] **有核心约束**：明确列出"必须做"和"禁止做"吗？
+- [ ] **有具体示例**：提供了正确和错误的示例吗？
+- [ ] **有检查点**：提供了可验证的检查清单吗？
+
+**评判**：缺少任何一项，❌ **规范不完整**
+
+#### ✅ 简洁性检查
+- [ ] **长度适中**：规范内容 ≤ 200 行吗？
+- [ ] **聚焦约束**：只写约束，没有写实现细节吗？
+- [ ] **无重复**：与现有规范没有重复内容吗？
+- [ ] **无废话**：每一句话都有价值吗？
+
+**评判**：如果超过 200 行或有大量重复，⚠️ **需要精简**
+
+#### ✅ 可执行性检查
+- [ ] **示例具体**：示例是真实代码片段，不是伪代码吗？
+- [ ] **约束明确**：约束是可操作的（不是"尽量"、"最好"）吗？
+- [ ] **可验证**：检查点是二元的（是/否）吗？
+- [ ] **无歧义**：阅读规范后，不同人的理解一致吗？
+
+**评判**：如果有模糊表述，❌ **需要明确化**
+
+#### ✅ 安全性检查
+- [ ] **无敏感信息**：没有密码、token、密钥、内部地址吗？
+- [ ] **描述来源**：如果涉及密钥，只描述"从环境变量读取"吗？
+- [ ] **无生产数据**：没有真实用户数据、订单号等吗？
+
+**评判**：如果有敏感信息，❌ **必须删除**
+
+#### ✅ 维护性检查
+- [ ] **职责单一**：这个规范只约束一个主题吗？
+- [ ] **易于更新**：未来修改时，不会影响其他规范吗？
+- [ ] **命名清晰**：spec_id 一看就知道是什么吗？
+- [ ] **状态正确**：status 设置为 active 了吗？
+
+**评判**：如果职责不清或命名模糊，⚠️ **需要重构**
+
+### 审查结论
+
+**✅ APPROVED（可交付）**：
+- 所有 5 个检查类别都通过
+- 没有 ❌ 标记
+- ⚠️ 标记已修复或可接受
+
+**❌ REJECTED（需修复）**：
+- 必要性检查 < 60 分 → 不应该沉淀
+- 有安全性问题 → 必须删除敏感信息
+- 完整性缺失 → 补充缺失部分
+- 可执行性不足 → 明确约束和示例
+
+**⚠️ NEEDS IMPROVEMENT（建议改进）**：
+- 长度过长 → 精简
+- 有模糊表述 → 明确化
+- 命名不清 → 重命名
+
+### 审查示例
+
+> 💡 需要查看详细示例时，读取：`./_refs/review-examples.md`（相对当前技能目录）
+
+---
+
+## existing-features 更新指南
+
+### 何时更新？
+功能完成后（Build done）
+
+### 如何更新？
+```bash
+# 检测工作空间模式
+workspace_mode=$(yq '.workspace_mode' .docs/ship/project.yml 2>/dev/null || echo "single_project")
+
+# 确定文件路径
+if [ "$workspace_mode" = "project_group" ]; then
+  project=$(yq '.projects[0]' feature-xxx/meta.yml)
+  features_file=".docs/spec/${project}/existing-features.md"
+else
+  features_file=".docs/spec/shared/existing-features.md"
+fi
+
+# 使用 cat >> 追加（不要覆盖）
+cat >> "$features_file" <<EOF
+
 ## 用户模块
-- **用户登录**：完成时间 2026-06-09，Feature: feature-20260609-user-login
+- **用户登录**：完成时间 $(date +%Y-%m-%d)，Feature: feature-xxx
   - 表：users, sessions
   - API：POST /api/v1/auth/login
   - 页面：/login
-  - 关键测试：tests/e2e/login.spec.ts
+  - 测试：tests/e2e/login.spec.ts
+EOF
+
+# 同步索引
+ship-spec sync-index
 ```
 
-多项目组下：
+### 格式说明
+```markdown
+## 模块名
+- **功能名**：完成时间 YYYY-MM-DD，Feature: feature-xxx
+  - 表：表名列表
+  - API：端点列表
+  - 页面：路由列表
+  - 测试：测试文件路径
+```
 
-- 通用能力写 `_shared/existing-features.md`。
-- 项目专属能力写对应项目 spec。
-- 不更新 `meta.yml.projects` 之外的项目。
+### 注意事项
+- ✅ 使用 `cat >>` 追加
+- ✅ 多项目：通用能力写 `_shared`，专属写项目目录
+- ❌ 不写敏感信息（密码、token、密钥）
 
-不要把敏感信息写进 spec：密码、token、生产密钥、内部部署地址都禁止。
+---
 
-## 与 Design Reference Template 的边界
+## 规范维护
 
-- 不把模板文件放进 `.docs/spec/`，除非它已经成为项目长期规范。
-- 不把 `.docs/技术方案模版.md` 当成全局 spec；它最多是项目级参考模板候选。
-- `ship-spec` 只提供项目约束：API 标准、命名、数据类型、安全要求、前端模式。
-- `ship-design` 负责选择模板，并在模板与 spec 冲突时写明“以 spec 为准”。
-- 模板不得诱导写入密码、token、生产密钥、内部部署地址等敏感信息；只允许描述 secret 来源，例如“从环境变量读取”。
+### 规范生命周期
 
-## 新规范沉淀评分
+#### 新建规范
+```bash
+# 1. 创建规范
+ship-spec create <spec-id> -t <type> -d "<description>"
 
-只有分数 `>= 60` 才建议新增 spec：
+# 2. 编写内容
+vim .docs/spec/<type>/<spec-id>.md
 
-- 复用次数 ≥ 3：+40
-- 模式稳定：+30
-- 跨模块使用：+20
-- 中高复杂度：+10
+# 3. 对抗式审查（使用上面的检查清单）
 
-低分就别污染知识库。现实里最烂的规范库就是没人敢删、没人会读。
+# 4. 验证
+ship-spec validate <spec-id>
+```
 
-## 失败降级
+#### 更新规范
+```bash
+# 1. 直接编辑规范文件
+vim .docs/spec/<type>/<spec-id>.md
 
-- 没有 `.docs/spec`：返回空上下文 + warning；full flow 需要在 requirements/design 中记录缺失影响。
-- INDEX 缺失：扫描少量常见文件，但提示补 INDEX。
-- 规范冲突：project 优先，shared fallback，报告冲突。
-- 文件权限/解析失败：记录 warning，并让阶段技能决定是否阻塞。
+# 2. 更新 frontmatter（如有必要）
+
+# 3. 同步索引
+ship-spec sync-index
+```
+
+#### 归档规范
+```bash
+# 1. 修改状态
+# 在 frontmatter 中设置 status: deprecated
+
+# 2. 添加归档说明
+# 在规范顶部添加：
+# > ⚠️ 本规范已废弃，请使用 xxx-v2
+
+# 3. 同步索引
+ship-spec sync-index
+```
+
+#### 删除规范
+```bash
+# 1. 删除文件
+rm .docs/spec/<type>/<spec-id>.md
+
+# 2. 同步索引
+ship-spec sync-index --rebuild
+```
+
+### 规范 vs 模板 vs 代码
+
+| 类型 | 定义 | 适用范围 | 示例 |
+|---|---|---|---|
+| **spec（项目规范）** | 项目长期约束 | 当前项目 | API 标准、命名规范 |
+| **模板（参考模板）** | 临时检查清单 | 特定设计场景 | 技术方案模板 |
+| **代码（实现）** | 具体实现 | 单个功能 | 具体 API 实现 |
+
+**优先级**：requirements/AC > 项目 spec > 现有代码 > 参考模板 > AI 默认习惯
+
+---
+
+## 常见问题
+
+### INDEX.md 损坏
+```bash
+ship-spec sync-index --rebuild
+```
+
+### 规范冲突
+- project 规范优先于 _shared
+- 报告冲突给用户决策
+
+### CLI 工具不可用
+降级：直接读取 INDEX.md 和规范文件
+
+### 规范过期
+定期审查，标记 `status: deprecated`
+
+---
+
+## 技能调用约定（最小化）
+
+### 基本原则
+其他技能自行决定何时、如何使用规范。
+
+### 推荐模式
+```bash
+# 列出规范
+specs=$(ship-spec list --project <project> --stage <stage> --format json)
+
+# 加载规范
+content=$(ship-spec load <spec-id> --content-only)
+```
+
+### 注意事项
+- 不要一次加载所有规范（按需加载）
+- 使用 `--project` 过滤（多项目模式）
+- 使用 `--stage` 过滤（按阶段）
+
+---
 
 ## 不做什么
 
-- 不替阶段技能写 requirements/design/build。
-- 不把每次实现都沉淀成规范。
-- 不把旧 ShipKit 的复杂状态字段加回来。
-- 不把参考模板和项目规范混成一锅粥。
-- 不让未涉及项目的 spec 污染当前 feature。
+- ❌ 不告诉其他技能如何集成规范（那是各技能的职责）
+- ❌ 不描述 Understand/Design/Build 的工作流程
+- ❌ 不定义各阶段应该加载什么规范
+- ❌ 不替其他技能做决策
+- ❌ 不把每次实现都沉淀成规范
+- ❌ 不写大而全的规范百科全书

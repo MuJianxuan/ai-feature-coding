@@ -1,15 +1,16 @@
----
-doc_type: spec-index
-doc_status: active
-schema_version: 2
-updated_at: ""
----
+# Spec Index
 
-# 规范索引
+| spec_id | file | stages | projects | tags | status | description |
+|---|---|---|---|---|---|---|
+| api-standard | backend/api-standard.md | design,build | all | - | active | REST API 规范 |
 
-本索引维护项目规范文档目录，供人工浏览和维护使用。运行时匹配以各规范文件 frontmatter 为准；本索引不是 runtime truth。
 
-## coding/
+## 使用说明
 
-| 文件 | spec_id | stage_hooks | 适用场景 | 更新时间 |
-| --- | --- | --- | --- | --- |
+- **spec_id**: 规范唯一标识
+- **file**: 规范文件路径（相对 .docs/spec/）
+- **stages**: 适用阶段（understand, design, build, done）
+- **projects**: 适用项目（all 或具体项目名）
+- **tags**: 标签
+- **status**: 状态（active, deprecated）
+- **description**: 规范描述
