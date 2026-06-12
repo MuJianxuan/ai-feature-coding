@@ -27,10 +27,9 @@ ship-spec --version
 ```bash
 ship-spec init              # 初始化目录
 ship-spec create <spec-id>  # 创建规范
-ship-spec list              # 列出规范
+ship-spec list              # 列出规范（动态扫描 frontmatter）
 ship-spec load <spec-id>    # 加载规范
 ship-spec validate          # 验证规范
-ship-spec sync-index        # 同步索引
 ```
 
 ### 命令帮助
@@ -83,7 +82,6 @@ ship-spec init --workspace multi --projects web,api,mobile
 ### 单项目
 ```
 .docs/spec/
-├── INDEX.md                    # 自动维护，不要手动编辑
 ├── frontend/                   # 前端规范
 ├── backend/                    # 后端规范
 └── shared/                     # 通用规范
@@ -95,7 +93,6 @@ ship-spec init --workspace multi --projects web,api,mobile
 ### 多项目
 ```
 .docs/spec/
-├── INDEX.md                    # 自动维护
 ├── _shared/                    # 跨项目通用规范
 │   ├── tech-stack.md
 │   └── error-codes.md
@@ -107,10 +104,11 @@ ship-spec init --workspace multi --projects web,api,mobile
     └── existing-features.md
 ```
 
-### INDEX.md
-- **作用**：记录所有规范的元数据（spec_id, file, stages, projects, tags, status, description）
-- **维护**：由 `ship-spec` CLI 自动维护
-- **禁止**：不要手动编辑（使用 CLI 命令）
+## 索引机制
+
+- **实现**：动态扫描所有 `.md` 文件的 frontmatter
+- **使用**：`ship-spec list` 生成索引
+- **优势**：零合并冲突、单一数据源、自动同步
 
 ---
 
@@ -335,7 +333,6 @@ cat >> "$features_file" <<EOF
 EOF
 
 # 同步索引
-ship-spec sync-index
 ```
 
 ### 格式说明
@@ -381,7 +378,6 @@ vim .docs/spec/<type>/<spec-id>.md
 # 2. 更新 frontmatter（如有必要）
 
 # 3. 同步索引
-ship-spec sync-index
 ```
 
 #### 归档规范
@@ -394,7 +390,6 @@ ship-spec sync-index
 # > ⚠️ 本规范已废弃，请使用 xxx-v2
 
 # 3. 同步索引
-ship-spec sync-index
 ```
 
 #### 删除规范
@@ -403,7 +398,6 @@ ship-spec sync-index
 rm .docs/spec/<type>/<spec-id>.md
 
 # 2. 同步索引
-ship-spec sync-index --rebuild
 ```
 
 ### 规范 vs 模板 vs 代码
@@ -420,9 +414,7 @@ ship-spec sync-index --rebuild
 
 ## 常见问题
 
-### INDEX.md 损坏
 ```bash
-ship-spec sync-index --rebuild
 ```
 
 ### 规范冲突
@@ -430,7 +422,6 @@ ship-spec sync-index --rebuild
 - 报告冲突给用户决策
 
 ### CLI 工具不可用
-降级：直接读取 INDEX.md 和规范文件
 
 ### 规范过期
 定期审查，标记 `status: deprecated`

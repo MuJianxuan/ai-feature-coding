@@ -27,7 +27,7 @@ ship-spec init --workspace multi --projects web,api,mobile
 # 创建规范
 ship-spec create rest-api-standard -t backend -d "REST API 设计规范"
 
-# 列出规范
+# 列出规范（动态扫描）
 ship-spec list --format json
 
 # 加载规范
@@ -35,9 +35,6 @@ ship-spec load rest-api-standard --content-only
 
 # 验证规范
 ship-spec validate --all
-
-# 同步索引
-ship-spec sync-index
 ```
 
 ## 命令说明
@@ -61,7 +58,7 @@ ship-spec sync-index
 - `--tags <list>`: 标签（逗号分隔）
 
 ### list
-列出规范
+列出规范（动态扫描 frontmatter）
 
 **选项**：
 - `--project <name>`: 按项目过滤
@@ -83,18 +80,20 @@ ship-spec sync-index
 - `--all`: 验证所有规范
 - `--strict`: 严格模式（检查内容完整性）
 
-### sync-index
-同步 INDEX.md
+## 索引机制
 
-**选项**：
-- `--rebuild`: 重建索引（扫描所有文件）
+索引信息存储在每个规范文件的 frontmatter 中，通过 `ship-spec list` 动态生成。
+
+**优势**：
+- ✅ 零合并冲突（无中心索引文件）
+- ✅ 单一数据源（frontmatter）
+- ✅ 自动同步（无需手动维护）
 
 ## 目录结构
 
 ### 单项目
 ```
 .docs/spec/
-├── INDEX.md
 ├── frontend/
 ├── backend/
 └── shared/
@@ -105,7 +104,6 @@ ship-spec sync-index
 ### 多项目
 ```
 .docs/spec/
-├── INDEX.md
 ├── _shared/
 ├── web/
 │   ├── frontend/

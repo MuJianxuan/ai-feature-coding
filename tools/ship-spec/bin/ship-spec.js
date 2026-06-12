@@ -27,16 +27,10 @@ program
   # 验证规范
   $ ship-spec validate --all
   
-更多信息: .docs/ship-spec-redesign/
+更多信息: https://github.com/shipkit/spec-cli
 `);
 
-program
-  .command('init')
-  .name('ship-spec')
-  .description('ShipKit 规范管理工具')
-  .version('1.0.0');
-
-program
+  program
   .command('init')
   .description('初始化规范目录')
   .option('--template <name>', '模板：minimal | standard | comprehensive', 'standard')
@@ -81,14 +75,6 @@ program
     await loadCommand(specId, options);
   });
 
-program
-  .command('sync-index')
-  .description('同步索引')
-  .option('--rebuild', '重建索引')
-  .action(async (options) => {
-    const { syncIndexCommand } = require('../src/commands/sync-index');
-    await syncIndexCommand(options);
-  });
 
 program
   .command('validate')
