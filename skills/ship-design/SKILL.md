@@ -45,7 +45,7 @@ description: "ShipKit Design 阶段。必须接收 feature_dir，基于 ready re
 - `requirements.md(status: ready)`。
 - `meta.yml.source_refs` 与 `resource/` 材料，用于追溯来源。
 - `meta.yml.requested_design_template`（可为空）。
-- `ship-spec` 按 workspace scope 加载的 API 规范、前端模式、数据模型规范、技术栈。
+- 使用 `ship-spec` CLI 按 workspace scope 加载的 API 规范、前端模式、数据模型规范、技术栈。
 - Design Reference Template：项目级模板或 `skills/ship-orchestrator/templates/design-reference/` 内置模板。
 - 现有代码结构（只读探索）。
 

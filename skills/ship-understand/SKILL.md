@@ -40,7 +40,7 @@ description: "ShipKit Understand 阶段。必须接收 feature_dir，读取 meta
 - `feature_dir/meta.yml`。
 - `meta.yml.source_refs` 指向的 PRD、UI/UX、link、issue、meeting、note、screenshot 或 other。
 - `resource/` 下的可读快照。
-- `ship-spec` 按 workspace scope 加载的 existing-features、domain glossary、naming conventions。
+- 使用 `ship-spec` CLI 按 workspace scope 加载的 existing-features、domain glossary、naming conventions。
 
 `source_refs.type` 是输入形态，不是流程分支；所有 ShipKit feature 都走完整推进。
 
@@ -54,7 +54,7 @@ description: "ShipKit Understand 阶段。必须接收 feature_dir，读取 meta
 
 1. 校验 `feature_dir`、`meta.yml`、`source_refs`。
 2. 读取来源材料；外部链接不可访问时，更新 `meta.yml.status: blocked`、`blocked_reason: missing_source`，请用户提供可读快照。
-3. 调用 `ship-spec` 加载 Understand 阶段上下文。
+3. 使用 `ship-spec list/load` 加载 Understand 阶段规范。
 4. 按 workspace scope 探索相关现有功能，不读取无关项目。
 5. 提取功能目标、用户、边界、Domain、AC、NFR、约束和风险。
 6. 调用 `ship-grill-me` 做 blocking review；只问会阻塞实现的决策。

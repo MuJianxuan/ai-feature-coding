@@ -67,13 +67,13 @@ skills:
       - spec 完成后更新
   - name: ship-spec
     path: ship-spec/SKILL.md
-    type: tool
+    type: cli_tool
     required: true
     covers:
-      - .docs/spec 知识库
-      - stage hooks
-      - workspace/projects 隔离加载
-      - source_refs 与 spec 边界
+      - ship-spec CLI 工具引导
+      - .docs/spec 知识库管理
+      - 规范采集和沉淀标准
+      - workspace/projects 隔离
       - 规范沉淀评分
       - spec 与模板边界
   - name: ship-grill-me

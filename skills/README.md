@@ -11,7 +11,7 @@
 | `ship-understand` | 核心阶段 | 必须接收 `feature_dir`，产出 `requirements.md(status: ready)` | 是 |
 | `ship-design` | 核心阶段 | 必须接收 `feature_dir`，选择 Design Reference Template，产出 `design.md(status: ready)` 并 handoff 回 orchestrator | 是 |
 | `ship-build` | 核心阶段 | 必须接收 `feature_dir` 和持久化 Build approval，实现、测试、验证 AC | 是 |
-| `ship-spec` | 工具技能 | 管理 `.docs/spec/` 知识库，按 `meta.yml.projects` 隔离加载 | 是 |
+| `ship-spec` | 工具技能 | 引导安装和使用 ship-spec CLI 工具，管理 `.docs/spec` 知识库，定义规范采集和沉淀标准 | 是 |
 | `ship-grill-me` | 质询助手 | 嵌入 Understand/Design，执行 blocking review | 是 |
 
 ## 核心流程
@@ -30,7 +30,7 @@ ship-orchestrator → 持久化 build_approved_*
 ship-build        → verification.md(all_ac_passed: true) → done
 ```
 
-贯穿全程：`ship-spec` 按阶段和 workspace scope 加载规范；`ship-grill-me` 在 Understand/Design ready 前必须执行 blocking review。
+贯穿全程：各技能通过 `ship-spec` CLI 按阶段和 workspace scope 加载规范；`ship-grill-me` 在 Understand/Design ready 前必须执行 blocking review。
 
 ## 目录结构
 

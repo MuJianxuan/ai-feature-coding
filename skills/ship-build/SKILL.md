@@ -128,7 +128,7 @@ all_ac_passed: true
 
 ## 完成后 spec 更新
 
-调用 `ship-spec`：
+使用 `ship-spec` CLI：
 
 - 更新 `.docs/spec/shared/existing-features.md` 或对应项目的 existing-features。
 - 多项目组下只更新 `_shared` 和 `meta.yml.projects` 指定项目。
