@@ -1,20 +1,24 @@
 {
-  "name": "@shipkit/spec-cli",
+  "name": "@raoxxxwq/ship-spec",
   "version": "1.0.0",
   "description": "ShipKit 规范管理 CLI 工具",
   "main": "src/index.js",
   "bin": {
-    "ship-spec": "./bin/ship-spec.js"
+    "ship-spec": "bin/ship-spec.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["shipkit", "spec", "cli"],
+  "keywords": [
+    "shipkit",
+    "spec",
+    "cli"
+  ],
   "author": "ShipKit Team",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/shipkit.git",
+    "url": "git+https://github.com/your-org/shipkit.git",
     "directory": "tools/ship-spec"
   },
   "homepage": "https://github.com/your-org/shipkit/tree/main/tools/ship-spec",
@@ -25,8 +29,8 @@
     "node": ">=16.0.0"
   },
   "dependencies": {
+    "chalk": "^4.1.2",
     "commander": "^11.0.0",
-    "yaml": "^2.3.0",
-    "chalk": "^4.1.2"
+    "yaml": "^2.3.0"
   }
 }
