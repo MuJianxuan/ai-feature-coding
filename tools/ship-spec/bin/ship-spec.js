@@ -27,7 +27,6 @@ program
   # 验证规范
   $ ship-spec validate --all
   
-更多信息: https://github.com/shipkit/spec-cli
 `);
 
   program
