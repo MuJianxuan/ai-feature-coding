@@ -1,10 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 const yaml = require('yaml');
-const { detectWorkspaceMode, parseIndexTable, generateIndexTable } = require('../core/parser');
+const { loadConfig, parseIndexTable, generateIndexTable, parseFrontmatter } = require('../core/parser');
 
 async function createCommand(specId, options) {
-  const workspace = detectWorkspaceMode();
+  const config = loadConfig();
   
   if (!fs.existsSync('.docs/spec/INDEX.md')) {
     console.error('错误：INDEX.md 不存在，请先运行 ship-spec init');
@@ -15,14 +15,16 @@ async function createCommand(specId, options) {
   let filePath;
   const projects = options.project ? options.project.split(',').map(p => p.trim()) : ['all'];
   
-  if (workspace.mode === 'single_project') {
+  if (config.mode === 'single') {
     const type = options.type || 'shared';
     filePath = `.docs/spec/${type}/${specId}.md`;
   } else {
-    if (projects.includes('all') || projects.length > 1) {
-      filePath = `.docs/spec/_shared/${specId}.md`;
+    const type = options.type || 'shared';
+    if (type === '_shared' || projects.includes('all')) {
+      filePath = `.docs/spec/_shared/${type !== '_shared' ? type + '/' : ''}${specId}.md`;
     } else {
-      filePath = `.docs/spec/${projects[0]}/${specId}.md`;
+      const project = projects[0];
+      filePath = `.docs/spec/${project}/${type}/${specId}.md`;
     }
   }
   

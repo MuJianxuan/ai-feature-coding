@@ -10,10 +10,10 @@ program
   .addHelpText('after', `
 示例:
   # 初始化单项目
-  $ ship-spec init --template standard
+  $ ship-spec init
   
   # 初始化多项目
-  $ ship-spec init --workspace multi --projects web,api
+  $ ship-spec init --mode multi --projects web,api
   
   # 创建规范
   $ ship-spec create api-standard -t backend -d "REST API 规范"
@@ -34,8 +34,9 @@ program
   .command('init')
   .description('初始化规范目录')
   .option('--template <name>', '模板：minimal | standard | comprehensive', 'standard')
-  .option('--workspace <mode>', '工作空间模式：single | multi')
-  .option('--projects <projects>', '项目列表（逗号分隔）')
+  .option('--mode <mode>', '工作模式：single | multi', 'single')
+  .option('--name <name>', '项目名称（单项目模式）')
+  .option('--projects <projects>', '项目列表（多项目模式，逗号分隔）')
   .action(async (options) => {
     const { initCommand } = require('../src/commands/init');
     await initCommand(options);
@@ -75,7 +76,6 @@ program
     await loadCommand(specId, options);
   });
 
-
 program
   .command('validate')
   .description('验证规范')
@@ -84,6 +84,14 @@ program
   .action(async (specId, options) => {
     const { validateCommand } = require('../src/commands/validate');
     await validateCommand(specId, options);
+  });
+
+program
+  .command('migrate')
+  .description('迁移旧配置格式到新格式')
+  .action(async () => {
+    const { migrateCommand } = require('../src/commands/migrate');
+    await migrateCommand();
   });
 
 program.parse(process.argv);

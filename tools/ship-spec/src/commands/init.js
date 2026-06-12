@@ -4,7 +4,7 @@ const yaml = require('yaml');
 const { detectWorkspaceMode, generateIndexTable } = require('../core/parser');
 
 async function initCommand(options) {
-  const mode = options.workspace || 'single';
+  const mode = options.mode || 'single';
   const projects = options.projects ? options.projects.split(',').map(p => p.trim()) : [];
   
   // 创建目录结构
@@ -21,10 +21,12 @@ async function initCommand(options) {
   
   // 创建 project.yml
   fs.mkdirSync('.docs/ship', { recursive: true });
-  const config = {
-    workspace_mode: mode === 'single' ? 'single_project' : 'project_group',
-    workspace_name: path.basename(process.cwd()),
-    projects: mode === 'multi' ? projects : []
+  const config = mode === 'single' ? {
+    mode: 'single',
+    project: { name: options.name || path.basename(process.cwd()) }
+  } : {
+    mode: 'multi',
+    projects
   };
   fs.writeFileSync('.docs/ship/project.yml', yaml.stringify(config));
   
@@ -70,7 +72,7 @@ projects: [all]
   fs.writeFileSync(featuresPath, featuresContent);
   
   console.log('✅ ship-spec 初始化完成');
-  console.log(`   模式: ${config.workspace_mode}`);
+  console.log(`   模式: ${config.mode}`);
   if (mode === 'multi') {
     console.log(`   项目: ${projects.join(', ')}`);
   }

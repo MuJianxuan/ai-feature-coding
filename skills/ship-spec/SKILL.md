@@ -40,46 +40,42 @@ ship-spec create -h   # 查看具体命令帮助
 
 ---
 
-## 工作空间模式
+## 工作模式
 
-### 单项目（single_project）
+### 单项目（single）
 - **定义**：一个仓库只有一个项目
 - **规范适用**：所有规范 `projects: [all]`
 - **目录结构**：`frontend/`, `backend/`, `shared/`
 
 **何时使用**：独立应用、单体项目、小型服务
 
-### 多项目（project_group）
+### 多项目（multi）
 - **定义**：一个仓库有多个项目（web, api, mobile 等）
 - **规范适用**：可指定 `projects: [web, api]` 或 `[all]`
 - **目录结构**：`_shared/`, `web/`, `api/`, `mobile/`
 
 **何时使用**：monorepo、微服务、多端应用
 
-### 配置文件：.docs/ship/project.yml
+### 配置文件
+`.docs/ship/project.yml`:
 ```yaml
-workspace_mode: single_project  # single_project | project_group
-workspace_name: my-workspace
-projects:                       # 多项目模式下的项目列表
+# 单项目
+mode: single
+  project:
+  name: my-app  # 可选，默认目录名
+# 多项目
+mode: multi
+projects:
   - web
   - api
   - mobile
 ```
-
 **初始化**：
 ```bash
-# 单项目
-ship-spec init --template standard
-
+# 单项目（默认）
+ship-spec init
 # 多项目
-ship-spec init --workspace multi --projects web,api,mobile
-```
-
----
-
-## 目录结构
-
-### 单项目
+ship-spec init --mode multi --projects web,api,mobile
 ```
 .docs/spec/
 ├── frontend/                   # 前端规范

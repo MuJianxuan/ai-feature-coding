@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { detectWorkspaceMode, parseFrontmatter } = require('../core/parser');
+const { loadConfig, parseFrontmatter } = require('../core/parser');
 
 async function listCommand(options) {
   if (!fs.existsSync('.docs/spec')) {
@@ -8,7 +8,7 @@ async function listCommand(options) {
     process.exit(1);
   }
   
-  const workspace = detectWorkspaceMode();
+  const config = loadConfig();
   const specs = [];
   
   // 扫描所有 .md 文件
@@ -44,7 +44,7 @@ async function listCommand(options) {
   
   // 应用项目过滤（多项目模式）
   let filteredSpecs = specs;
-  if (workspace.mode === 'project_group' && options.project) {
+  if (config.mode === 'multi' && options.project) {
     filteredSpecs = filteredSpecs.filter(s => 
       s.projects.includes(options.project) || s.projects.includes('all')
     );

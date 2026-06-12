@@ -19,10 +19,10 @@ ship-spec --version
 
 ```bash
 # 单项目初始化
-ship-spec init --template standard
+ship-spec init
 
 # 多项目初始化
-ship-spec init --workspace multi --projects web,api,mobile
+ship-spec init --mode multi --projects web,api,mobile
 
 # 创建规范
 ship-spec create rest-api-standard -t backend -d "REST API 设计规范"
@@ -43,9 +43,9 @@ ship-spec validate --all
 初始化 `.docs/spec/` 目录结构
 
 **选项**：
-- `--workspace <type>`: 工作空间模式（single/multi，默认 single）
+- `--mode <mode>`: 工作模式（single/multi，默认 single）
+- `--name <name>`: 项目名称（单项目模式，可选）
 - `--projects <list>`: 项目列表（多项目模式，逗号分隔）
-- `--template <name>`: 模板名称（默认 standard）
 
 ### create
 创建新规范
@@ -113,12 +113,12 @@ ship-spec validate --all
     └── existing-features.md
 ```
 
-## 配置文件
+## 配置迁移
 
-`.docs/ship/project.yml`：
-```yaml
-workspace_mode: single_project  # single_project | project_group
-workspace_name: my-workspace
+旧版本配置格式（`workspace_mode`）自动兼容，也可手动迁移：
+```bash
+ship-spec migrate
+```
 projects:
   - web
   - api

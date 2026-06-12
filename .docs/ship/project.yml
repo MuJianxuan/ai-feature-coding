@@ -1,3 +1,3 @@
-workspace_mode: single_project
-workspace_name: ai-feature-coding
-projects: []
+mode: single
+project:
+  name: ai-feature-coding
