@@ -1,0 +1,434 @@
+.shipkit-talk {
+  background:
+    linear-gradient(90deg, rgba(255,43,214,.04) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(0,240,255,.04) 1px, transparent 1px),
+    var(--bg);
+  background-size: 44px 44px;
+}
+
+.shipkit-talk .slide {
+  padding: 68px 84px;
+}
+
+.shipkit-talk .slide::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(100deg, transparent 0 68%, rgba(0,240,255,.06) 68% 69%, transparent 69%),
+    repeating-linear-gradient(180deg, rgba(255,255,255,.025) 0 1px, transparent 1px 6px);
+  pointer-events: none;
+}
+
+.shipkit-talk .scanline {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent, rgba(0,240,255,.12), transparent);
+  height: 22%;
+  animation: scan 7s linear infinite;
+  opacity: .45;
+  pointer-events: none;
+}
+
+@keyframes scan {
+  from { transform: translateY(-120%); }
+  to { transform: translateY(520%); }
+}
+
+.shipkit-talk .kicker {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  margin: 0 0 18px;
+}
+
+.shipkit-talk .h1 {
+  font-family: var(--font-display);
+  font-size: clamp(52px, 6.2vw, 92px);
+  line-height: 1.02;
+  letter-spacing: 0;
+  margin: 0 0 24px;
+}
+
+.shipkit-talk .h2 {
+  font-family: var(--font-display);
+  font-size: clamp(38px, 4.6vw, 62px);
+  line-height: 1.1;
+  letter-spacing: 0;
+  margin: 0 0 20px;
+}
+
+.shipkit-talk .lede {
+  max-width: 860px;
+  font-size: 22px;
+  color: var(--text-2);
+}
+
+.shipkit-talk .accent {
+  color: var(--accent);
+  text-shadow: 0 0 18px rgba(255,43,214,.6);
+}
+
+.shipkit-talk .mono,
+.shipkit-talk code {
+  font-family: var(--font-mono);
+}
+
+.shipkit-talk .mono {
+  padding: 3px 8px;
+  border: 1px solid rgba(0,240,255,.28);
+  background: rgba(0,240,255,.08);
+  color: var(--accent-2);
+}
+
+.shipkit-talk .meta-row {
+  display: flex;
+  gap: 14px;
+  margin-top: 36px;
+  flex-wrap: wrap;
+}
+
+.shipkit-talk .meta-row span,
+.shipkit-talk .quote-band,
+.shipkit-talk .side-agent,
+.shipkit-talk .final-line {
+  font-family: var(--font-mono);
+  border: 1px solid var(--border-strong);
+  background: rgba(15,15,26,.72);
+  box-shadow: var(--shadow);
+}
+
+.shipkit-talk .meta-row span {
+  padding: 8px 12px;
+  color: var(--text-2);
+}
+
+.shipkit-talk .panel,
+.shipkit-talk .principle,
+.shipkit-talk .node,
+.shipkit-talk .terminal-card,
+.shipkit-talk .rules > div,
+.shipkit-talk .cmd-card,
+.shipkit-talk .loop-step,
+.shipkit-talk .matrix > div,
+.shipkit-talk .takeaways > div {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(15,15,26,.74);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.shipkit-talk .panel::after,
+.shipkit-talk .principle::after,
+.shipkit-talk .cmd-card::after,
+.shipkit-talk .takeaways > div::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: var(--grad);
+}
+
+.shipkit-talk .panel {
+  min-height: 250px;
+  padding: 28px 24px;
+}
+
+.shipkit-talk .panel-num {
+  display: inline-block;
+  font-family: var(--font-mono);
+  color: var(--accent-2);
+  margin-bottom: 34px;
+}
+
+.shipkit-talk .panel h3,
+.shipkit-talk .principle b,
+.shipkit-talk .node b,
+.shipkit-talk .rules b,
+.shipkit-talk .loop-step b,
+.shipkit-talk .takeaways b {
+  display: block;
+  color: var(--text-1);
+  font-size: 22px;
+  line-height: 1.2;
+  margin-bottom: 10px;
+}
+
+.shipkit-talk .panel p,
+.shipkit-talk .principle p,
+.shipkit-talk .node p,
+.shipkit-talk .rules p,
+.shipkit-talk .cmd-card p,
+.shipkit-talk .loop-step p,
+.shipkit-talk .takeaways p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.shipkit-talk .quote-band {
+  padding: 18px 22px;
+  color: var(--accent-3);
+  font-size: 17px;
+}
+
+.shipkit-talk .principle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.shipkit-talk .principle {
+  padding: 24px 26px;
+  min-height: 150px;
+}
+
+.shipkit-talk .flowline {
+  display: grid;
+  grid-template-columns: .86fr 1.08fr 1fr 1fr 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.shipkit-talk .node {
+  padding: 20px 18px 18px;
+  min-height: 220px;
+}
+
+.shipkit-talk .node::before {
+  content: "";
+  position: absolute;
+  right: -24px;
+  top: 50%;
+  width: 34px;
+  height: 2px;
+  background: var(--accent-2);
+  box-shadow: 0 0 14px var(--accent-2);
+}
+
+.shipkit-talk .node:last-child::before {
+  display: none;
+}
+
+.shipkit-talk .node span {
+  display: block;
+  font-family: var(--font-mono);
+  color: var(--accent-2);
+  font-size: 12px;
+  text-transform: uppercase;
+  margin-bottom: 28px;
+}
+
+.shipkit-talk .node.orchestrator {
+  border-color: rgba(255,43,214,.58);
+}
+
+.shipkit-talk .node.optional {
+  opacity: .82;
+}
+
+.shipkit-talk .side-agent {
+  margin-top: 24px;
+  padding: 14px 18px;
+  color: var(--text-2);
+}
+
+.shipkit-talk .side-agent b {
+  color: var(--accent);
+}
+
+.shipkit-talk .split {
+  display: grid;
+  grid-template-columns: 1.05fr .95fr;
+  gap: 24px;
+  align-items: stretch;
+}
+
+.shipkit-talk .terminal-card {
+  min-height: 360px;
+}
+
+.shipkit-talk .term-head {
+  display: flex;
+  gap: 8px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,.04);
+}
+
+.shipkit-talk .term-head span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.shipkit-talk .term-head span:nth-child(2) {
+  background: var(--accent-3);
+}
+
+.shipkit-talk .term-head span:nth-child(3) {
+  background: var(--accent-2);
+}
+
+.shipkit-talk pre {
+  margin: 0;
+  padding: 28px;
+  color: var(--text-1);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.shipkit-talk .rules {
+  display: grid;
+  gap: 16px;
+}
+
+.shipkit-talk .rules > div {
+  padding: 22px 24px;
+}
+
+.shipkit-talk .command-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.shipkit-talk .cmd-card {
+  padding: 22px 20px;
+  min-height: 150px;
+}
+
+.shipkit-talk .cmd-card code {
+  display: block;
+  color: var(--accent-2);
+  font-size: 18px;
+  margin-bottom: 18px;
+}
+
+.shipkit-talk .cmd-card.muted {
+  opacity: .72;
+}
+
+.shipkit-talk .footnote {
+  margin-top: 20px;
+  color: var(--accent-3);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.shipkit-talk .loop {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.shipkit-talk .loop-step {
+  padding: 24px 20px;
+  min-height: 210px;
+}
+
+.shipkit-talk .loop-step span,
+.shipkit-talk .takeaways span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 28px;
+  border: 1px solid var(--border-strong);
+  color: var(--accent-2);
+  font-family: var(--font-mono);
+  box-shadow: 0 0 18px rgba(0,240,255,.28);
+}
+
+.shipkit-talk .matrix {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.shipkit-talk .matrix > div {
+  padding: 18px 20px;
+}
+
+.shipkit-talk .matrix span {
+  display: block;
+  font-family: var(--font-mono);
+  color: var(--text-3);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.shipkit-talk .matrix b {
+  color: var(--accent-3);
+  font-size: 19px;
+}
+
+.shipkit-talk .takeaways {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.shipkit-talk .takeaways > div {
+  padding: 28px 24px;
+  min-height: 280px;
+}
+
+.shipkit-talk .takeaways b {
+  font-size: 24px;
+}
+
+.shipkit-talk .final-line {
+  margin-top: 28px;
+  padding: 18px 22px;
+  color: var(--accent-2);
+  font-size: 22px;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .shipkit-talk .slide {
+    padding: 42px 24px;
+  }
+
+  .shipkit-talk .h1 {
+    font-size: 46px;
+  }
+
+  .shipkit-talk .h2 {
+    font-size: 34px;
+  }
+
+  .shipkit-talk .grid.g3,
+  .shipkit-talk .principle-grid,
+  .shipkit-talk .flowline,
+  .shipkit-talk .split,
+  .shipkit-talk .command-grid,
+  .shipkit-talk .loop,
+  .shipkit-talk .matrix,
+  .shipkit-talk .takeaways {
+    grid-template-columns: 1fr;
+  }
+
+  .shipkit-talk .node::before {
+    display: none;
+  }
+
+  .shipkit-talk .panel,
+  .shipkit-talk .node,
+  .shipkit-talk .loop-step,
+  .shipkit-talk .takeaways > div {
+    min-height: auto;
+  }
+}

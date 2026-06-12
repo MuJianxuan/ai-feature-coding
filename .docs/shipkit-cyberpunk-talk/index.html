@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-themes="cyberpunk-neon" data-theme-base="assets/themes/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ShipKit / ship-spec 设计理念 · Cyberpunk Talk</title>
+<link rel="stylesheet" href="assets/fonts.css">
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" id="theme-link" href="assets/themes/cyberpunk-neon.css">
+<link rel="stylesheet" href="assets/animations/animations.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="shipkit-talk">
+<div class="deck">
+
+  <section class="slide cover" data-title="Cover">
+    <div class="scanline"></div>
+    <p class="kicker">// ShipKit product architecture</p>
+    <h1 class="h1" data-anim="fade-up">把 AI Coding<br><span class="gradient-text">产品化交付</span></h1>
+    <p class="lede">围绕 <span class="mono">skills/ship-spec</span>、ShipKit 技能流和 <span class="mono">tools/ship-spec</span> CLI 的 10 分钟技术分享</p>
+    <div class="meta-row">
+      <span>Product View</span>
+      <span>10 min</span>
+      <span>Cyberpunk Mode</span>
+    </div>
+    <div class="deck-footer">
+      <span class="mono">ShipKit feature flow · spec CLI · product architecture</span>
+      <span class="slide-number" data-current="1" data-total="8"></span>
+    </div>
+    <aside class="notes">
+      <p>今天这 10 分钟，我不从代码细节开始讲，而是从<strong>产品视角</strong>讲 ShipKit 为什么存在。</p>
+      <p>我们面对的不是“让 AI 写一段代码”这么简单的问题，而是<strong>让 AI 持续、可控、可复盘地交付 feature</strong>。这里面最难的不是生成能力，而是流程、边界、证据和组织记忆。</p>
+      <p>所以这份分享会围绕三层展开：第一层是 <em>skills/</em> 下的 ShipKit 技能流；第二层是 <em>ship-spec</em> 这套规范知识库方法；第三层是 <em>tools/ship-spec</em> CLI 怎么把规范变成可查询、可加载、可验证的工具。</p>
+      <p>最后我会给一个使用路径：团队怎么从“口头约定”走到“可执行规范”。</p>
+    </aside>
+  </section>
+
+  <section class="slide" data-title="Problem">
+    <p class="kicker">// 01 problem</p>
+    <h2 class="h2">AI Coding 的真实瓶颈<br>不是<span class="accent">会不会写代码</span></h2>
+    <div class="grid g3 mt-l">
+      <div class="panel">
+        <span class="panel-num">01</span>
+        <h3>需求失真</h3>
+        <p>对话里确认过，不代表跨窗口、跨阶段还能保持一致。</p>
+      </div>
+      <div class="panel">
+        <span class="panel-num">02</span>
+        <h3>规范漂移</h3>
+        <p>团队约定散在脑子里、旧文档里、代码习惯里，AI 很容易按默认习惯发挥。</p>
+      </div>
+      <div class="panel">
+        <span class="panel-num">03</span>
+        <h3>完成幻觉</h3>
+        <p>“写完了”和“可交付”之间，缺少 AC、测试和验证证据。</p>
+      </div>
+    </div>
+    <div class="quote-band mt-l">产品目标：把 AI 从“聪明的执行者”约束成“可审计的交付系统”。</div>
+    <aside class="notes">
+      <p>先看问题。AI Coding 的瓶颈，已经不只是“模型会不会写代码”。模型当然会写，但是团队真正怕的是三件事。</p>
+      <p>第一是<strong>需求失真</strong>。很多需求在一个窗口里讲清楚了，换个阶段、换个上下文就开始丢。第二是<strong>规范漂移</strong>。项目里有很多默认规则，比如 API 风格、错误码、组件模式、测试边界，但这些东西常常没有一个机器能稳定加载的入口。第三是<strong>完成幻觉</strong>。AI 很容易说“完成了”，但是 AC 有没有覆盖，测试有没有跑，验证证据在哪里，不一定清楚。</p>
+      <p>所以 ShipKit 的产品目标不是让 AI 更自由，而是相反：给它一个<strong>可审计的交付系统</strong>，把聪明约束在正确轨道里。</p>
+    </aside>
+  </section>
+
+  <section class="slide" data-title="Design Principles">
+    <p class="kicker">// 02 design principles</p>
+    <h2 class="h2">ShipKit 的设计理念：<br><span class="accent">把不确定性分层封装</span></h2>
+    <div class="principle-grid mt-l">
+      <div class="principle">
+        <b>Single Source of Truth</b>
+        <p><span class="mono">meta.yml</span> 记录阶段、scope、source_refs、approval，不靠对话记忆。</p>
+      </div>
+      <div class="principle">
+        <b>Stage Gates</b>
+        <p>Understand → Design → Build，每一步都有产物、validator 和明确 handoff。</p>
+      </div>
+      <div class="principle">
+        <b>Evidence First</b>
+        <p>先查仓库、source_refs、spec，再问用户；问题必须带证据和影响。</p>
+      </div>
+      <div class="principle">
+        <b>Spec as Product Memory</b>
+        <p>可复用、稳定、跨模块的约束才沉淀；低价值内容不污染知识库。</p>
+      </div>
+    </div>
+    <aside class="notes">
+      <p>ShipKit 的核心理念，我会概括成一句话：<strong>把不确定性分层封装</strong>。</p>
+      <p>第一层是事实源。仓库里的说明写得很明确，feature 状态以 <code>.docs/feature-*/meta.yml</code> 为单一事实源。它记录当前阶段、workspace scope、需求来源、spec 引用和 Build approval。这样跨窗口恢复时，不需要靠记忆。</p>
+      <p>第二层是阶段门禁。Understand 产出 <code>requirements.md</code>，Design 产出 <code>design.md</code>，Build 产出 <code>verification.md</code>。每一步都有 validator，不是“感觉差不多”。</p>
+      <p>第三层是证据优先。<em>ship-grill-me</em> 的规则是先查仓库、spec 和来源材料，找不到才问用户，而且一次只问一个阻塞问题。</p>
+      <p>最后一层，就是 ship-spec：把规范当成产品记忆，而不是没人读的文档仓库。</p>
+    </aside>
+  </section>
+
+  <section class="slide flow" data-title="Skill Flow">
+    <p class="kicker">// 03 skill flow</p>
+    <h2 class="h2">技能不是列表，<span class="accent">是一条交付流水线</span></h2>
+    <div class="flowline mt-l">
+      <div class="node optional">
+        <span>optional</span>
+        <b>ship-split</b>
+        <p>大需求拆分，只产出 <code>splits.yml</code></p>
+      </div>
+      <div class="node orchestrator">
+        <span>entry</span>
+        <b>ship-orchestrator</b>
+        <p>创建/恢复 feature_dir，维护 <code>meta.yml</code></p>
+      </div>
+      <div class="node">
+        <span>stage 1</span>
+        <b>ship-understand</b>
+        <p>来源 + spec + 代码事实 → <code>requirements.md</code></p>
+      </div>
+      <div class="node">
+        <span>stage 2</span>
+        <b>ship-design</b>
+        <p>模板 + spec + AC 映射 → <code>design.md</code></p>
+      </div>
+      <div class="node">
+        <span>stage 3</span>
+        <b>ship-build</b>
+        <p>实现 + 测试 + AC 验证 → <code>verification.md</code></p>
+      </div>
+    </div>
+    <div class="side-agent">embedded: <b>ship-grill-me</b> blocks bad requirements/design before ready</div>
+    <aside class="notes">
+      <p>接下来把技能流摊开看。这里最重要的是：<strong>skills 不是工具列表，而是一条交付流水线</strong>。</p>
+      <p><em>ship-split</em> 是可选前置，用来处理大需求拆分。它只给建议和 <code>splits.yml</code>，不越权创建 feature 目录。真正的入口是 <em>ship-orchestrator</em>，它负责创建或恢复 <code>.docs/feature-*</code>，并维护 <code>meta.yml</code>。</p>
+      <p>然后进入三个核心阶段。<em>ship-understand</em> 把来源材料、spec 和代码事实变成 <code>requirements.md</code>。<em>ship-design</em> 选择 Design Reference Template，输出前后端合一的 <code>design.md</code>。<em>ship-build</em> 在 Build approval 存在后才实现，并写 <code>verification.md</code>。</p>
+      <p>中间还有一个嵌入式质询助手 <em>ship-grill-me</em>，它的作用是把会返工的问题挡在 ready 之前。</p>
+    </aside>
+  </section>
+
+  <section class="slide" data-title="ship-spec">
+    <p class="kicker">// 04 ship-spec skill</p>
+    <h2 class="h2"><span class="mono">ship-spec</span>：<br>把“团队经验”变成<span class="accent">可加载约束</span></h2>
+    <div class="split mt-l">
+      <div class="terminal-card">
+        <div class="term-head"><span></span><span></span><span></span></div>
+<pre><code>.docs/spec/
+├── frontend/
+├── backend/
+└── shared/
+    ├── tech-stack.md
+    ├── existing-features.md
+    └── naming-conventions.md</code></pre>
+      </div>
+      <div class="rules">
+        <div><b>沉淀门槛</b><p>复用 ≥ 3、模式稳定、跨模块、中高复杂度，评分 ≥ 60 才建议新增。</p></div>
+        <div><b>质量标准</b><p>不超过 200 行，聚焦约束，有正反例，有检查点。</p></div>
+        <div><b>边界感</b><p>spec 是项目约束；Design Reference Template 是方案护栏，不能互相替代。</p></div>
+      </div>
+    </div>
+    <aside class="notes">
+      <p>现在进入重点：<strong>ship-spec 到底解决什么问题</strong>。</p>
+      <p>它管理的是 <code>.docs/spec/</code> 知识库。这里放的不是普通文档，而是项目约束。比如技术栈、已有功能、命名规范、API 标准、前端组件模式。这些东西一旦能被 CLI 加载，就能在 Understand、Design、Build 每个阶段进入上下文。</p>
+      <p>但它不是鼓励大家疯狂写规范。<em>ship-spec</em> 反而有很强的产品克制：有一套 60 分沉淀标准。复用次数、稳定性、跨模块使用、复杂度都要考虑。低分内容不要污染知识库。</p>
+      <p>质量上也很硬：规范要简明、可执行、可验证，有正确和错误示例，有检查点。还有一个边界：<strong>spec 是项目约束，Design Reference Template 是方案护栏</strong>，两者不能混用。</p>
+    </aside>
+  </section>
+
+  <section class="slide" data-title="CLI">
+    <p class="kicker">// 05 ship-spec CLI</p>
+    <h2 class="h2">CLI 的产品价值：<br><span class="accent">让规范进入执行路径</span></h2>
+    <div class="command-grid mt-l">
+      <div class="cmd-card"><code>ship-spec init</code><p>初始化 single / multi workspace 的 spec 目录。</p></div>
+      <div class="cmd-card"><code>ship-spec create</code><p>按 spec_id、type、project、stages 创建规范草稿。</p></div>
+      <div class="cmd-card"><code>ship-spec list</code><p>扫描 `.docs/spec` 下 Markdown frontmatter，按 project / stage 过滤。</p></div>
+      <div class="cmd-card"><code>ship-spec load</code><p>按 spec_id 输出 JSON / YAML / content-only，供技能阶段加载。</p></div>
+      <div class="cmd-card"><code>ship-spec validate</code><p>验证规范文件存在性和 frontmatter 一致性。</p></div>
+      <div class="cmd-card muted"><code>ship-spec migrate</code><p>兼容旧配置格式，把历史项目迁到新结构。</p></div>
+    </div>
+    <p class="footnote">实现备注：当前 `list` 已动态扫描 frontmatter；`validate` 仍依赖 `INDEX.md`，这是迁移中的边界。</p>
+    <aside class="notes">
+      <p>如果只有 skill，没有工具，规范还是很容易停留在“写过但没进流程”。所以 <strong>tools/ship-spec</strong> 的产品价值，就是让规范进入执行路径。</p>
+      <p>CLI 提供六类命令。<code>init</code> 初始化目录，支持 single 和 multi workspace。<code>create</code> 创建规范草稿。<code>list</code> 列出规范，而且实现里会递归扫描 <code>.docs/spec</code> 下的 Markdown frontmatter，再按 project 和 stage 过滤。<code>load</code> 把规范按 JSON、YAML 或正文输出，方便阶段技能加载。<code>validate</code> 做格式校验。<code>migrate</code> 处理旧配置兼容。</p>
+      <p>这里我也刻意讲一个真实边界：README 和技能目标都强调动态扫描，但当前实现里 <code>validate</code> 仍依赖 <code>INDEX.md</code>。所以这不是完美终态，而是一个正在产品化的工具链。</p>
+      <p>这个透明度很重要，因为产品设计不是包装完美，而是明确能力边界。</p>
+    </aside>
+  </section>
+
+  <section class="slide" data-title="Operating Model">
+    <p class="kicker">// 06 operating model</p>
+    <h2 class="h2">落地方式：<br>从一次 feature 交付到<span class="accent">团队知识循环</span></h2>
+    <div class="loop mt-l">
+      <div class="loop-step">
+        <span>1</span>
+        <b>交付前</b>
+        <p>orchestrator 确认 workspace scope 和 source_refs。</p>
+      </div>
+      <div class="loop-step">
+        <span>2</span>
+        <b>交付中</b>
+        <p>各阶段按 project/stage 加载 spec，grill-me 阻断关键缺口。</p>
+      </div>
+      <div class="loop-step">
+        <span>3</span>
+        <b>交付后</b>
+        <p>build 写 verification，更新 existing-features，评估是否新增规范。</p>
+      </div>
+      <div class="loop-step">
+        <span>4</span>
+        <b>下一次</b>
+        <p>新 feature 直接复用已沉淀约束，减少重复访谈和返工。</p>
+      </div>
+    </div>
+    <div class="matrix mt-l">
+      <div><span>Product KPI</span><b>少问重复问题</b></div>
+      <div><span>Engineering KPI</span><b>少做无证据改动</b></div>
+      <div><span>Quality KPI</span><b>AC 可追踪验证</b></div>
+    </div>
+    <aside class="notes">
+      <p>从产品落地看，ShipKit 不是一次性写文档，而是一个<strong>团队知识循环</strong>。</p>
+      <p>交付前，orchestrator 先确认 workspace scope 和需求来源。这个动作保证后续探索范围不会失控，也保证需求有可追溯入口。</p>
+      <p>交付中，各阶段按 project 和 stage 加载 spec。比如 Understand 更关心已有功能和业务词汇，Design 更关心 API、数据模型、前端模式，Build 更关心编码和测试约束。<em>ship-grill-me</em> 会把影响实现的缺口挡住。</p>
+      <p>交付后，Build 阶段不是停在“代码写完”，而是写 <code>verification.md</code>，逐项映射 AC；同时更新 existing-features，并按 60 分规则判断是否有新规范值得沉淀。</p>
+      <p>下一次 feature 再来，团队就少问重复问题，AI 也少做无证据改动。</p>
+    </aside>
+  </section>
+
+  <section class="slide closing" data-title="Takeaways">
+    <p class="kicker">// 07 takeaways</p>
+    <h2 class="h2">最后带走三句话</h2>
+    <div class="takeaways mt-l">
+      <div>
+        <span>01</span>
+        <b>流程不是束缚，是降噪器。</b>
+        <p>AI 越强，越需要清晰边界和阶段门禁。</p>
+      </div>
+      <div>
+        <span>02</span>
+        <b>spec 不是文档，是执行上下文。</b>
+        <p>能被 list / load / validate，才算进入交付系统。</p>
+      </div>
+      <div>
+        <span>03</span>
+        <b>可交付不是写完，是证据闭环。</b>
+        <p>requirements、design、verification 串起来，才有产品级可信度。</p>
+      </div>
+    </div>
+    <div class="final-line">ShipKit = workflow + memory + gates + proof</div>
+    <div class="deck-footer">
+      <span class="mono">Q&A · @skills/ship-spec · @tools/ship-spec</span>
+      <span class="slide-number" data-current="8" data-total="8"></span>
+    </div>
+    <aside class="notes">
+      <p>最后收一下，今天我希望大家带走三句话。</p>
+      <p>第一，<strong>流程不是束缚，是降噪器</strong>。AI 越强，越容易“顺手多做一点”，所以更需要 scope、stage gate 和 handoff。</p>
+      <p>第二，<strong>spec 不是文档，是执行上下文</strong>。如果它只能给人读，那价值有限；如果它能被 <code>list</code>、<code>load</code>、<code>validate</code> 进入技能流程，它就会影响每一次交付。</p>
+      <p>第三，<strong>可交付不是写完，是证据闭环</strong>。ShipKit 用 <code>requirements.md</code> 固定需求，用 <code>design.md</code> 固定方案，用 <code>verification.md</code> 固定验证，再用 <code>meta.yml</code> 把阶段状态串起来。</p>
+      <p>所以我会把 ShipKit 概括成四个词：workflow、memory、gates、proof。它的价值不是替你写更多代码，而是让团队更敢把 feature 交给 AI 推进。谢谢，接下来可以讨论。</p>
+    </aside>
+  </section>
+
+</div>
+
+<script src="assets/runtime.js"></script>
+</body>
+</html>

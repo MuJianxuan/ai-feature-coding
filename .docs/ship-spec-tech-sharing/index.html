@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShipKit 规范管理体系 - 技术分享</title>
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" id="theme-link" href="cyberpunk-neon.css">
+  <link rel="stylesheet" href="animations.css">
+  <style>
+    .slide {
+      padding: 3rem 4rem;
+    }
+    .highlight-box {
+      background: var(--bg-2);
+      border-left: 4px solid var(--accent-1);
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      border-radius: var(--radius-md);
+    }
+    .code-inline {
+      background: var(--bg-2);
+      padding: 0.2rem 0.6rem;
+      border-radius: var(--radius-sm);
+      font-family: 'Consolas', monospace;
+      font-size: 0.9em;
+      color: var(--accent-2);
+    }
+    .architecture-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      margin: 2rem 0;
+    }
+    .arch-card {
+      background: var(--bg-2);
+      padding: 1.5rem;
+      border-radius: var(--radius-md);
+      border: 2px solid var(--accent-1);
+    }
+  </style>
+</head>
+<body>
+  <div class="deck">
+
+    <!-- Slide 1: 封面 -->
+    <section class="slide is-active" data-anim="fade-up">
+      <h1 style="font-size: 3.5rem; margin-bottom: 1rem; text-shadow: 0 0 20px var(--accent-1);">ShipKit 规范管理体系</h1>
+      <p style="font-size: 1.8rem; color: var(--text-2); margin-bottom: 2rem;">ship-spec 技能与 CLI 工具的设计理念</p>
+      <div class="highlight-box">
+        <p style="font-size: 1.2rem; color: var(--accent-2);">让项目规范成为可执行的约束，而非被遗忘的文档</p>
+      </div>
+      <p style="position: absolute; bottom: 2rem; right: 4rem; color: var(--text-3); font-size: 0.9rem;">技术分享 · 2026</p>
+    </section>
+
+    <!-- Slide 2: 问题背景 -->
+    <section class="slide" data-anim="fade-up">
+      <h2>为什么需要规范管理？</h2>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
+        <div>
+          <h3 style="color: var(--accent-1); margin-bottom: 1rem;">❌ 常见问题</h3>
+          <ul class="anim-stagger-list" style="font-size: 1.1rem; line-height: 2;">
+            <li>规范文档写了没人看</li>
+            <li>API 风格各自为政</li>
+            <li>新人不知道项目约定</li>
+            <li>重复犯同样的错误</li>
+            <li>规范过时无人维护</li>
+          </ul>
+        </div>
+        <div>
+          <h3 style="color: var(--accent-2); margin-bottom: 1rem;">✅ 我们的目标</h3>
+          <ul class="anim-stagger-list" style="font-size: 1.1rem; line-height: 2;">
+            <li>规范是约束，不是摆设</li>
+            <li>按需加载，不是百科全书</li>
+            <li>动态索引，零合并冲突</li>
+            <li>质量门禁，防止污染</li>
+            <li>工具驱动，自动化集成</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 3: ShipKit 技能体系 -->
+    <section class="slide" data-anim="fade-up">
+      <h2>ShipKit 技能体系架构</h2>
+      <div style="text-align: center; margin: 2rem 0;">
+        <div style="background: var(--bg-2); padding: 2rem; border-radius: var(--radius-lg); border: 2px solid var(--accent-1);">
+          <pre style="font-size: 0.95rem; line-height: 1.8; color: var(--text-1); text-align: left;">┌─────────────────────────────────────────────────────┐
+│  ship-orchestrator  (编排层)                        │
+│  • 访谈需求 • 创建 feature 目录 • 阶段路由         │
+└─────────────────────────────────────────────────────┘
+            ↓                ↓                ↓
+  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+  │ Understand   │→ │   Design     │→ │    Build     │
+  │ 需求分析     │  │   技术设计   │  │   实现验证   │
+  └──────────────┘  └──────────────┘  └──────────────┘
+         ↓                  ↓                  ↓
+  ┌─────────────────────────────────────────────────┐
+  │  ship-spec (规范管理) + ship-grill-me (质询)   │
+  │  贯穿全程：按阶段加载规范 + 对抗式审查          │
+  └─────────────────────────────────────────────────┘</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 4: ship-spec 核心设计理念 -->
+    <section class="slide" data-anim="fade-up">
+      <h2>ship-spec 核心设计理念</h2>
+      <div class="architecture-grid">
+        <div class="arch-card">
+          <h3 style="color: var(--accent-1); margin-bottom: 0.5rem;">💡 按需加载</h3>
+          <p>不是百科全书，按阶段（Understand/Design/Build）和项目加载所需规范</p>
+        </div>
+        <div class="arch-card">
+          <h3 style="color: var(--accent-2); margin-bottom: 0.5rem;">🔍 动态索引</h3>
+          <p>零合并冲突：扫描 frontmatter 动态生成索引，无需维护中心文件</p>
+        </div>
+        <div class="arch-card">
+          <h3 style="color: var(--accent-1); margin-bottom: 0.5rem;">🎯 质量门禁</h3>
+          <p>60分评分标准：低分规范不入库，防止知识库污染</p>
+        </div>
+      </div>
+      <div class="highlight-box" style="margin-top: 2rem;">
+        <h3 style="margin-bottom: 1rem;">设计原则</h3>
+        <ul style="font-size: 1.1rem; line-height: 2;">
+          <li><strong>单一数据源</strong>：<span class="code-inline">meta.yml</span> + <span class="code-inline">frontmatter</span> 是唯一事实</li>
+          <li><strong>工具驱动</strong>：<span class="code-inline">ship-spec CLI</span> 自动化规范管理</li>
+          <li><strong>项目优先</strong>：项目规范 > 通用规范 > AI 默认习惯</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Slide 5: 规范采集标准 -->
+    <section class="slide" data-anim="fade-up">
+      <h2>规范采集标准：60 分评分机制</h2>
+      <div style="background: var(--bg-2); padding: 2rem; border-radius: var(--radius-lg); margin: 2rem 0;">
+        <h3 style="color: var(--accent-1); margin-bottom: 1rem;">评分标准（≥ 60 分才建议新增）</h3>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem;">
+          <div style="background: var(--bg-1); padding: 1.5rem; border-radius: var(--radius-md);">
+            <h4 style="color: var(--accent-2);">✅ 复用次数 ≥ 3：+40 分</h4>
+            <p style="color: var(--text-2); margin-top: 0.5rem;">多次复用才值得沉淀</p>
+          </div>
+          <div style="background: var(--bg-1); padding: 1.5rem; border-radius: var(--radius-md);">
+            <h4 style="color: var(--accent-2);">✅ 模式稳定：+30 分</h4>
+            <p style="color: var(--text-2); margin-top: 0.5rem;">6 个月内不会变化</p>
+          </div>
+          <div style="background: var(--bg-1); padding: 1.5rem; border-radius: var(--radius-md);">
+            <h4 style="color: var(--accent-2);">✅ 跨模块使用：+20 分</h4>
+            <p style="color: var(--text-2); margin-top: 0.5rem;">被多个模块/团队使用</p>
+          </div>
+          <div style="background: var(--bg-1); padding: 1.5rem; border-radius: var(--radius-md);">
+            <h4 style="color: var(--accent-2);">✅ 中高复杂度：+10 分</h4>
+            <p style="color: var(--text-2); margin-top: 0.5rem;">有一定复杂度，非显而易见</p>
+          </div>
+        </div>
+      </div>
+      <div class="highlight-box">
+        <p style="font-size: 1.2rem; color: var(--accent-1);">💡 原则：低分就别污染知识库。现实里最烂的规范库就是没人敢删、没人会读。</p>
+      </div>
+    </section>
+
+    <!-- Slide 6: 对抗式审查机制 -->
+    <section class="slide" data-anim="fade-up">
+      <h2>对抗式审查清单</h2>
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-top: 1.5rem;">
+        <div>
+          <h3 style="color: var(--accent-1); margin-bottom: 1rem;">✅ 必要性检查</h3>
+          <ul style="font-size: 1rem; line-height: 1.8;">
+            <li>复用次数 ≥ 3 次？</li>
+            <li>模式稳定（未来 6 个月）？</li>
+            <li>跨模块使用？</li>
+            <li>有一定复杂度？</li>
+          </ul>
+          <h3 style="color: var(--accent-2); margin: 1rem 0 0.5rem;">✅ 完整性检查</h3>
+          <ul style="font-size: 1rem; line-height: 1.8;">
+            <li>frontmatter 完整</li>
+            <li>有适用场景</li>
+            <li>有核心约束</li>
+            <li>有具体示例</li>
+          </ul>
+        </div>
+        <div>
+          <h3 style="color: var(--accent-1); margin-bottom: 1rem;">✅ 简洁性检查</h3>
+          <ul style="font-size: 1rem; line-height: 1.8;">
+            <li>规范内容 ≤ 200 行</li>
+            <li>只写约束，不写实现</li>
+            <li>与现有规范无重复</li>
+            <li>每句话都有价值</li>
+          </ul>
+          <h3 style="color: var(--accent-2); margin: 1rem 0 0.5rem;">✅ 安全性检查</h3>
+          <ul style="font-size: 1rem; line-height: 1.8;">
+            <li>无敏感信息（密码/token/密钥）</li>
+            <li>无生产数据</li>
+            <li>只描述来源</li>
+          </ul>
+        </div>
+      </div>
+      <div class="highlight-box" style="margin-top: 1.5rem;">
+        <p style="font-size: 1.1rem;"><strong>审查结论：</strong></p>
+        <p>✅ <strong>APPROVED</strong> - 所有检查通过 | ❌ <strong>REJECTED</strong> - 必须修复 | ⚠️ <strong>NEEDS IMPROVEMENT</strong> - 建议改进</p>
+      </div>
+    </section>
+
+    <!-- Slide 7: ship-spec CLI 工具 -->
+    <section class="slide" data-anim="fade-up">
+      <h2>ship-spec CLI 工具</h2>
+      <div style="background: var(--bg-2); padding: 2rem; border-radius: var(--radius-lg);">
+        <h3 style="color: var(--accent-1); margin-bottom: 1rem;">安装</h3>
+        <pre style="background: var(--bg-1); padding: 1rem; border-radius: var(--radius-md); font-size: 1rem;"><code>npm install -g @shipkit/spec-cli
+ship-spec -h</code></pre>
+        
+        <h3 style="color: var(--accent-2); margin: 1.5rem 0 1rem;">基本命令</h3>
+        <pre style="background: var(--bg-1); padding: 1rem; border-radius: var(--radius-md); font-size: 0.95rem; line-height: 1.8;"><code># 初始化目录
+ship-spec init --mode multi --projects web,api
+
+# 创建规范
+ship-spec create rest-api -t backend -d "REST API 设计规范"
+
+# 列出规范（动态扫描 frontmatter）
+ship-spec list --stage design --format json
+
+# 加载规范
+ship-spec load rest-api --content-only
+
+# 验证规范
+ship-spec validate --all --strict</code></pre>
+      </div>
+    </section>
+
+    <!-- Slide 8: 目录结构 -->
+    <section class="slide" data-anim="fade-up">
+      <h2>目录结构与工作模式</h2>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
+        <div>
+          <h3 style="color: var(--accent-1); margin-bottom: 1rem;">单项目模式 (single)</h3>
+          <pre style="background: var(--bg-2); padding: 1.5rem; border-radius: var(--radius-md); font-size: 0.9rem; line-height: 1.6;"><code>.docs/spec/
+├── frontend/
+│   ├── component-patterns.md
+│   └── ui-standards.md
+├── backend/
+│   ├── rest-api-standard.md
+│   └── error-handling.md
+└── shared/
+    ├── tech-stack.md
+    ├── naming-conventions.md
+    └── existing-features.md</code></pre>
+        </div>
+        <div>
+          <h3 style="color: var(--accent-2); margin-bottom: 1rem;">多项目模式 (multi)</h3>
+          <pre style="background: var(--bg-2); padding: 1.5rem; border-radius: var(--radius-md); font-size: 0.9rem; line-height: 1.6;"><code>.docs/spec/
+├── _shared/
+│   ├── tech-stack.md
+│   └── error-codes.md
+├── web/
+│   ├── frontend/
+│   │   └── component-patterns.md
+│   └── existing-features.md
+└── api/
+    ├── backend/
+    │   └── rest-api-standard.md
+    └── existing-features.md</code></pre>
+        </div>
+      </div>
+      <div class="highlight-box" style="margin-top: 1.5rem;">
+        <p style="font-size: 1.1rem;">🔑 <strong>配置文件</strong>：<span class="code-inline">.docs/ship/project.yml</span> 定义 <span class="code-inline">mode: single</span> 或 <span class="code-inline">mode: multi</span></p>
+      </div>
+    </section>
+
+    <!-- Slide 9: 实战案例 -->
+    <section class="slide" data-anim="fade-up">
+      <h2>实战案例：REST API 规范</h2>
+      <div style="background: var(--bg-2); padding: 2rem; border-radius: var(--radius-lg);">
+        <pre style="background: var(--bg-1); padding: 1.5rem; border-radius: var(--radius-md); font-size: 0.9rem; line-height: 1.7;"><code>---
+spec_id: rest-api-standard
+description: REST API 设计规范
+stages: [design, build]
+projects: [all]
+tags: [api, rest, backend]
+status: active
+---
+
+# REST API 设计规范
+
+## 适用场景
+- 设计新的 REST API
+- 审查现有 API
+
+## 核心约束
+### 必须做
+- 使用 RESTful 资源命名
+- 统一错误格式
+- 版本化（/api/v1/）
+
+### 禁止做
+- 不在 URL 中使用动词
+- 不返回裸数据
+
+## 示例
+✅ GET /api/v1/users/123
+❌ GET /api/v1/getUser?id=123
+
+## 检查点
+- [ ] URL 使用名词复数
+- [ ] 错误响应包含 code/message
+- [ ] 有版本号</code></pre>
+      </div>
+    </section>
+
+    <!-- Slide 10: 技术亮点 -->
+    <section class="slide" data-anim="fade-up">
+      <h2>技术亮点总结</h2>
+      <div class="architecture-grid" style="grid-template-columns: repeat(2, 1fr);">
+        <div class="arch-card">
+          <h3 style="color: var(--accent-1); margin-bottom: 1rem;">🎯 零合并冲突</h3>
+          <p>动态扫描 frontmatter 生成索引，无需中心文件，多人协作零冲突</p>
+        </div>
+        <div class="arch-card">
+          <h3 style="color: var(--accent-2); margin-bottom: 1rem;">🔍 按需加载</h3>
+          <p>按阶段（Understand/Design/Build）和项目过滤，只加载所需规范</p>
+        </div>
+        <div class="arch-card">
+          <h3 style="color: var(--accent-1); margin-bottom: 1rem;">⚖️ 60 分评分</h3>
+          <p>科学评估规范价值，防止低质量规范污染知识库</p>
+        </div>
+        <div class="arch-card">
+          <h3 style="color: var(--accent-2); margin-bottom: 1rem;">✅ 对抗式审查</h3>
+          <p>5 大类检查清单，确保规范可交付、可执行</p>
+        </div>
+      </div>
+      <div class="highlight-box" style="margin-top: 2rem;">
+        <h3 style="margin-bottom: 1rem;">🚀 与 ShipKit 集成</h3>
+        <p style="font-size: 1.1rem; line-height: 1.8;">
+          ship-spec 贯穿 <strong>ship-understand</strong>、<strong>ship-design</strong>、<strong>ship-build</strong> 全流程，
+          与 <strong>ship-grill-me</strong> 质询助手配合，实现规范驱动开发。
+        </p>
+      </div>
+    </section>
+
+    <!-- Slide 11: 总结 -->
+    <section class="slide" data-anim="fade-up">
+      <h2>总结</h2>
+      <div style="margin-top: 2rem;">
+        <div class="highlight-box">
+          <h3 style="color: var(--accent-1); margin-bottom: 1rem;">核心价值</h3>
+          <ul style="font-size: 1.3rem; line-height: 2.2;">
+            <li>📚 <strong>规范是约束，不是摆设</strong> — 可执行、可验证</li>
+            <li>🧠 <strong>质量门禁</strong> — 60 分评分 + 对抗式审查</li>
+            <li>⚙️ <strong>工具驱动</strong> — CLI 自动化，零手动维护</li>
+            <li>🔗 <strong>流程集成</strong> — 深度集成 ShipKit 开发体系</li>
+          </ul>
+        </div>
+        <div style="text-align: center; margin-top: 3rem;">
+          <p style="font-size: 2rem; color: var(--accent-2); text-shadow: 0 0 15px var(--accent-2);">让项目规范成为真正的约束力</p>
+          <p style="font-size: 1.2rem; color: var(--text-3); margin-top: 1rem;">而非被遗忘在角落的文档</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 12: Q&A -->
+    <section class="slide" data-anim="fade-up">
+      <div style="display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column;">
+        <h1 style="font-size: 4rem; margin-bottom: 2rem; text-shadow: 0 0 30px var(--accent-1);">Q & A</h1>
+        <p style="font-size: 1.5rem; color: var(--text-2);">感谢倾听！</p>
+        <div style="margin-top: 3rem; text-align: center;">
+          <p style="font-size: 1.1rem; color: var(--text-3);">📦 GitHub: <span class="code-inline">@shipkit/spec-cli</span></p>
+          <p style="font-size: 1.1rem; color: var(--text-3); margin-top: 0.5rem;">📚 文档: skills/ship-spec/SKILL.md</p>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="deck-footer">
+    <span class="footer-title">ShipKit 规范管理体系</span>
+    <span class="slide-number"></span>
+  </div>
+  <div class="progress-bar"></div>
+
+  <script src="runtime.js"></script>
+</body>
+</html>
